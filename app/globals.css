@@ -211,3 +211,133 @@ body { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; font-size:
   .app-sidebar { width: min(290px, 84vw); }
   .app-main { margin-left: 0; }
 }
+
+/* ============================================================
+   Pass 1 polish — readable type, comfortable targets, tablet drawer.
+   Loaded last so these UI-only overrides win the cascade without
+   touching any server action, data flow, or issued-invoice history.
+   ============================================================ */
+
+/* Accessibility utilities and high-contrast focus rings */
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible, [tabindex="-1"]:focus-visible {
+  outline: 3px solid var(--jt-teal-dark);
+  outline-offset: 2px;
+}
+.app-sidebar a:focus-visible, .app-sidebar button:focus-visible { outline-color: var(--jt-teal-on-dark); }
+.search-box:focus-within { border-color: var(--jt-teal); box-shadow: 0 0 0 3px rgb(18 184 166 / 18%); }
+.search-box input:focus-visible, .auth-form input:focus-visible, .modal-form input:focus-visible, .modal-form select:focus-visible, .report-filter select:focus-visible {
+  outline: 3px solid var(--jt-teal-dark);
+  outline-offset: 2px;
+}
+
+/* Comfortable pointer targets (44px minimum where compatible) */
+.nav-item, .icon-button, .profile-more, .row-action, .topbar-user, .panel-link, .subtle-select,
+.text-button, .help-card button, .trust-panel button, .primary-button, .button-secondary,
+.search-box, .filter-select, .modal-form input, .modal-form select, .report-filter select {
+  min-height: 44px;
+}
+.row-action, .icon-button, .profile-more, .topbar-user { min-width: 44px; }
+.topbar-user { justify-content: center; }
+.text-button, .help-card button, .trust-panel button { display: inline-flex; align-items: center; }
+@media (pointer: coarse) {
+  .reveal-password { width: 44px; height: 44px; }
+  .toast-message>button { width: 44px; height: 44px; }
+  .receipt-toolbar .button-secondary, .heading-actions .primary-button { min-height: 44px; }
+}
+
+/* Readability floor — no meaningful text below 10px */
+body { font-size: 14px; line-height: 1.55; }
+.eyebrow, .auth-topline, .auth-security, .auth-footer, .auth-config-warning { font-size: 11px; }
+.nav-group-label, .nav-count, .workspace-label small, .panel-eyebrow, .metric-top, .metric-note,
+.chart-y-labels, .chart-column, .chart-foot, .customer-list-item small, .setting-rows span,
+.setting-rows strong, .audit-list small, .form-footnote, .field-hint, .receipt-brand small { font-size: 10px; }
+.workspace-label strong, .help-card strong, .profile-copy strong, .small-avatar, .page-kicker,
+.page-heading p, .secure-indicator, .help-card p, .help-card button, .profile-copy small,
+.customer-list-item strong, .customer-avatar, .trust-panel h3, .trust-panel p, .trust-panel button,
+.module-banner p, .empty-rows, .empty-panel p, .report-filter label, .module-card p,
+.audit-list strong, .modal-form input, .modal-form select, .toast-message,
+.receipt-details dt, .receipt-details dd, .receipt-title>span:first-child, .receipt-amount small,
+.data-table thead th, .status-pill { font-size: 11px; }
+.module-banner strong, .customer-cell strong, .invoice-number, .amount-col strong,
+.data-table tbody td, .search-box input, .filter-select, .report-filter select, .form-error { font-size: 12px; }
+.quick-copy strong { font-size: 11px; }
+.quick-copy small, .receipt-foot { font-size: 10px; }
+.metric-value { font-size: clamp(18px, 1.65vw, 24px); }
+.module-card h2 { font-size: 20px; }
+.page-heading h1 { font-size: 28px; }
+
+/* Spacing rhythm — normalize to an 8px-based scale */
+.page-content { padding: 32px 40px 48px; }
+.metric-grid { gap: 16px; margin-bottom: 16px; }
+.metric-card { padding: 16px; }
+.dashboard-grid, .bottom-grid { gap: 16px; margin-bottom: 16px; }
+.trend-panel, .action-panel, .customer-panel { padding: 20px; }
+.invoice-panel { margin-bottom: 16px; padding: 20px 20px 0; }
+.chart-area { height: 128px; }
+.quick-actions { gap: 8px; margin-top: 16px; }
+.data-table thead th { padding: 12px; }
+.table-toolbar { gap: 8px; margin: 0 0 16px; }
+.module-banner { gap: 16px; margin-bottom: 16px; padding: 16px; }
+.empty-panel { margin-top: 32px; padding: 48px 24px; }
+.report-card-grid { gap: 16px; margin-bottom: 16px; }
+.setting-rows { gap: 16px; margin-top: 24px; padding-top: 16px; }
+.app-sidebar .brand-lockup { padding: 4px 8px 20px; margin-bottom: 20px; }
+.workspace-switch { margin-bottom: 24px; padding: 12px; }
+.nav-group { margin-bottom: 24px; }
+.modal-card { padding: 24px; }
+.modal-form, .auth-form { gap: 16px; }
+.modal-actions { gap: 8px; padding-top: 16px; }
+.toast-message { right: 24px; bottom: 24px; padding: 12px 16px; }
+.receipt-document { padding: 24px; }
+.receipt-amount { padding: 16px; }
+.auth-heading { margin-bottom: 32px; }
+.auth-switch { margin-top: 24px; }
+.auth-security { margin-top: 32px; }
+.auth-brand-panel { padding: 40px 48px; }
+.auth-form-panel { padding: 64px 24px 24px; }
+
+/* Tablet drawer: the fixed rail becomes collapsible between 761px and 1023px */
+@media (min-width: 761px) and (max-width: 1023px) {
+  .app-sidebar { z-index: 21; width: min(290px, 84vw); transform: translateX(-105%); transition: transform .22s ease; box-shadow: none; }
+  .app-sidebar.sidebar-open { transform: translateX(0); box-shadow: 15px 0 50px rgb(16 36 58 / 15%); }
+  .sidebar-scrim { position: fixed; z-index: 20; inset: 0; display: block; width: 100%; border: 0; background: rgb(10 25 42 / 34%); }
+  .app-main { margin-left: 0; }
+  .mobile-menu { display: inline-grid; }
+  .topbar { padding: 0 24px; }
+  .page-content { padding-right: 24px; padding-left: 24px; }
+}
+
+/* Small-screen rhythm corrections (after the base mobile media query) */
+@media (max-width: 760px) {
+  .topbar { height: 56px; }
+  .page-content { padding: 24px 16px 40px; }
+  .page-heading { margin-bottom: 20px; }
+  .page-kicker { font-size: 10px; }
+  .metric-grid { gap: 8px; }
+  .metric-card { padding: 12px; }
+  .metric-note { font-size: 10px; }
+  .metric-top { font-size: 10px; }
+  .quick-actions { gap: 8px; }
+  .quick-action { gap: 8px; padding: 8px; }
+  .quick-copy strong { font-size: 11px; }
+  .quick-copy small { font-size: 10px; }
+  .data-table thead th, .data-table tbody td { padding-right: 8px; padding-left: 8px; }
+  .subtle-select { font-size: 10px; }
+  .modal-card { padding: 20px 16px calc(16px + env(safe-area-inset-bottom)); }
+}
+
+/* Loading and error states */
+@keyframes jt-pulse { 0%, 100% { opacity: .55; } 50% { opacity: 1; } }
+.skeleton-card { display: flex; flex-direction: column; gap: 12px; min-height: 112px; }
+.skeleton-line, .skeleton-block { border-radius: 6px; background: #E8EEF4; animation: jt-pulse 1.4s ease-in-out infinite; }
+.skeleton-line { height: 12px; }
+.skeleton-line-short { width: 45%; }
+.skeleton-line-value { width: 70%; height: 24px; }
+.skeleton-line-note { width: 60%; }
+.skeleton-line-heading { width: 40%; }
+.skeleton-block { min-height: 140px; }
+.error-panel { max-width: 640px; margin: 48px auto; }
+.error-panel .empty-icon { color: var(--destructive); background: #FDECEC; }
+.error-panel h1 { font-size: 22px; }
+@media (prefers-reduced-motion: reduce) { .skeleton-line, .skeleton-block { animation: none; } }
