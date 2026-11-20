@@ -6,7 +6,12 @@ const previewOrigin = 'https://jithub-teq-management-system.v0.build'
 
 export const auth = betterAuth({
   database: pool,
-  baseURL: process.env.BETTER_AUTH_URL ?? origin(process.env.VERCEL_PROJECT_PRODUCTION_URL) ?? origin(process.env.VERCEL_URL) ?? process.env.V0_RUNTIME_URL ?? (process.env.NODE_ENV === 'development' ? previewOrigin : undefined),
+  baseURL: process.env.BETTER_AUTH_URL
+    ?? (process.env.VERCEL_ENV === 'preview' ? origin(process.env.VERCEL_URL) : undefined)
+    ?? origin(process.env.VERCEL_PROJECT_PRODUCTION_URL)
+    ?? origin(process.env.VERCEL_URL)
+    ?? process.env.V0_RUNTIME_URL
+    ?? (process.env.NODE_ENV === 'development' ? previewOrigin : undefined),
   emailAndPassword: { enabled: true, autoSignIn: true },
   trustedOrigins: [
     ...(process.env.NODE_ENV === 'development' ? [
