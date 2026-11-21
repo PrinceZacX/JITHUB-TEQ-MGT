@@ -7,21 +7,8 @@ export const metadata: Metadata = {
   description: 'A secure workspace for invoices, receipts, customer accounts and business reporting.',
   generator: 'JITHUB-TEQ',
   icons: {
-    icon: [
-      {
-        url: '/icon-light-32x32.png',
-        media: '(prefers-color-scheme: light)',
-      },
-      {
-        url: '/icon-dark-32x32.png',
-        media: '(prefers-color-scheme: dark)',
-      },
-      {
-        url: '/icon.svg',
-        type: 'image/svg+xml',
-      },
-    ],
-    apple: '/apple-icon.png',
+    icon: '/jithub-teq-logo.png',
+    apple: '/jithub-teq-logo.png',
   },
 }
 
