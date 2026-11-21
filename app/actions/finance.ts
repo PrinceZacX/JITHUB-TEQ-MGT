@@ -20,6 +20,17 @@ function money(value: string) {
   return Number(whole) * 100 + Number(fraction.padEnd(2, '0'))
 }
 
+function scaledDecimal(value: string, scale: number, label: string) {
+  const pattern = new RegExp(`^\\d{1,7}(?:\\.\\d{1,${scale}})?$`)
+  if (!pattern.test(value)) throw new Error(`${label} supports up to ${scale} decimal places.`)
+  const [whole, fraction = ''] = value.split('.')
+  return BigInt(whole) * 10n ** BigInt(scale) + BigInt(fraction.padEnd(scale, '0') || '0')
+}
+
+function formatCents(cents: bigint) {
+  return `${cents / 100n}.${String(cents % 100n).padStart(2, '0')}`
+}
+
 function isValidDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const [year, month, day] = value.split('-').map(Number)
@@ -40,7 +51,7 @@ export async function getDashboardData() {
   }).from(invoices).where(eq(invoices.userId, userId))
   const trend = await db.select({ month: sql<string>`to_char(date_trunc('month', ${payments.paidAt}::date), 'Mon')`, amount: sql<string>`coalesce(sum(${payments.amount}), 0)` }).from(payments).where(and(eq(payments.userId, userId), sql`${payments.paidAt}::date >= date_trunc('month', current_date) - interval '5 months'`)).groupBy(sql`date_trunc('month', ${payments.paidAt}::date)`).orderBy(sql`date_trunc('month', ${payments.paidAt}::date)`)
   const recentInvoices = await db.select({ id: invoices.id, number: invoices.number, total: invoices.total, amountPaid: invoices.amountPaid, status: sql<string>`case when ${invoices.status} in ('issued','partially_paid','overdue') and ${invoices.dueDate} < current_date and ${invoices.amountPaid} < ${invoices.total} then 'overdue' else ${invoices.status} end`, issueDate: invoices.issueDate, dueDate: invoices.dueDate, customer: customers.name }).from(invoices).innerJoin(customers, and(eq(invoices.customerId, customers.id), eq(customers.userId, userId))).where(eq(invoices.userId, userId)).orderBy(desc(invoices.createdAt)).limit(50)
-  const recentCustomers = await db.select({ id: customers.id, name: customers.name, email: customers.email, phone: customers.phone, createdAt: customers.createdAt }).from(customers).where(eq(customers.userId, userId)).orderBy(desc(customers.createdAt)).limit(100)
+  const recentCustomers = await db.select({ id: customers.id, name: customers.name, email: customers.email, phone: customers.phone, address: customers.address, createdAt: customers.createdAt }).from(customers).where(eq(customers.userId, userId)).orderBy(desc(customers.createdAt)).limit(100)
   const recentReceipts = await db.select({ id: receipts.id, number: receipts.number, amount: payments.amount, method: payments.method, paidAt: payments.paidAt, reference: payments.reference, customer: customers.name }).from(receipts).innerJoin(payments, and(eq(receipts.paymentId, payments.id), eq(payments.userId, userId))).innerJoin(customers, and(eq(payments.customerId, customers.id), eq(customers.userId, userId))).where(eq(receipts.userId, userId)).orderBy(desc(receipts.issuedAt)).limit(100)
   const recentExpenses = await db.select({ id: expenses.id, category: expenses.category, payee: expenses.payee, description: expenses.description, method: expenses.method, paidAt: expenses.paidAt, amount: expenses.amount }).from(expenses).where(eq(expenses.userId, userId)).orderBy(desc(expenses.paidAt)).limit(100)
   const catalogue = await db.select({ id: catalogueItems.id, name: catalogueItems.name, description: catalogueItems.description, unitPrice: catalogueItems.unitPrice, status: catalogueItems.status }).from(catalogueItems).where(eq(catalogueItems.userId, userId)).orderBy(desc(catalogueItems.createdAt)).limit(500)
@@ -65,19 +76,40 @@ export async function getFinancialReport(days: '30' | '90' | '365' | 'all') {
   return { startDate: days === 'all' ? null : startDate, invoiced: invoiceSummary.invoiced, outstanding: invoiceSummary.outstanding, received: paymentSummary.received, invoices: invoiceRows, payments: paymentRows, expenses: expenseRows }
 }
 
-export async function createCustomer(input: { name: string; email: string; phone: string; address: string }) {
-  const userId = await requireUser()
+function validateCustomerInput(input: { name: string; email: string; phone: string; address: string }) {
   const name = input.name.trim()
   const email = input.email.trim()
+  const phone = input.phone.trim()
+  const address = input.address.trim()
   if (name.length < 2 || name.length > 160) throw new Error('Customer name must be between 2 and 160 characters.')
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Enter a valid email address.')
+  if (phone.length > 80 || address.length > 500) throw new Error('Customer phone or address is too long.')
+  return { name, email: email || null, phone: phone || null, address: address || null }
+}
+
+export async function createCustomer(input: { name: string; email: string; phone: string; address: string }) {
+  const userId = await requireUser()
+  const values = validateCustomerInput(input)
   const id = randomUUID()
   await db.transaction(async (tx) => {
-    await tx.insert(customers).values({ id, userId, name, email: email || null, phone: input.phone.trim() || null, address: input.address.trim() || null })
+    await tx.insert(customers).values({ id, userId, ...values })
     await tx.insert(auditLogs).values({ id: randomUUID(), userId, action: 'customer.created', entityType: 'customer', entityId: id })
   })
   revalidatePath('/')
   return { id }
+}
+
+export async function updateCustomer(input: { id: string; name: string; email: string; phone: string; address: string }) {
+  const userId = await requireUser()
+  const values = validateCustomerInput(input)
+  await db.transaction(async (tx) => {
+    const [existing] = await tx.select({ id: customers.id }).from(customers).where(and(eq(customers.id, input.id), eq(customers.userId, userId))).limit(1).for('update')
+    if (!existing) throw new Error('Customer not found in your account.')
+    await tx.update(customers).set(values).where(and(eq(customers.id, input.id), eq(customers.userId, userId)))
+    await tx.insert(auditLogs).values({ id: randomUUID(), userId, action: 'customer.updated', entityType: 'customer', entityId: input.id })
+  })
+  revalidatePath('/')
+  return { id: input.id }
 }
 
 export async function createInvoice(input: { customerId: string; description: string; quantity: string; unitPrice: string; taxRate: string; dueDate: string; status: 'draft' | 'issued' }) {
@@ -85,24 +117,27 @@ export async function createInvoice(input: { customerId: string; description: st
   const [customer] = await db.select({ id: customers.id }).from(customers).where(and(eq(customers.id, input.customerId), eq(customers.userId, userId))).limit(1)
   if (!customer) throw new Error('Select a customer in your account.')
   const description = input.description.trim()
-  const quantity = Number(input.quantity)
-  const taxRate = Number(input.taxRate)
   if (!description || description.length > 200) throw new Error('Add a description of up to 200 characters.')
-  if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1000000) throw new Error('Quantity must be greater than zero.')
-  if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) throw new Error('Tax rate must be between 0 and 100 percent.')
+  const quantityMilli = scaledDecimal(input.quantity, 3, 'Quantity')
+  const taxRateBasisPoints = scaledDecimal(input.taxRate, 4, 'Tax rate')
+  if (quantityMilli <= 0n || quantityMilli > 1_000_000_000n) throw new Error('Quantity must be greater than zero and no more than 1,000,000.')
+  if (taxRateBasisPoints > 1_000_000n) throw new Error('Tax rate must be between 0 and 100 percent.')
   if (!isValidDate(input.dueDate)) throw new Error('Choose a valid due date.')
   if (input.status !== 'draft' && input.status !== 'issued') throw new Error('Choose whether to save a draft or issue the invoice.')
-  const unitCents = money(input.unitPrice)
-  const subCents = Math.round(unitCents * quantity)
-  const taxCents = Math.round(subCents * taxRate / 100)
-  if (!Number.isSafeInteger(subCents + taxCents)) throw new Error('Invoice total is too large.')
+  const unitCents = BigInt(money(input.unitPrice))
+  const subtotalCents = (unitCents * quantityMilli + 500n) / 1000n
+  const taxCents = (subtotalCents * taxRateBasisPoints + 500_000n) / 1_000_000n
+  const totalCents = subtotalCents + taxCents
+  if (totalCents > 999_999_999_999_999_999n) throw new Error('Invoice total is too large.')
   const now = new Date()
   const id = randomUUID()
   const number = `INV-${now.getFullYear()}-${randomUUID().slice(0, 8).toUpperCase()}`
-  const format = (cents: number) => (cents / 100).toFixed(2)
+  const subtotal = formatCents(subtotalCents)
+  const taxAmount = formatCents(taxCents)
+  const total = formatCents(totalCents)
   await db.transaction(async (tx) => {
-    await tx.insert(invoices).values({ id, userId, customerId: customer.id, number, status: input.status, issueDate: now.toISOString().slice(0, 10), dueDate: input.dueDate, subtotal: format(subCents), taxAmount: format(taxCents), total: format(subCents + taxCents) })
-    await tx.insert(invoiceItems).values({ id: randomUUID(), invoiceId: id, description, quantity: String(quantity), unitPrice: format(unitCents), taxRate: taxRate.toFixed(4), lineTotal: format(subCents + taxCents) })
+    await tx.insert(invoices).values({ id, userId, customerId: customer.id, number, status: input.status, issueDate: now.toISOString().slice(0, 10), dueDate: input.dueDate, subtotal, taxAmount, total })
+    await tx.insert(invoiceItems).values({ id: randomUUID(), invoiceId: id, description, quantity: (Number(quantityMilli) / 1000).toFixed(3), unitPrice: formatCents(unitCents), taxRate: (Number(taxRateBasisPoints) / 10000).toFixed(4), lineTotal: total })
     await tx.insert(auditLogs).values({ id: randomUUID(), userId, action: input.status === 'draft' ? 'invoice.draft_created' : 'invoice.issued', entityType: 'invoice', entityId: id, details: { number } })
   })
   revalidatePath('/')
