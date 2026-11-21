@@ -37,7 +37,7 @@ export function PasswordResetForm({ token }: { token?: string }) {
 
   return <main className="auth-screen">
     <section className="auth-brand-panel">
-      <a className="brand-lockup brand-lockup-light" href="/" aria-label="JITHUB-TEQ home"><span className="brand-mark">J</span><span>JITHUB<span className="brand-dash">-</span>TEQ</span></a>
+      <a className="brand-lockup brand-lockup-light" href="/" aria-label="JITHUB-TEQ home"><img className="brand-logo" src="/jithub-teq-logo.png" alt="JITHUB-TEQ — Beyond Technology, We Build Trust" /></a>
       <div className="auth-brand-copy"><span className="eyebrow">ACCOUNT SECURITY</span><h1>Protect your<br/>business<br/><em>access.</em></h1><p>Choose a strong password to secure your financial workspace.</p></div>
       <div className="trust-note"><ShieldCheck size={17}/><span>Secure, private business workspace</span></div>
     </section>

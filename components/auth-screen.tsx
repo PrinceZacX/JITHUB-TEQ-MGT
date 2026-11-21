@@ -55,7 +55,7 @@ export function AuthScreen({ authAvailable }: { authAvailable: boolean }) {
 
   return <main className="auth-screen">
     <section className="auth-brand-panel">
-      <a className="brand-lockup brand-lockup-light" href="/" aria-label="JITHUB-TEQ home"><span className="brand-mark">J</span><span>JITHUB<span className="brand-dash">-</span>TEQ</span></a>
+      <a className="brand-lockup brand-lockup-light" href="/" aria-label="JITHUB-TEQ home"><img className="brand-logo" src="/jithub-teq-logo.png" alt="JITHUB-TEQ — Beyond Technology, We Build Trust" /></a>
       <div className="auth-brand-copy"><span className="eyebrow">FINANCE, WITH CLARITY</span><h1>Make every<br/>transaction<br/><em>count.</em></h1><p>One clear view of your invoices, payments and the people behind them.</p></div>
       <div className="trust-note"><ShieldCheck size={17}/><span>Secure, private business workspace</span></div>
       <div className="auth-orbit orbit-one"/><div className="auth-orbit orbit-two"/>
