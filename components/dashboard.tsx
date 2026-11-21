@@ -13,7 +13,7 @@ type CatalogueItem = Data['catalogue'][number]
 const navigation: { label: Section; icon: typeof LayoutDashboard; group: string }[] = [
   { label: 'Dashboard', icon: LayoutDashboard, group: 'WORKSPACE' }, { label: 'Invoices', icon: FileText, group: 'WORKSPACE' }, { label: 'Payments', icon: CreditCard, group: 'WORKSPACE' }, { label: 'Receipts', icon: ReceiptText, group: 'WORKSPACE' }, { label: 'Customers', icon: Users, group: 'WORKSPACE' }, { label: 'Products & services', icon: Package, group: 'MANAGE' }, { label: 'Expenses', icon: WalletCards, group: 'MANAGE' }, { label: 'Reports', icon: Activity, group: 'MANAGE' }, { label: 'Notifications', icon: Bell, group: 'ADMINISTRATION' }, { label: 'User management', icon: ShieldCheck, group: 'ADMINISTRATION' }, { label: 'Audit logs', icon: FileClock, group: 'ADMINISTRATION' }, { label: 'Settings', icon: Settings2, group: 'ADMINISTRATION' },
 ]
-const money = (value: string | number) => `UGX ${new Intl.NumberFormat('en-UG', { maximumFractionDigits: 0 }).format(Number(value || 0))}`
+const money = (value: string | number) => `UGX ${new Intl.NumberFormat('en-UG', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(Number(value || 0))}`
 const titleCase = (value: string) => value.replaceAll('_', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
 const localISODate = (date: Date) => new Date(date.getTime() - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
 const todayISO = () => localISODate(new Date())

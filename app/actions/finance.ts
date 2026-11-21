@@ -20,6 +20,17 @@ function money(value: string) {
   return Number(whole) * 100 + Number(fraction.padEnd(2, '0'))
 }
 
+function scaledDecimal(value: string, scale: number, label: string) {
+  const pattern = new RegExp(`^\\d{1,7}(?:\\.\\d{1,${scale}})?$`)
+  if (!pattern.test(value)) throw new Error(`${label} supports up to ${scale} decimal places.`)
+  const [whole, fraction = ''] = value.split('.')
+  return BigInt(whole) * 10n ** BigInt(scale) + BigInt(fraction.padEnd(scale, '0') || '0')
+}
+
+function formatCents(cents: bigint) {
+  return `${cents / 100n}.${String(cents % 100n).padStart(2, '0')}`
+}
+
 function isValidDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
   const [year, month, day] = value.split('-').map(Number)
@@ -106,24 +117,27 @@ export async function createInvoice(input: { customerId: string; description: st
   const [customer] = await db.select({ id: customers.id }).from(customers).where(and(eq(customers.id, input.customerId), eq(customers.userId, userId))).limit(1)
   if (!customer) throw new Error('Select a customer in your account.')
   const description = input.description.trim()
-  const quantity = Number(input.quantity)
-  const taxRate = Number(input.taxRate)
   if (!description || description.length > 200) throw new Error('Add a description of up to 200 characters.')
-  if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1000000) throw new Error('Quantity must be greater than zero.')
-  if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) throw new Error('Tax rate must be between 0 and 100 percent.')
+  const quantityMilli = scaledDecimal(input.quantity, 3, 'Quantity')
+  const taxRateBasisPoints = scaledDecimal(input.taxRate, 4, 'Tax rate')
+  if (quantityMilli <= 0n || quantityMilli > 1_000_000_000n) throw new Error('Quantity must be greater than zero and no more than 1,000,000.')
+  if (taxRateBasisPoints > 1_000_000n) throw new Error('Tax rate must be between 0 and 100 percent.')
   if (!isValidDate(input.dueDate)) throw new Error('Choose a valid due date.')
   if (input.status !== 'draft' && input.status !== 'issued') throw new Error('Choose whether to save a draft or issue the invoice.')
-  const unitCents = money(input.unitPrice)
-  const subCents = Math.round(unitCents * quantity)
-  const taxCents = Math.round(subCents * taxRate / 100)
-  if (!Number.isSafeInteger(subCents + taxCents)) throw new Error('Invoice total is too large.')
+  const unitCents = BigInt(money(input.unitPrice))
+  const subtotalCents = (unitCents * quantityMilli + 500n) / 1000n
+  const taxCents = (subtotalCents * taxRateBasisPoints + 500_000n) / 1_000_000n
+  const totalCents = subtotalCents + taxCents
+  if (totalCents > 999_999_999_999_999_999n) throw new Error('Invoice total is too large.')
   const now = new Date()
   const id = randomUUID()
   const number = `INV-${now.getFullYear()}-${randomUUID().slice(0, 8).toUpperCase()}`
-  const format = (cents: number) => (cents / 100).toFixed(2)
+  const subtotal = formatCents(subtotalCents)
+  const taxAmount = formatCents(taxCents)
+  const total = formatCents(totalCents)
   await db.transaction(async (tx) => {
-    await tx.insert(invoices).values({ id, userId, customerId: customer.id, number, status: input.status, issueDate: now.toISOString().slice(0, 10), dueDate: input.dueDate, subtotal: format(subCents), taxAmount: format(taxCents), total: format(subCents + taxCents) })
-    await tx.insert(invoiceItems).values({ id: randomUUID(), invoiceId: id, description, quantity: String(quantity), unitPrice: format(unitCents), taxRate: taxRate.toFixed(4), lineTotal: format(subCents + taxCents) })
+    await tx.insert(invoices).values({ id, userId, customerId: customer.id, number, status: input.status, issueDate: now.toISOString().slice(0, 10), dueDate: input.dueDate, subtotal, taxAmount, total })
+    await tx.insert(invoiceItems).values({ id: randomUUID(), invoiceId: id, description, quantity: (Number(quantityMilli) / 1000).toFixed(3), unitPrice: formatCents(unitCents), taxRate: (Number(taxRateBasisPoints) / 10000).toFixed(4), lineTotal: total })
     await tx.insert(auditLogs).values({ id: randomUUID(), userId, action: input.status === 'draft' ? 'invoice.draft_created' : 'invoice.issued', entityType: 'invoice', entityId: id, details: { number } })
   })
   revalidatePath('/')
