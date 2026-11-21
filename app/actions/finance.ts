@@ -40,7 +40,7 @@ export async function getDashboardData() {
   }).from(invoices).where(eq(invoices.userId, userId))
   const trend = await db.select({ month: sql<string>`to_char(date_trunc('month', ${payments.paidAt}::date), 'Mon')`, amount: sql<string>`coalesce(sum(${payments.amount}), 0)` }).from(payments).where(and(eq(payments.userId, userId), sql`${payments.paidAt}::date >= date_trunc('month', current_date) - interval '5 months'`)).groupBy(sql`date_trunc('month', ${payments.paidAt}::date)`).orderBy(sql`date_trunc('month', ${payments.paidAt}::date)`)
   const recentInvoices = await db.select({ id: invoices.id, number: invoices.number, total: invoices.total, amountPaid: invoices.amountPaid, status: sql<string>`case when ${invoices.status} in ('issued','partially_paid','overdue') and ${invoices.dueDate} < current_date and ${invoices.amountPaid} < ${invoices.total} then 'overdue' else ${invoices.status} end`, issueDate: invoices.issueDate, dueDate: invoices.dueDate, customer: customers.name }).from(invoices).innerJoin(customers, and(eq(invoices.customerId, customers.id), eq(customers.userId, userId))).where(eq(invoices.userId, userId)).orderBy(desc(invoices.createdAt)).limit(50)
-  const recentCustomers = await db.select({ id: customers.id, name: customers.name, email: customers.email, phone: customers.phone, createdAt: customers.createdAt }).from(customers).where(eq(customers.userId, userId)).orderBy(desc(customers.createdAt)).limit(100)
+  const recentCustomers = await db.select({ id: customers.id, name: customers.name, email: customers.email, phone: customers.phone, address: customers.address, createdAt: customers.createdAt }).from(customers).where(eq(customers.userId, userId)).orderBy(desc(customers.createdAt)).limit(100)
   const recentReceipts = await db.select({ id: receipts.id, number: receipts.number, amount: payments.amount, method: payments.method, paidAt: payments.paidAt, reference: payments.reference, customer: customers.name }).from(receipts).innerJoin(payments, and(eq(receipts.paymentId, payments.id), eq(payments.userId, userId))).innerJoin(customers, and(eq(payments.customerId, customers.id), eq(customers.userId, userId))).where(eq(receipts.userId, userId)).orderBy(desc(receipts.issuedAt)).limit(100)
   const recentExpenses = await db.select({ id: expenses.id, category: expenses.category, payee: expenses.payee, description: expenses.description, method: expenses.method, paidAt: expenses.paidAt, amount: expenses.amount }).from(expenses).where(eq(expenses.userId, userId)).orderBy(desc(expenses.paidAt)).limit(100)
   const catalogue = await db.select({ id: catalogueItems.id, name: catalogueItems.name, description: catalogueItems.description, unitPrice: catalogueItems.unitPrice, status: catalogueItems.status }).from(catalogueItems).where(eq(catalogueItems.userId, userId)).orderBy(desc(catalogueItems.createdAt)).limit(500)
@@ -65,19 +65,40 @@ export async function getFinancialReport(days: '30' | '90' | '365' | 'all') {
   return { startDate: days === 'all' ? null : startDate, invoiced: invoiceSummary.invoiced, outstanding: invoiceSummary.outstanding, received: paymentSummary.received, invoices: invoiceRows, payments: paymentRows, expenses: expenseRows }
 }
 
-export async function createCustomer(input: { name: string; email: string; phone: string; address: string }) {
-  const userId = await requireUser()
+function validateCustomerInput(input: { name: string; email: string; phone: string; address: string }) {
   const name = input.name.trim()
   const email = input.email.trim()
+  const phone = input.phone.trim()
+  const address = input.address.trim()
   if (name.length < 2 || name.length > 160) throw new Error('Customer name must be between 2 and 160 characters.')
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Enter a valid email address.')
+  if (phone.length > 80 || address.length > 500) throw new Error('Customer phone or address is too long.')
+  return { name, email: email || null, phone: phone || null, address: address || null }
+}
+
+export async function createCustomer(input: { name: string; email: string; phone: string; address: string }) {
+  const userId = await requireUser()
+  const values = validateCustomerInput(input)
   const id = randomUUID()
   await db.transaction(async (tx) => {
-    await tx.insert(customers).values({ id, userId, name, email: email || null, phone: input.phone.trim() || null, address: input.address.trim() || null })
+    await tx.insert(customers).values({ id, userId, ...values })
     await tx.insert(auditLogs).values({ id: randomUUID(), userId, action: 'customer.created', entityType: 'customer', entityId: id })
   })
   revalidatePath('/')
   return { id }
+}
+
+export async function updateCustomer(input: { id: string; name: string; email: string; phone: string; address: string }) {
+  const userId = await requireUser()
+  const values = validateCustomerInput(input)
+  await db.transaction(async (tx) => {
+    const [existing] = await tx.select({ id: customers.id }).from(customers).where(and(eq(customers.id, input.id), eq(customers.userId, userId))).limit(1).for('update')
+    if (!existing) throw new Error('Customer not found in your account.')
+    await tx.update(customers).set(values).where(and(eq(customers.id, input.id), eq(customers.userId, userId)))
+    await tx.insert(auditLogs).values({ id: randomUUID(), userId, action: 'customer.updated', entityType: 'customer', entityId: input.id })
+  })
+  revalidatePath('/')
+  return { id: input.id }
 }
 
 export async function createInvoice(input: { customerId: string; description: string; quantity: string; unitPrice: string; taxRate: string; dueDate: string; status: 'draft' | 'issued' }) {
