@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth'
 import { pool } from '@/lib/db'
+import { sendPasswordRecoveryEmail, sendSecurityNotification, sendVerificationEmail } from '@/lib/email'
 
 const origin = (host?: string) => host ? `https://${host}` : undefined
 const previewOrigin = 'https://jithub-teq-management-system.v0.build'
@@ -12,7 +13,28 @@ export const auth = betterAuth({
     ?? origin(process.env.VERCEL_URL)
     ?? process.env.V0_RUNTIME_URL
     ?? (process.env.NODE_ENV === 'development' ? previewOrigin : undefined),
-  emailAndPassword: { enabled: true, autoSignIn: true },
+  emailAndPassword: {
+    enabled: true,
+    autoSignIn: true,
+    requireEmailVerification: false,
+    sendResetPassword: async ({ user, url }) => {
+      await sendPasswordRecoveryEmail(user.email, url)
+    },
+    onPasswordReset: async ({ user }) => {
+      await sendSecurityNotification({
+        to: user.email,
+        subject: 'Your password was changed',
+        message: 'The password for your JITHUB-TEQ account was changed. If this was not you, contact your workspace administrator immediately.',
+      })
+    },
+  },
+  emailVerification: {
+    sendOnSignUp: true,
+    autoSignInAfterVerification: true,
+    sendVerificationEmail: async ({ user, url }) => {
+      await sendVerificationEmail(user.email, url)
+    },
+  },
   trustedOrigins: [
     ...(process.env.NODE_ENV === 'development' ? [
       'http://localhost:3000',
