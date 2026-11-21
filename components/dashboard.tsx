@@ -1,9 +1,10 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { authClient } from '@/lib/auth-client'
 import { createCustomer, createInvoice, getFinancialReport, issueDraftInvoice, recordExpense, recordPayment, saveCatalogueItem, setCatalogueItemStatus } from '@/app/actions/finance'
+import { filterReceipts, formatReceiptDate, sortReceipts, type ReceiptSort } from '@/lib/receipt-ui'
 import { Activity, ArrowDownLeft, ArrowRight, ArrowUpRight, Bell, BookOpenCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronDown, CircleHelp, ClipboardList, CreditCard, Download, FileClock, FilePlus2, FileText, LayoutDashboard, LogOut, Menu, MoreHorizontal, Package, Plus, ReceiptText, Search, Settings2, ShieldCheck, Users, WalletCards, X } from 'lucide-react'
 
 type Data = Awaited<ReturnType<typeof import('@/app/actions/finance').getDashboardData>>
@@ -42,9 +43,14 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
   const [toast, setToast] = useState('')
   const [error, setError] = useState('')
   const [selectedReceipt, setSelectedReceipt] = useState<Data['receipts'][number] | null>(null)
+  const [receiptSort, setReceiptSort] = useState<ReceiptSort>('newest')
   const [busy, setBusy] = useState(false)
   const visibleInvoices = useMemo(() => data.invoices.filter((item) => `${item.number} ${item.customer} ${item.status}`.toLowerCase().includes(query.toLowerCase()) && (invoiceStatusFilter === 'all' || item.status === invoiceStatusFilter)), [data.invoices, query, invoiceStatusFilter])
   const visibleCustomers = useMemo(() => data.customers.filter((item) => `${item.name} ${item.email || ''} ${item.phone || ''}`.toLowerCase().includes(query.toLowerCase())), [data.customers, query])
+  const visibleReceipts = useMemo(() => {
+    const filtered = filterReceipts(data.receipts, query)
+    return sortReceipts(filtered, receiptSort)
+  }, [data.receipts, query, receiptSort])
 
   function openPayment(invoiceId = '') {
     setSelectedInvoiceId(invoiceId)
@@ -118,7 +124,7 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
         {section === 'Invoices' && <><div className="table-toolbar"><label className="search-box"><Search size={16}/><input aria-label="Search invoices or customers" placeholder="Search invoices or customers" value={query} onChange={(event) => setQuery(event.target.value)}/></label><label className="sr-only" htmlFor="invoice-status-filter">Filter invoices by status</label><select id="invoice-status-filter" className="filter-select" value={invoiceStatusFilter} onChange={(event) => setInvoiceStatusFilter(event.target.value)}><option value="all">All statuses</option><option value="draft">Draft</option><option value="issued">Issued</option><option value="partially_paid">Partially paid</option><option value="paid">Paid</option><option value="overdue">Overdue</option></select></div><InvoiceTable invoices={visibleInvoices} onPayment={openPayment} onIssue={(id) => void issueInvoice(id)}/></>}
         {section === 'Customers' && <><div className="table-toolbar"><label className="search-box"><Search size={16}/><input aria-label="Search customers" placeholder="Search customers" value={query} onChange={(event) => setQuery(event.target.value)}/></label><button className="primary-button" onClick={() => setModal('customer')}><Plus size={16}/> Add customer</button></div><div className="panel data-panel"><CustomerTable customers={visibleCustomers}/></div></>}
         {section === 'Payments' && <><div className="module-banner"><span className="module-icon"><CreditCard size={20}/></span><div><strong>Keep your books balanced</strong><p>Record full or partial customer payments and match them to an invoice. Every confirmed payment creates a numbered receipt.</p></div><button className="primary-button" onClick={() => openPayment()}><Plus size={16}/> Record payment</button></div><RecentInvoices invoices={visibleInvoices} onView={() => setSection('Invoices')} onPayment={openPayment}/></>}
-        {section === 'Receipts' && <section className="panel data-panel receipt-register"><div className="panel-heading receipt-heading"><div><span className="panel-eyebrow">CONFIRMED PAYMENTS</span><h2>Receipt register</h2></div><button className="primary-button" onClick={() => {setSection('Payments'); openPayment()}}><Plus size={16}/> Record payment</button></div><div className="invoice-table-wrap"><table className="data-table"><thead><tr><th>RECEIPT</th><th>CUSTOMER</th><th>PAYMENT DATE</th><th>METHOD</th><th className="amount-col">AMOUNT · UGX</th><th/></tr></thead><tbody>{data.receipts.map((receipt) => <tr key={receipt.id}><td><strong className="invoice-number">{receipt.number}</strong></td><td>{receipt.customer}</td><td>{new Date(`${receipt.paidAt}T12:00:00`).toLocaleDateString('en-GB')}</td><td>{receipt.method}</td><td className="amount-col"><strong>{money(receipt.amount)}</strong></td><td><button className="row-action receipt-view-button" onClick={() => setSelectedReceipt(receipt)} aria-label={`View receipt ${receipt.number}`}><FileText size={15}/></button></td></tr>)}</tbody></table>{data.receipts.length === 0 && <EmptyRows label="Receipts will appear as you record customer payments."/>}</div></section>}
+        {section === 'Receipts' && <section className="panel data-panel receipt-register"><div className="panel-heading receipt-heading"><div><span className="panel-eyebrow">CONFIRMED PAYMENTS</span><h2>Receipt register</h2></div><button className="primary-button" onClick={() => {setSection('Payments'); openPayment()}}><Plus size={16}/> Record payment</button></div><div className="table-toolbar"><label className="search-box"><Search size={16}/><input aria-label="Search receipts" placeholder="Search receipts" value={query} onChange={(event) => setQuery(event.target.value)}/></label><select aria-label="Sort receipts" className="filter-select" value={receiptSort} onChange={(event) => setReceiptSort(event.target.value as ReceiptSort)}><option value="newest">Newest first</option><option value="oldest">Oldest first</option><option value="amount-high">Highest amount</option><option value="amount-low">Lowest amount</option></select></div><div className="invoice-table-wrap"><table className="data-table"><thead><tr><th>RECEIPT</th><th>CUSTOMER</th><th>PAYMENT DATE</th><th>METHOD</th><th className="amount-col">AMOUNT · UGX</th><th/></tr></thead><tbody>{visibleReceipts.map((receipt) => <tr key={receipt.id}><td><strong className="invoice-number">{receipt.number}</strong></td><td>{receipt.customer}</td><td>{formatReceiptDate(receipt.paidAt)}</td><td>{receipt.method}</td><td className="amount-col"><strong>{money(receipt.amount)}</strong></td><td><button className="row-action receipt-view-button" onClick={() => setSelectedReceipt(receipt)} aria-label={`View receipt ${receipt.number}`}><FileText size={15}/></button></td></tr>)}</tbody></table>{visibleReceipts.length === 0 && <EmptyRows label={query ? 'No receipts match your search.' : 'Receipts will appear as you record customer payments.'}/>}</div></section>}
         {section === 'Products & services' && <CataloguePanel items={data.catalogue.filter((item) => `${item.name} ${item.description || ''} ${item.status}`.toLowerCase().includes(query.toLowerCase()))} query={query} onQueryChange={setQuery} onCreate={() => { setSelectedCatalogue(null); setModal('catalogue') }} onEdit={(item) => { setSelectedCatalogue(item); setModal('catalogue') }} onToggle={async (item) => { setError(''); try { await setCatalogueItemStatus({ id: item.id, status: item.status === 'active' ? 'inactive' : 'active' }); setToast(item.status === 'active' ? 'Catalogue item archived.' : 'Catalogue item reactivated.'); router.refresh() } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not update catalogue item.') } }}/ >}
         {['Expenses','Reports','Notifications','User management','Audit logs','Settings'].includes(section) && <ModulePanel section={section} data={data} onCreateExpense={() => setModal('expense')}/ >}
       </div>
@@ -131,9 +137,63 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
       {modal === 'catalogue' && <><label>Product or service name<input name="name" defaultValue={selectedCatalogue?.name || ''} placeholder="e.g. Business consulting" required minLength={2} maxLength={160}/></label><label>Description<input name="description" defaultValue={selectedCatalogue?.description || ''} placeholder="What does this item include?" maxLength={500}/></label><label>Unit price · UGX<input name="unitPrice" defaultValue={selectedCatalogue?.unitPrice || ''} inputMode="decimal" placeholder="350000.00" required/></label><p className="form-footnote"><ShieldCheck size={14}/> Archiving an item keeps it available on historical invoices.</p></>}
       {error && <p className="form-error" role="alert">{error}</p>}<div className="modal-actions"><button className="button-secondary" type="button" onClick={() => { setModal(null); setSelectedCatalogue(null) }}>Cancel</button>{modal === 'invoice' ? <><button className="button-secondary" type="submit" name="invoiceStatus" value="draft" disabled={busy || !data.customers.length}>{busy ? 'Saving…' : 'Save draft'}</button><button className="primary-button" type="submit" name="invoiceStatus" value="issued" disabled={busy || !data.customers.length}>{busy ? 'Saving…' : 'Issue invoice'}<ArrowRight size={15}/></button></> : <button className="primary-button" type="submit" disabled={busy || (modal === 'payment' && !data.invoices.some((invoice) => !['draft','cancelled'].includes(invoice.status) && Number(invoice.total) > Number(invoice.amountPaid))) || (modal === 'catalogue' && !String(selectedCatalogue?.id || ''))}>{busy ? 'Saving…' : modal === 'payment' ? 'Record payment' : modal === 'expense' ? 'Save expense' : modal === 'catalogue' ? 'Save catalogue item' : 'Save customer'}<ArrowRight size={15}/></button>}</div>
     </form></section></div>}
-    {selectedReceipt && <div className="modal-backdrop receipt-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setSelectedReceipt(null) }}><section className="modal-card receipt-modal" role="dialog" aria-modal="true" aria-labelledby="receipt-title"><div className="receipt-toolbar"><span className="panel-eyebrow">PAYMENT CONFIRMATION</span><div><button className="button-secondary" onClick={() => window.print()}><Download size={14}/> Print / save PDF</button><button className="icon-button" onClick={() => setSelectedReceipt(null)} aria-label="Close receipt"><X size={18}/></button></div></div><article className="receipt-document"><div className="receipt-brand"><span className="brand-mark">J</span><div><strong>JITHUB-TEQ</strong><small>Beyond Technology, We Build Trust.</small></div></div><div className="receipt-title"><span>OFFICIAL RECEIPT</span><h2 id="receipt-title">{selectedReceipt.number}</h2><span className="status-pill status-paid"><i/>Payment confirmed</span></div><div className="receipt-amount"><small>AMOUNT RECEIVED</small><strong>{money(selectedReceipt.amount)}</strong></div><dl className="receipt-details"><div><dt>Received from</dt><dd>{selectedReceipt.customer}</dd></div><div><dt>Payment date</dt><dd>{new Date(`${selectedReceipt.paidAt}T12:00:00`).toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'})}</dd></div><div><dt>Payment method</dt><dd>{selectedReceipt.method}</dd></div><div><dt>Payment reference</dt><dd>{selectedReceipt.reference || 'Not provided'}</dd></div></dl><p className="receipt-thanks">Thank you for your payment.</p><div className="receipt-foot">JITHUB-TEQ LTD <span>·</span> KAMPALA, UGANDA <span>·</span> UGX</div></article></section></div>}
+    {selectedReceipt && <ReceiptDialog receipt={selectedReceipt} onClose={() => setSelectedReceipt(null)} />}
     {toast && <div role="status" className="toast-message"><span><Check size={14}/></span>{toast}<button onClick={() => setToast('')} aria-label="Dismiss"><X size={15}/></button></div>}
   </div>
+}
+
+function ReceiptDialog({ receipt, onClose }: { receipt: Data['receipts'][number]; onClose: () => void }) {
+  const dialogRef = useRef<HTMLDialogElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const onCloseRef = useRef(onClose)
+
+  useEffect(() => { onCloseRef.current = onClose }, [onClose])
+
+  useEffect(() => {
+    const dialog = dialogRef.current
+    if (!dialog) return
+    if (!dialog.open) dialog.showModal()
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    closeButtonRef.current?.focus()
+
+    const handleCancel = (event: Event) => {
+      event.preventDefault()
+      onCloseRef.current()
+    }
+    dialog.addEventListener('cancel', handleCancel)
+
+    return () => {
+      dialog.removeEventListener('cancel', handleCancel)
+      document.body.style.overflow = previousOverflow
+      if (dialog.open) dialog.close()
+    }
+  }, [])
+
+  return <dialog ref={dialogRef} className="receipt-dialog" aria-labelledby="receipt-title" onClick={(event) => { if (event.target === event.currentTarget) onClose() }}>
+    <section className="modal-card receipt-modal">
+      <div className="receipt-toolbar">
+        <span className="panel-eyebrow">PAYMENT CONFIRMATION</span>
+        <div>
+          <button className="button-secondary" onClick={() => window.print()}><Download size={14}/> Print / save PDF</button>
+          <button ref={closeButtonRef} className="icon-button" onClick={onClose} aria-label="Close receipt"><X size={18}/></button>
+        </div>
+      </div>
+      <article className="receipt-document">
+        <div className="receipt-brand"><span className="brand-mark">J</span><div><strong>JITHUB-TEQ</strong><small>Beyond Technology, We Build Trust.</small></div></div>
+        <div className="receipt-title"><span>OFFICIAL RECEIPT</span><h2 id="receipt-title">{receipt.number}</h2><span className="status-pill status-paid"><i/>Payment confirmed</span></div>
+        <div className="receipt-amount"><small>AMOUNT RECEIVED</small><strong>{money(receipt.amount)}</strong></div>
+        <dl className="receipt-details">
+          <div><dt>Received from</dt><dd>{receipt.customer}</dd></div>
+          <div><dt>Payment date</dt><dd>{formatReceiptDate(receipt.paidAt)}</dd></div>
+          <div><dt>Payment method</dt><dd>{receipt.method}</dd></div>
+          <div><dt>Payment reference</dt><dd>{receipt.reference || 'Not provided'}</dd></div>
+        </dl>
+        <p className="receipt-thanks">Thank you for your payment.</p>
+        <div className="receipt-foot">JITHUB-TEQ LTD <span>·</span> KAMPALA, UGANDA <span>·</span> UGX</div>
+      </article>
+    </section>
+  </dialog>
 }
 
 function CataloguePanel({ items, query, onQueryChange, onCreate, onEdit, onToggle }: { items: CatalogueItem[]; query: string; onQueryChange: (value: string) => void; onCreate: () => void; onEdit: (item: CatalogueItem) => void; onToggle: (item: CatalogueItem) => void }) {
