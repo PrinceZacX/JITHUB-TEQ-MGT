@@ -12,12 +12,12 @@ test('catalogue creation stays enabled when no existing item is selected', () =>
   assert.doesNotMatch(source, /modal === 'catalogue' && !String\(selectedCatalogue\?\.id \|\| ''\)/, 'catalogue create action should not be disabled when there is no selected item')
 })
 
-test('customers can be edited through a user-scoped audited server action', () => {
+test('customers can be edited through a business-scoped audited server action', () => {
   assert.match(source, /function CustomerTable\(\{ customers, onEdit \}/, 'customer rows should expose edit actions')
   assert.match(source, /updateCustomer\(\{ id: selectedCustomer\.id, \.\.\.customerInput \}\)/, 'customer dialog should submit edits')
   const actions = fs.readFileSync(new URL('../app/actions/finance.ts', import.meta.url), 'utf8')
   assert.match(actions, /export async function updateCustomer\(/, 'customer update action should exist')
-  assert.match(actions, /eq\(customers\.id, input\.id\), eq\(customers\.userId, userId\)/, 'customer updates should be scoped to the signed-in user')
+  assert.match(actions, /eq\(customers\.id, input\.id\), eq\(customers\.businessId, context\.businessId\)/, 'customer updates should be scoped to the signed-in business')
   assert.match(actions, /customer\.updated/, 'customer updates should be audited')
 })
 
@@ -25,8 +25,8 @@ test('invoice creation aligns stored quantity precision with integer-cent calcul
   const actions = fs.readFileSync(new URL('../app/actions/finance.ts', import.meta.url), 'utf8')
   assert.match(actions, /scaledDecimal\(input\.quantity, 3, 'Quantity'\)/, 'quantity is restricted to the database scale')
   assert.match(actions, /scaledDecimal\(input\.taxRate, 4, 'Tax rate'\)/, 'tax rate is restricted to the database scale')
-  assert.match(actions, /\(unitCents \* quantityMilli \+ 500n\) \/ 1000n/, 'subtotal uses integer cents and thousandths')
-  assert.match(actions, /\(subtotalCents \* taxRateBasisPoints \+ 500_000n\) \/ 1_000_000n/, 'tax uses integer basis-point arithmetic')
+  assert.match(actions, /\(BigInt\(unitCents\) \* quantityMilli \+ 500n\) \/ 1000n/, 'subtotal uses integer cents and thousandths')
+  assert.match(actions, /\(BigInt\(subtotalCents\) \* taxRateBasisPoints \+ 500_000n\) \/ 1_000_000n/, 'tax uses integer basis-point arithmetic')
   assert.match(actions, /quantity: \(Number\(quantityMilli\) \/ 1000\)\.toFixed\(3\)/, 'stored quantity matches the rounded calculation')
 })
 
