@@ -68,7 +68,6 @@ function PlatformDashboard({
         <div>
           <h1 className="text-2xl font-bold">Platform Administration</h1>
           <p className="text-muted-foreground">JITHUB-TEQ Platform Owner Workspace</p>
-          <p className="text-sm text-muted-foreground">{user.name} · {user.email}</p>
         </div>
         <div className="flex gap-2">
           <PlatformSignOutButton />
