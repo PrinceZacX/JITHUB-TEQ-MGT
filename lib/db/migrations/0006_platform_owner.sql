@@ -48,9 +48,9 @@ ALTER TABLE audit_logs
 
 UPDATE "user"
 SET platform_owner = TRUE,
-    updated_at = NOW()
+    "updatedAt" = NOW()
 WHERE email = 'isaacasiire@gmail.com'
-  AND emailVerified = TRUE;
+  AND "emailVerified" = TRUE;
 
 -- ------------------------------------------------------------------
 -- 5. Idempotency note
