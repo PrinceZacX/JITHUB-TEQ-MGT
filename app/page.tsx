@@ -6,7 +6,6 @@ import { user } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
 import { getDashboardData } from '@/app/actions/finance'
 import { Dashboard } from '@/components/dashboard'
-import PlatformPage from '@/app/platform/page'
 
 export default async function Page() {
   const session = await auth.api.getSession({ headers: await headers() })
@@ -20,7 +19,7 @@ export default async function Page() {
     .limit(1)
 
   if (userRow?.platformOwner) {
-    return <PlatformPage />
+    redirect('/platform')
   }
 
   // Ordinary business user - load business-scoped dashboard
