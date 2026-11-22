@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { receipts, payments, customers, businesses } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { generateThermalReceipt } from '@/lib/pdf/documents'
+import { loadEnv } from '@/lib/env'
 
 const safeDate = (value: Date | string | null): string => {
   if (!value) return ''
@@ -18,6 +19,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  loadEnv()
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user) return new Response('Unauthorized', { status: 401 })
 

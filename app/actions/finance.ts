@@ -58,7 +58,12 @@ async function requireBusiness(businessId?: string) {
   loadEnv()
   const userId = await requireUser()
 
-  const whereClauses = [eq(businessMemberships.userId, userId), eq(businesses.status, 'active')]
+  const whereClauses = [
+    eq(businessMemberships.userId, userId),
+    eq(businesses.status, 'active'),
+    eq(businessMemberships.status, 'active'),
+    sql`${businessMemberships.deletedAt} IS NULL`,
+  ]
   if (businessId) whereClauses.push(eq(businessMemberships.businessId, businessId))
 
   const [membership] = await db
@@ -78,8 +83,8 @@ async function requireBusiness(businessId?: string) {
   }
 }
 
-async function requireBusinessPermission(permission: string) {
-  const context = await requireBusiness()
+async function requireBusinessPermission(permission: string, businessId?: string) {
+  const context = await requireBusiness(businessId)
   requirePermission(context.role, permission as any)
   return context
 }
@@ -186,16 +191,23 @@ export async function setActiveBusiness(input: { businessId: string }) {
   const userId = await requireUser()
   loadEnv()
   const [membership] = await db
-    .select({ id: businessMemberships.id, role: businessMemberships.role })
+    .select({ id: businessMemberships.id, role: businessMemberships.role, deletedAt: businessMemberships.deletedAt })
     .from(businessMemberships)
-    .where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, userId)))
+    .where(and(
+      eq(businessMemberships.businessId, input.businessId),
+      eq(businessMemberships.userId, userId),
+    ))
     .limit(1)
   if (!membership) throw new Error('You are not a member of this business.')
+  if (membership.deletedAt) throw new Error('Membership has been removed. Contact the business owner.')
   const [business] = await db.select({ status: businesses.status }).from(businesses).where(eq(businesses.id, input.businessId)).limit(1)
   if (!business || business.status !== 'active') throw new Error('Business is not active.')
-  await db.insert(businessMemberships).values({
-    id: randomUUID(), businessId: input.businessId, userId, role: membership.role,
-  }).onConflictDoNothing()
+  await db.transaction(async (tx) => {
+    if (membership.deletedAt) {
+      await tx.update(businessMemberships).set({ deletedAt: null, deletedBy: null, status: 'active' }).where(eq(businessMemberships.id, membership.id))
+    }
+    await insertAudit(tx, { userId, businessId: input.businessId }, { action: 'business.switched', entityType: 'business', entityId: input.businessId })
+  })
   revalidatePath('/')
   return { success: true }
 }
@@ -205,22 +217,26 @@ export async function setActiveBusiness(input: { businessId: string }) {
 /* ------------------------------------------------------------------ */
 
 export async function listBusinessMembers(input: { businessId: string }) {
-  const context = await requireBusinessPermission('membership.manage')
+  const context = await requireBusinessPermission('membership.manage', input.businessId)
   const rows = await db
     .select({
       id: businessMemberships.id, userId: businessMemberships.userId,
-      role: businessMemberships.role,
+      role: businessMemberships.role, status: businessMemberships.status,
+      deletedAt: businessMemberships.deletedAt,
       userName: user.name, userEmail: user.email,
     })
     .from(businessMemberships)
     .innerJoin(user, eq(user.id, businessMemberships.userId))
-    .where(eq(businessMemberships.businessId, input.businessId))
+    .where(and(
+      eq(businessMemberships.businessId, input.businessId),
+      sql`${businessMemberships.deletedAt} IS NULL`,
+    ))
     .orderBy(desc(businessMemberships.createdAt))
   return rows
 }
 
 export async function inviteMember(input: { businessId: string; email: string; role: BusinessRole }) {
-  const context = await requireBusinessPermission('membership.manage')
+  const context = await requireBusinessPermission('membership.manage', input.businessId)
   const email = input.email.trim()
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Enter a valid email address.')
   if (!businessRoles.includes(input.role)) throw new Error('Choose a valid role.')
@@ -236,13 +252,21 @@ export async function inviteMember(input: { businessId: string; email: string; r
 }
 
 export async function updateMembershipRole(input: { businessId: string; userId: string; role: BusinessRole }) {
-  const context = await requireBusinessPermission('membership.manage')
+  const context = await requireBusinessPermission('membership.manage', input.businessId)
   if (!businessRoles.includes(input.role)) throw new Error('Choose a valid role.')
-  const [existing] = await db.select({ id: businessMemberships.id, role: businessMemberships.role }).from(businessMemberships).where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId))).limit(1)
+  const [existing] = await db.select({ id: businessMemberships.id, role: businessMemberships.role, status: businessMemberships.status }).from(businessMemberships).where(and(
+    eq(businessMemberships.businessId, input.businessId),
+    eq(businessMemberships.userId, input.userId),
+    sql`${businessMemberships.deletedAt} IS NULL`,
+  )).limit(1)
   if (!existing) throw new Error('Membership not found.')
+  if (existing.status === 'removed') throw new Error('Cannot update a removed membership.')
   if (existing.role === 'owner') throw new Error('Cannot change the business owner role.')
   await db.transaction(async (tx) => {
-    await tx.update(businessMemberships).set({ role: input.role }).where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId)))
+    await tx.update(businessMemberships).set({ role: input.role }).where(and(
+      eq(businessMemberships.businessId, input.businessId),
+      eq(businessMemberships.userId, input.userId),
+    ))
     await insertAudit(tx, context, { action: 'membership.role_updated', entityType: 'business_membership', entityId: input.userId, details: { previousRole: existing.role, newRole: input.role } })
   })
   revalidatePath('/')
@@ -250,12 +274,20 @@ export async function updateMembershipRole(input: { businessId: string; userId: 
 }
 
 export async function suspendMembership(input: { businessId: string; userId: string }) {
-  const context = await requireBusinessPermission('membership.manage')
-  const [existing] = await db.select({ role: businessMemberships.role }).from(businessMemberships).where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId))).limit(1)
+  const context = await requireBusinessPermission('membership.manage', input.businessId)
+  const [existing] = await db.select({ role: businessMemberships.role, status: businessMemberships.status }).from(businessMemberships).where(and(
+    eq(businessMemberships.businessId, input.businessId),
+    eq(businessMemberships.userId, input.userId),
+    sql`${businessMemberships.deletedAt} IS NULL`,
+  )).limit(1)
   if (!existing) throw new Error('Membership not found.')
   if (existing.role === 'owner') throw new Error('Cannot suspend the business owner.')
+  if (existing.status === 'removed') throw new Error('Membership is already removed.')
   await db.transaction(async (tx) => {
-    await tx.update(businessMemberships).set({ role: 'viewer' }).where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId)))
+    await tx.update(businessMemberships).set({ status: 'suspended', role: 'viewer' }).where(and(
+      eq(businessMemberships.businessId, input.businessId),
+      eq(businessMemberships.userId, input.userId),
+    ))
     await insertAudit(tx, context, { action: 'membership.suspended', entityType: 'business_membership', entityId: input.userId })
   })
   revalidatePath('/')
@@ -263,12 +295,19 @@ export async function suspendMembership(input: { businessId: string; userId: str
 }
 
 export async function removeMembership(input: { businessId: string; userId: string }) {
-  const context = await requireBusinessPermission('membership.manage')
-  const [existing] = await db.select({ role: businessMemberships.role }).from(businessMemberships).where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId))).limit(1)
+  const context = await requireBusinessPermission('membership.manage', input.businessId)
+  const [existing] = await db.select({ role: businessMemberships.role, status: businessMemberships.status, deletedAt: businessMemberships.deletedAt }).from(businessMemberships).where(and(
+    eq(businessMemberships.businessId, input.businessId),
+    eq(businessMemberships.userId, input.userId),
+  )).limit(1)
   if (!existing) throw new Error('Membership not found.')
   if (existing.role === 'owner') throw new Error('Cannot remove the business owner.')
+  if (existing.status === 'removed' || existing.deletedAt) throw new Error('Membership is already removed.')
   await db.transaction(async (tx) => {
-    await tx.delete(businessMemberships).where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId)))
+    await tx.update(businessMemberships).set({ status: 'removed', deletedAt: new Date(), deletedBy: context.userId }).where(and(
+      eq(businessMemberships.businessId, input.businessId),
+      eq(businessMemberships.userId, input.userId),
+    ))
     await insertAudit(tx, context, { action: 'membership.removed', entityType: 'business_membership', entityId: input.userId })
   })
   revalidatePath('/')
@@ -628,11 +667,12 @@ export async function setCatalogueItemStatus(input: { id: string; status: 'activ
 
 export async function getDashboardData() {
   const context = await requireBusinessPermission('reports.read')
+  const { businessId } = context
 
   const [business] = await db
     .select({ id: businesses.id, name: businesses.name, legalName: businesses.legalName, registrationNumber: businesses.registrationNumber, taxIdentificationNumber: businesses.taxIdentificationNumber, email: businesses.email, phone: businesses.phone, address: businesses.address, city: businesses.city, country: businesses.country, currency: businesses.currency, receiptPrefix: businesses.receiptPrefix, invoicePrefix: businesses.invoicePrefix, logoUrl: businesses.logoUrl, website: businesses.website })
     .from(businesses)
-    .where(eq(businesses.id, context.businessId))
+    .where(eq(businesses.id, businessId))
     .limit(1)
 
   const allInvoices = await db
@@ -644,13 +684,13 @@ export async function getDashboardData() {
     })
     .from(invoices)
     .innerJoin(customers, eq(customers.id, invoices.customerId))
-    .where(eq(invoices.businessId, context.businessId))
+    .where(eq(invoices.businessId, businessId))
     .orderBy(desc(invoices.createdAt))
 
   const allCustomers = await db
     .select({ id: customers.id, name: customers.name, email: customers.email, phone: customers.phone, address: customers.address, createdAt: customers.createdAt })
     .from(customers)
-    .where(eq(customers.businessId, context.businessId))
+    .where(eq(customers.businessId, businessId))
     .orderBy(desc(customers.createdAt))
 
   const allReceipts = await db
@@ -662,32 +702,32 @@ export async function getDashboardData() {
     .from(receipts)
     .innerJoin(payments, eq(payments.id, receipts.paymentId))
     .innerJoin(customers, eq(customers.id, payments.customerId))
-    .where(eq(receipts.businessId, context.businessId))
+    .where(eq(receipts.businessId, businessId))
     .orderBy(desc(receipts.issuedAt))
 
   const allCatalogue = await db
     .select({ id: catalogueItems.id, name: catalogueItems.name, description: catalogueItems.description, unitPrice: catalogueItems.unitPrice, status: catalogueItems.status })
     .from(catalogueItems)
-    .where(eq(catalogueItems.businessId, context.businessId))
+    .where(eq(catalogueItems.businessId, businessId))
     .orderBy(desc(catalogueItems.createdAt))
 
   const allRefunds = await db
     .select({ id: refunds.id, amount: refunds.amount, reason: refunds.reason, method: refunds.method, status: refunds.status, createdAt: refunds.createdAt })
     .from(refunds)
-    .where(eq(refunds.businessId, context.businessId))
+    .where(eq(refunds.businessId, businessId))
     .orderBy(desc(refunds.createdAt))
 
   const allAuditTrail = await db
     .select({ id: auditLogs.id, action: auditLogs.action, entityType: auditLogs.entityType, entityId: auditLogs.entityId, createdAt: auditLogs.createdAt })
     .from(auditLogs)
-    .where(eq(auditLogs.businessId, context.businessId))
+    .where(eq(auditLogs.businessId, businessId))
     .orderBy(desc(auditLogs.createdAt))
     .limit(50)
 
   const allExpenses = await db
     .select({ id: expenses.id, category: expenses.category, payee: expenses.payee, paidAt: expenses.paidAt, method: expenses.method, amount: expenses.amount })
     .from(expenses)
-    .where(eq(expenses.businessId, context.businessId))
+    .where(eq(expenses.businessId, businessId))
     .orderBy(desc(expenses.createdAt))
     .limit(50)
 
@@ -746,6 +786,7 @@ export async function getFinancialReport(period: '30' | '90' | '365' | 'all'): P
   summary: { startDate: string }
 }> {
   const context = await requireBusinessPermission('reports.read')
+  const { businessId } = context
   const now = new Date()
   let from: string
   if (period === 'all') {
@@ -766,7 +807,7 @@ export async function getFinancialReport(period: '30' | '90' | '365' | 'all'): P
     })
     .from(invoices)
     .innerJoin(customers, eq(customers.id, invoices.customerId))
-    .where(and(eq(invoices.businessId, context.businessId), gte(invoices.issueDate, from), lte(invoices.issueDate, to)))
+    .where(and(eq(invoices.businessId, businessId), gte(invoices.issueDate, from), lte(invoices.issueDate, to)))
 
   const allPayments = await db
     .select({
@@ -775,12 +816,12 @@ export async function getFinancialReport(period: '30' | '90' | '365' | 'all'): P
     })
     .from(payments)
     .innerJoin(customers, eq(customers.id, payments.customerId))
-    .where(and(eq(payments.businessId, context.businessId), gte(payments.paidAt, from), lte(payments.paidAt, to)))
+    .where(and(eq(payments.businessId, businessId), gte(payments.paidAt, from), lte(payments.paidAt, to)))
 
   const allExpenses = await db
     .select({ category: expenses.category, payee: expenses.payee, paidAt: expenses.paidAt, method: expenses.method, amount: expenses.amount })
     .from(expenses)
-    .where(and(eq(expenses.businessId, context.businessId), gte(expenses.paidAt, from), lte(expenses.paidAt, to)))
+    .where(and(eq(expenses.businessId, businessId), gte(expenses.paidAt, from), lte(expenses.paidAt, to)))
 
   const invoiced = allInvoices.reduce((sum, inv) => sum + Number(inv.total), 0)
   const received = allPayments.reduce((sum, pmt) => sum + Number(pmt.amount), 0)
