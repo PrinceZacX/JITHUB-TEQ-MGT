@@ -53,6 +53,7 @@ export function FunctionGrid({
       className={cn('grid gap-4', className)}
       style={{
         gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
+        alignItems: 'stretch',
       }}
       variants={containerVariants}
       initial="hidden"
@@ -61,7 +62,11 @@ export function FunctionGrid({
       aria-label="Function selection"
     >
       {items.map((item) => (
-        <motion.div key={item.id} variants={itemVariants}>
+        <motion.div
+          key={item.id}
+          variants={itemVariants}
+          style={{ display: 'flex', flexDirection: 'column', height: '100%' }}
+        >
           <FunctionCard
             id={item.id}
             label={item.label}
