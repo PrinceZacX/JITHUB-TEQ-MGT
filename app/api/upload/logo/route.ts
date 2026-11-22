@@ -1,0 +1,82 @@
+export const maxDuration = 60
+
+import { NextResponse } from 'next/server'
+import { writeFile, mkdir } from 'node:fs/promises'
+import { join } from 'node:path'
+import { randomUUID } from 'node:crypto'
+import { headers } from 'next/headers'
+import { auth } from '@/lib/auth'
+import { db } from '@/lib/db'
+import { businesses } from '@/lib/db/schema'
+import { eq } from 'drizzle-orm'
+import { loadEnv } from '@/lib/env'
+import { requirePermission, defaultRole } from '@/lib/permissions'
+
+const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2 MB
+const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/svg+xml']
+const UPLOAD_DIR = join(process.cwd(), 'public', 'uploads', 'logos')
+
+async function requireBusinessContext() {
+  const session = await auth.api.getSession({ headers: await headers() })
+  if (!session?.user) throw new Error('Please sign in to continue.')
+  return session.user.id
+}
+
+function getImageBuffer(file: File): Promise<Buffer> {
+  return file.arrayBuffer().then((ab) => Buffer.from(ab))
+}
+
+function detectImageMime(buffer: Buffer): string | null {
+  // PNG signature
+  if (buffer.length >= 8 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4e && buffer[3] === 0x47) return 'image/png'
+  // JPEG signature
+  if (buffer.length >= 2 && buffer[0] === 0xff && buffer[1] === 0xd8) return 'image/jpeg'
+  // WebP signature: RIFF....WEBP
+  if (buffer.length >= 12 && buffer[0] === 0x52 && buffer[1] === 0x49 && buffer[2] === 0xff && buffer[3] === 0x4f && buffer[8] === 0x57 && buffer[9] === 0x45 && buffer[10] === 0x42 && buffer[11] === 0x50) return 'image/webp'
+  // SVG: starts with <svg
+  if (buffer.length >= 4) {
+    const start = buffer.slice(0, 4).toString('latin1').toLowerCase()
+    if (start === '<svg' || start === '<svg ') return 'image/svg+xml'
+  }
+  return null
+}
+
+export async function POST(request: Request) {
+  loadEnv()
+  const userId = await requireBusinessContext()
+
+  // Resolve business membership
+  const { businessMemberships } = await import('@/lib/db/schema')
+  const { and, eq: dbeq } = await import('drizzle-orm')
+  const [membership] = await db
+    .select({ businessId: businessMemberships.businessId, role: businessMemberships.role })
+    .from(businessMemberships)
+    .where(and(dbeq(businessMemberships.userId, userId)))
+    .limit(1)
+  if (!membership) throw new Error('You are not a member of a business.')
+  requirePermission(membership.role as any, 'business.settings')
+
+  const formData = await request.formData()
+  const file = formData.get('logo')
+  if (!(file instanceof File)) throw new Error('No logo file provided.')
+
+  if (file.size > MAX_FILE_SIZE) throw new Error('Logo must be 2 MB or smaller.')
+  if (!ALLOWED_MIME_TYPES.includes(file.type)) throw new Error('Unsupported file type. Use PNG, JPEG, WebP or SVG.')
+
+  const buffer = await getImageBuffer(file)
+  const detectedMime = detectImageMime(buffer)
+  if (!detectedMime) throw new Error('File is not a valid image.')
+  if (detectedMime !== file.type) throw new Error('File type does not match actual image content.')
+
+  await mkdir(UPLOAD_DIR, { recursive: true })
+  const ext = detectedMime === 'image/svg+xml' ? '.svg' : detectedMime.split('/')[1]
+  const filename = `logo-${randomUUID()}${ext}`
+  const path = join(UPLOAD_DIR, filename)
+  await writeFile(path, buffer)
+
+  const logoUrl = `/uploads/logos/${filename}`
+
+  await db.update(businesses).set({ logoUrl }).where(eq(businesses.id, membership.businessId))
+
+  return NextResponse.json({ ok: true, logoUrl })
+}

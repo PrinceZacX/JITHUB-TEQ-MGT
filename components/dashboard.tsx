@@ -131,6 +131,34 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
     finally { setBusy(false) }
   }
 
+  async function downloadReceiptPdf(receiptId: string) {
+    try {
+      const res = await fetch(`/api/documents/receipt/${receiptId}`)
+      if (!res.ok) throw new Error('Failed to download receipt PDF')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'receipt.pdf'
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not download receipt PDF.') }
+  }
+
+  async function downloadThermalReceipt(receiptId: string, widthMm: 58 | 80) {
+    try {
+      const res = await fetch(`/api/documents/receipt/thermal/${receiptId}?width=${widthMm}`)
+      if (!res.ok) throw new Error('Failed to download thermal receipt')
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `receipt-${widthMm}mm.txt`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Could not download thermal receipt.') }
+  }
+
   async function submitForm(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const form = new FormData(event.currentTarget)
@@ -212,12 +240,12 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
       {modal === 'catalogue' && <><label>Product or service name<input name="name" defaultValue={selectedCatalogue?.name || ''} placeholder="e.g. Business consulting" required minLength={2} maxLength={160}/></label><label>Description<input name="description" defaultValue={selectedCatalogue?.description || ''} placeholder="What does this item include?" maxLength={500}/></label><label>Unit price · UGX<input name="unitPrice" defaultValue={selectedCatalogue?.unitPrice || ''} inputMode="decimal" placeholder="350000.00" required/></label><p className="form-footnote"><ShieldCheck size={14}/> Archiving an item keeps it available on historical invoices.</p></>}
       {error && <p className="form-error" role="alert">{error}</p>}<div className="modal-actions"><button className="button-secondary" type="button" onClick={() => { setModal(null); setSelectedCatalogue(null); setSelectedCustomer(null) }}>Cancel</button>{modal === 'invoice' ? <><button className="button-secondary" type="submit" name="invoiceStatus" value="draft" disabled={busy || !data.customers.length}>{busy ? 'Saving…' : 'Save draft'}</button><button className="primary-button" type="submit" name="invoiceStatus" value="issued" disabled={busy || !data.customers.length}>{busy ? 'Saving…' : 'Issue invoice'}<ArrowRight size={15}/></button></> : <button className="primary-button" type="submit" disabled={busy || (modal === 'payment' && !data.invoices.some((invoice) => !['draft','cancelled'].includes(invoice.status) && Number(invoice.total) > Number(invoice.amountPaid)))}>{busy ? 'Saving…' : modal === 'payment' ? 'Record payment' : modal === 'expense' ? 'Save expense' : modal === 'catalogue' ? 'Save catalogue item' : selectedCustomer ? 'Save customer changes' : 'Save customer'}<ArrowRight size={15}/></button>}</div>
     </form></section></div>}
-    {selectedReceipt && <ReceiptDialog receipt={selectedReceipt} business={data.business} onClose={() => setSelectedReceipt(null)} />}
+    {selectedReceipt && <ReceiptDialog receipt={selectedReceipt} business={data.business} onClose={() => setSelectedReceipt(null)} onDownloadPdf={() => downloadReceiptPdf(selectedReceipt.id)} onDownloadThermal={(width) => downloadThermalReceipt(selectedReceipt.id, width)} />}
     {toast && <div role="status" className="toast-message"><span><Check size={14}/></span>{toast}<button onClick={() => setToast('')} aria-label="Dismiss"><X size={15}/></button></div>}
   </div>
 }
 
-function ReceiptDialog({ receipt, business, onClose }: { receipt: Data['receipts'][number]; business: Data['business'] | undefined; onClose: () => void }) {
+function ReceiptDialog({ receipt, business, onClose, onDownloadPdf, onDownloadThermal }: { receipt: Data['receipts'][number]; business: Data['business'] | undefined; onClose: () => void; onDownloadPdf: () => void; onDownloadThermal: (width: 58 | 80) => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const onCloseRef = useRef(onClose)
@@ -250,7 +278,10 @@ function ReceiptDialog({ receipt, business, onClose }: { receipt: Data['receipts
       <div className="receipt-toolbar">
         <span className="panel-eyebrow">PAYMENT CONFIRMATION</span>
         <div>
-          <button className="button-secondary" onClick={() => window.print()}><Download size={14}/> Print / save PDF</button>
+          <button className="button-secondary" onClick={() => window.print()}><Download size={14}/> Print</button>
+          <button className="button-secondary" onClick={onDownloadPdf}><Download size={14}/> PDF</button>
+          <button className="button-secondary" onClick={() => onDownloadThermal(58 as 58 | 80)}>58mm</button>
+          <button className="button-secondary" onClick={() => onDownloadThermal(80 as 58 | 80)}>80mm</button>
           <button ref={closeButtonRef} className="icon-button" onClick={onClose} aria-label="Close receipt"><X size={18}/></button>
         </div>
       </div>
@@ -344,6 +375,25 @@ function ModulePanel({ section, data, business, businessEdit, setBusinessEdit, s
 }
 
 function BusinessSettingsForm({ business, onEdit, editing, onSave, onCancel, busy }: { business: Data['business'] | undefined; onEdit: () => void; editing: { name: string; email: string; phone: string; address: string; city: string; country: string; currency: string; receiptPrefix: string; invoicePrefix: string } | null; onSave: () => void; onCancel: () => void; busy: boolean }) {
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoUrl, setLogoUrl] = useState<string | null>(business?.logoUrl || null)
+
+  async function handleLogoUpload(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0]
+    if (!file) return
+    if (file.size > 2 * 1024 * 1024) { alert('Logo must be 2 MB or smaller.'); return }
+    if (!['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/svg+xml'].includes(file.type)) { alert('Unsupported file type. Use PNG, JPEG, WebP or SVG.'); return }
+    setLogoUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append('logo', file)
+      const res = await fetch('/api/upload/logo', { method: 'POST', body: formData })
+      if (!res.ok) { const err = await res.json().catch(() => ({})); throw new Error(err.error || 'Logo upload failed') }
+      const data = await res.json()
+      setLogoUrl(data.logoUrl)
+    } catch (cause) { alert(cause instanceof Error ? cause.message : 'Logo upload failed') }
+    finally { setLogoUploading(false) }
+  }
   const initial = {
     name: business?.name || '',
     email: business?.email || '',
@@ -356,7 +406,9 @@ function BusinessSettingsForm({ business, onEdit, editing, onSave, onCancel, bus
     invoicePrefix: business?.invoicePrefix || 'INV',
   }
   const values = editing ?? initial
-  return <div className="panel data-panel"><div className="panel-heading"><div><span className="panel-eyebrow">BUSINESS PROFILE</span><h2>Business Settings</h2></div>{editing ? <button className="primary-button" onClick={onCancel}><X size={15}/> Cancel</button> : <button className="primary-button" onClick={onEdit}><Plus size={15}/> Edit profile</button>}</div><form onSubmit={(event) => { event.preventDefault(); onSave() }} className="modal-form"><div className="form-two"><label>Business name<input name="name" defaultValue={values.name} required minLength={2} maxLength={160} disabled={!editing}/></label><label>Legal name<input name="legalName" defaultValue={business?.legalName || ''} disabled={!editing}/></label></div><div className="form-two"><label>Email<input name="email" type="email" defaultValue={values.email} disabled={!editing}/></label><label>Phone<input name="phone" defaultValue={values.phone} disabled={!editing}/></label></div><div className="form-two"><label>Address<input name="address" defaultValue={values.address} disabled={!editing}/></label><label>City<input name="city" defaultValue={values.city} disabled={!editing}/></label></div><div className="form-two"><label>Country<input name="country" defaultValue={values.country} disabled={!editing}/></label><label>Currency<input name="currency" defaultValue={values.currency} disabled={!editing}/></label></div><div className="form-two"><label>Receipt prefix<input name="receiptPrefix" defaultValue={values.receiptPrefix} maxLength={10} disabled={!editing}/></label><label>Invoice prefix<input name="invoicePrefix" defaultValue={values.invoicePrefix} maxLength={10} disabled={!editing}/></label></div>{editing && <div className="modal-actions"><button className="button-secondary" type="button" onClick={onCancel}>Cancel</button><button className="primary-button" type="submit">{busy ? 'Saving…' : 'Save profile'}</button></div>}</form></div>
+  return <div className="panel data-panel"><div className="panel-heading"><div><span className="panel-eyebrow">BUSINESS PROFILE</span><h2>Business Settings</h2></div>{editing ? <button className="primary-button" onClick={onCancel}><X size={15}/> Cancel</button> : <button className="primary-button" onClick={onEdit}><Plus size={15}/> Edit profile</button>}</div>
+  {editing && <div className="setting-rows"><label className="logo-upload"><span>Business logo</span><input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={handleLogoUpload} disabled={logoUploading}/>{logoUploading ? <span>Uploading…</span> : null}</label>{logoUrl && <div className="logo-preview"><img src={logoUrl} alt="Business logo" style={{ maxWidth: 120, maxHeight: 60, marginTop: 8 }}/><button className="button-secondary" type="button" onClick={() => setLogoUrl(null)} style={{ marginTop: 6 }}>Remove</button></div>}</div>}
+  <form onSubmit={(event) => { event.preventDefault(); onSave() }} className="modal-form"><div className="form-two"><label>Business name<input name="name" defaultValue={values.name} required minLength={2} maxLength={160} disabled={!editing}/></label><label>Legal name<input name="legalName" defaultValue={business?.legalName || ''} disabled={!editing}/></label></div><div className="form-two"><label>Email<input name="email" type="email" defaultValue={values.email} disabled={!editing}/></label><label>Phone<input name="phone" defaultValue={values.phone} disabled={!editing}/></label></div><div className="form-two"><label>Address<input name="address" defaultValue={values.address} disabled={!editing}/></label><label>City<input name="city" defaultValue={values.city} disabled={!editing}/></label></div><div className="form-two"><label>Country<input name="country" defaultValue={values.country} disabled={!editing}/></label><label>Currency<input name="currency" defaultValue={values.currency} disabled={!editing}/></label></div><div className="form-two"><label>Receipt prefix<input name="receiptPrefix" defaultValue={values.receiptPrefix} maxLength={10} disabled={!editing}/></label><label>Invoice prefix<input name="invoicePrefix" defaultValue={values.invoicePrefix} maxLength={10} disabled={!editing}/></label></div>{editing && <div className="modal-actions"><button className="button-secondary" type="button" onClick={onCancel}>Cancel</button><button className="primary-button" type="submit">{busy ? 'Saving…' : 'Save profile'}</button></div>}</form></div>
 }
 
 function RefundsPanel({ refunds, onRequestRefund, onDecideRefund, onCompleteRefund, busy }: { refunds: Data['refunds']; onRequestRefund: (amount: string, reason: string, method: string, reference: string, paymentId: string) => void; onDecideRefund: (refundId: string, approve: boolean) => void; onCompleteRefund: (refundId: string) => void; busy: boolean }) {
