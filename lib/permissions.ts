@@ -7,9 +7,14 @@ export type BusinessPermission =
   | 'membership.manage'
   | 'customer.manage'
   | 'catalogue.manage'
+  | 'supplier.manage'
   | 'invoice.create'
   | 'invoice.issue'
   | 'invoice.cancel'
+  | 'purchase_order.create'
+  | 'purchase_order.approve'
+  | 'goods_receipt.receive'
+  | 'stock.adjust'
   | 'payment.record'
   | 'refund.create'
   | 'refund.approve'
@@ -17,33 +22,46 @@ export type BusinessPermission =
   | 'expense.record'
   | 'reports.read'
   | 'audit.read'
+  | 'tax.manage'
 
 type RolePermissions = Record<BusinessRole, BusinessPermission[]>
 
 const rolePermissions: RolePermissions = {
   owner: [
     'business.read', 'business.manage', 'business.settings', 'membership.manage',
-    'customer.manage', 'catalogue.manage', 'invoice.create', 'invoice.issue', 'invoice.cancel',
+    'customer.manage', 'catalogue.manage', 'supplier.manage',
+    'invoice.create', 'invoice.issue', 'invoice.cancel',
+    'purchase_order.create', 'purchase_order.approve',
+    'goods_receipt.receive', 'stock.adjust',
     'payment.record', 'refund.create', 'refund.approve', 'receipt.void', 'expense.record',
-    'reports.read', 'audit.read',
+    'reports.read', 'audit.read', 'tax.manage',
   ],
   administrator: [
     'business.read', 'business.manage', 'business.settings',
-    'customer.manage', 'catalogue.manage', 'invoice.create', 'invoice.issue', 'invoice.cancel',
+    'customer.manage', 'catalogue.manage', 'supplier.manage',
+    'invoice.create', 'invoice.issue', 'invoice.cancel',
+    'purchase_order.create', 'purchase_order.approve',
+    'goods_receipt.receive', 'stock.adjust',
     'payment.record', 'refund.create', 'refund.approve', 'receipt.void', 'expense.record',
-    'reports.read', 'audit.read',
+    'reports.read', 'audit.read', 'tax.manage',
   ],
   finance_manager: [
-    'business.read', 'customer.manage', 'catalogue.manage', 'invoice.create', 'invoice.issue',
+    'business.read', 'customer.manage', 'catalogue.manage', 'supplier.manage',
+    'invoice.create', 'invoice.issue',
+    'purchase_order.create', 'purchase_order.approve',
+    'goods_receipt.receive', 'stock.adjust',
     'payment.record', 'refund.create', 'refund.approve', 'receipt.void', 'expense.record',
-    'reports.read', 'audit.read',
+    'reports.read', 'audit.read', 'tax.manage',
   ],
   accountant: [
-    'business.read', 'customer.manage', 'catalogue.manage', 'invoice.create', 'invoice.issue',
+    'business.read', 'customer.manage', 'catalogue.manage', 'supplier.manage',
+    'invoice.create', 'invoice.issue',
     'payment.record', 'refund.create', 'expense.record', 'reports.read', 'audit.read',
+    'tax.manage',
   ],
   sales_officer: [
-    'business.read', 'customer.manage', 'catalogue.manage', 'invoice.create', 'invoice.issue',
+    'business.read', 'customer.manage', 'catalogue.manage', 'supplier.manage',
+    'invoice.create', 'invoice.issue',
     'payment.record', 'expense.record', 'reports.read',
   ],
   cashier: [

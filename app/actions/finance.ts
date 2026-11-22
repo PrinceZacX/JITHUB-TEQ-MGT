@@ -3,29 +3,20 @@
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import {
-  auditLogs,
-  businesses,
-  businessMemberships,
-  catalogueItems,
-  customers,
-  documentSequences,
-  expenses,
-  invoiceItems,
-  invoices,
-  paymentAllocations,
-  payments,
-  receipts,
-  refunds,
-  user,
-  verification,
+  auditLogs, businesses, businessMemberships, businessRoles, catalogueItems, customers,
+  documentSequences, expenses, goodsReceipts, goodsReceiptLines,
+  invoiceItems, invoices, items, paymentAllocations, payments,
+  purchaseOrderLines, purchaseOrders, purchaseReturnLines, purchaseReturns,
+  receipts, refunds, stockLevels, stockMovements, suppliers, taxRates,
+  user, verification, warehouses,
 } from '@/lib/db/schema'
-import { and, desc, eq, gte, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, lte, sql } from 'drizzle-orm'
 import { cookies, headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { randomUUID, randomBytes, createHash } from 'node:crypto'
 import { requirePermission, defaultRole, type BusinessRole } from '@/lib/permissions'
 import { loadEnv } from '@/lib/env'
-import { sendInvoiceEmail, sendReceiptEmail, sendInvitationEmail } from '@/lib/email'
+import { sendInvoiceEmail, sendReceiptEmail } from '@/lib/email'
 
 const moneyPattern = /^\d{1,12}(\.\d{1,2})?$/
 
@@ -63,37 +54,17 @@ function safeDate(value: Date | string | null): string {
   return d.toISOString().slice(0, 10)
 }
 
-/**
- * Resolve the caller's active business and role. The user must have an
- * accepted membership. If businessId is provided, use that business;
- * otherwise, check for an active business cookie; otherwise use the
- * first membership.
- */
 async function requireBusiness(businessId?: string) {
   loadEnv()
   const userId = await requireUser()
 
   const whereClauses = [eq(businessMemberships.userId, userId), eq(businesses.status, 'active')]
-
-  // If no explicit businessId, check for an active business cookie
-  if (!businessId) {
-    const cookieStore = await cookies()
-    const activeBusiness = cookieStore.get('jithub_active_business')?.value
-    if (activeBusiness) {
-      businessId = activeBusiness
-    }
-  }
-
-  if (businessId) {
-    whereClauses.push(eq(businessMemberships.businessId, businessId))
-  }
+  if (businessId) whereClauses.push(eq(businessMemberships.businessId, businessId))
 
   const [membership] = await db
     .select({
-      id: businessMemberships.id,
-      businessId: businessMemberships.businessId,
-      userId: businessMemberships.userId,
-      role: businessMemberships.role,
+      id: businessMemberships.id, businessId: businessMemberships.businessId,
+      userId: businessMemberships.userId, role: businessMemberships.role,
       businessStatus: businesses.status,
     })
     .from(businessMemberships)
@@ -102,8 +73,7 @@ async function requireBusiness(businessId?: string) {
     .limit(1)
   if (!membership) throw new Error('You are not a member of an active business.')
   return {
-    userId,
-    businessId: membership.businessId,
+    userId, businessId: membership.businessId,
     role: membership.role as 'owner' | 'administrator' | 'finance_manager' | 'accountant' | 'sales_officer' | 'cashier' | 'viewer',
   }
 }
@@ -117,99 +87,197 @@ async function requireBusinessPermission(permission: string) {
 async function insertAudit(tx: any, context: { userId: string; businessId: string }, input: {
   action: string; entityType: string; entityId: string; details?: Record<string, unknown> }) {
   await tx.insert(auditLogs).values({
-    id: randomUUID(),
-    businessId: context.businessId,
-    userId: context.userId,
-    action: input.action,
-    entityType: input.entityType,
-    entityId: input.entityId,
+    id: randomUUID(), businessId: context.businessId, userId: context.userId,
+    action: input.action, entityType: input.entityType, entityId: input.entityId,
     details: input.details ?? {},
   })
 }
 
-async function allocateDocumentNumber(tx: any, businessId: string, documentType: 'invoice' | 'receipt') {
+async function allocateDocumentNumber(tx: any, businessId: string, documentType: 'invoice' | 'receipt' | 'purchase_order') {
   const now = new Date()
   const year = now.getFullYear()
   const [row] = await tx
-    .select()
-    .from(documentSequences)
+    .select().from(documentSequences)
     .where(and(eq(documentSequences.businessId, businessId), eq(documentSequences.documentType, documentType)))
-    .for('update')
-    .limit(1)
+    .for('update').limit(1)
   const [business] = await tx.select({ invoicePrefix: businesses.invoicePrefix, receiptPrefix: businesses.receiptPrefix }).from(businesses).where(eq(businesses.id, businessId)).limit(1)
   if (!business) throw new Error('Business not found.')
-  const prefix = documentType === 'invoice' ? business.invoicePrefix : business.receiptPrefix
+  const prefix = documentType === 'invoice' ? business.invoicePrefix : documentType === 'receipt' ? business.receiptPrefix : 'PO'
   const next = Number(row?.lastNumber ?? 0) + 1
   const padded = String(next).padStart(6, '0')
   const number = `${prefix}-${year}-${padded}`
   if (row) {
     await tx.update(documentSequences).set({ lastNumber: String(next), updatedAt: now }).where(eq(documentSequences.id, row.id))
   } else {
-    await tx.insert(documentSequences).values({
-      id: randomUUID(),
-      businessId,
-      documentType,
-      lastNumber: String(next),
-      updatedAt: now,
-    })
+    await tx.insert(documentSequences).values({ id: randomUUID(), businessId, documentType, lastNumber: String(next), updatedAt: now })
   }
   return number
 }
 
-export async function getDashboardData() {
-  const context = await requireBusiness()
-  const { userId, businessId } = context
-  const [customersCount] = await db.select({ count: sql<number>`count(*)::int` }).from(customers).where(eq(customers.businessId, businessId))
-  const [summary] = await db.select({
-    invoiced: sql<string>`coalesce(sum(case when ${invoices.status} not in ('draft','cancelled') then ${invoices.total} else 0 end),0)`,
-    received: sql<string>`coalesce(sum(${invoices.amountPaid}),0)`,
-    outstanding: sql<string>`coalesce(sum(case when ${invoices.status} not in ('draft','cancelled') then ${invoices.total} - ${invoices.amountPaid} else 0 end),0)`,
-    overdue: sql<number>`count(*) filter (where ${invoices.status} in ('issued','partially_paid','overdue') and ${invoices.dueDate} < current_date and ${invoices.amountPaid} < ${invoices.total})::int`,
-  }).from(invoices).where(eq(invoices.businessId, businessId))
-  const trend = await db.select({ month: sql<string>`to_char(date_trunc('month', ${payments.paidAt}::date), 'Mon')`, amount: sql<string>`coalesce(sum(${payments.amount}), 0)` }).from(payments).where(and(eq(payments.businessId, businessId), sql`${payments.paidAt}::date >= date_trunc('month', current_date) - interval '5 months'`)).groupBy(sql`date_trunc('month', ${payments.paidAt}::date)`).orderBy(sql`date_trunc('month', ${payments.paidAt}::date)`)
-  const recentInvoices = await db.select({ id: invoices.id, number: invoices.number, total: invoices.total, amountPaid: invoices.amountPaid, status: sql<string>`case when ${invoices.status} in ('issued','partially_paid','overdue') and ${invoices.dueDate} < current_date and ${invoices.amountPaid} < ${invoices.total} then 'overdue' else ${invoices.status} end`, issueDate: invoices.issueDate, dueDate: invoices.dueDate, customer: customers.name }).from(invoices).innerJoin(customers, and(eq(invoices.customerId, customers.id), eq(customers.businessId, businessId))).where(eq(invoices.businessId, businessId)).orderBy(desc(invoices.createdAt)).limit(50)
-  const recentCustomers = await db.select({ id: customers.id, name: customers.name, email: customers.email, phone: customers.phone, address: customers.address, createdAt: customers.createdAt }).from(customers).where(eq(customers.businessId, businessId)).orderBy(desc(customers.createdAt)).limit(100)
-  const recentReceipts = await db.select({ id: receipts.id, number: receipts.number, status: receipts.status, amount: payments.amount, method: payments.method, paidAt: payments.paidAt, reference: payments.reference, customer: customers.name }).from(receipts).innerJoin(payments, and(eq(receipts.paymentId, payments.id), eq(payments.businessId, businessId))).innerJoin(customers, and(eq(payments.customerId, customers.id), eq(customers.businessId, businessId))).where(eq(receipts.businessId, businessId)).orderBy(desc(receipts.issuedAt)).limit(100)
-  const recentExpenses = await db.select({ id: expenses.id, category: expenses.category, payee: expenses.payee, description: expenses.description, method: expenses.method, paidAt: expenses.paidAt, amount: expenses.amount }).from(expenses).where(eq(expenses.businessId, businessId)).orderBy(desc(expenses.paidAt)).limit(100)
-  const catalogue = await db.select({ id: catalogueItems.id, name: catalogueItems.name, description: catalogueItems.description, unitPrice: catalogueItems.unitPrice, status: catalogueItems.status }).from(catalogueItems).where(eq(catalogueItems.businessId, businessId)).orderBy(desc(catalogueItems.createdAt)).limit(500)
-  const auditTrail = await db.select({ id: auditLogs.id, action: auditLogs.action, entityType: auditLogs.entityType, entityId: auditLogs.entityId, details: auditLogs.details, createdAt: auditLogs.createdAt }).from(auditLogs).where(eq(auditLogs.businessId, businessId)).orderBy(desc(auditLogs.createdAt)).limit(100)
-  const [business] = await db.select({ id: businesses.id, name: businesses.name, legalName: businesses.legalName, email: businesses.email, phone: businesses.phone, address: businesses.address, currency: businesses.currency, city: businesses.city, country: businesses.country, receiptPrefix: businesses.receiptPrefix, invoicePrefix: businesses.invoicePrefix, logoUrl: businesses.logoUrl }).from(businesses).where(eq(businesses.id, businessId)).limit(1)
-  const allBusinesses = await db
-    .select({
-      id: businesses.id,
-      name: businesses.name,
-      currency: businesses.currency,
-      city: businesses.city,
-      country: businesses.country,
-      status: businesses.status,
-      logoUrl: businesses.logoUrl,
-      role: businessMemberships.role,
+/* ------------------------------------------------------------------ */
+/* Business management                                                */
+/* ------------------------------------------------------------------ */
+
+export async function createBusiness(input: {
+  name: string; legalName?: string; registrationNumber?: string;
+  taxIdentificationNumber?: string; email?: string; phone?: string;
+  address?: string; city?: string; country?: string; currency?: string;
+  timezone?: string; website?: string; receiptPrefix?: string;
+  invoicePrefix?: string; footerText?: string;
+  paymentInstructions?: string; taxDisplaySettings?: Record<string, unknown>;
+}) {
+  const userId = await requireUser()
+  loadEnv()
+  const name = input.name.trim()
+  if (name.length < 2 || name.length > 160) throw new Error('Business name must be between 2 and 160 characters.')
+  if (input.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) throw new Error('Enter a valid email address.')
+  const id = randomUUID()
+  await db.transaction(async (tx) => {
+    await tx.insert(businesses).values({
+      id, name, legalName: input.legalName?.trim() || null,
+      registrationNumber: input.registrationNumber?.trim() || null,
+      taxIdentificationNumber: input.taxIdentificationNumber?.trim() || null,
+      email: input.email?.trim() || null,
+      phone: input.phone?.trim() || null,
+      address: input.address?.trim() || null,
+      city: input.city?.trim() || null,
+      country: input.country?.trim() || 'Uganda',
+      currency: input.currency?.trim() || 'UGX',
+      timezone: input.timezone?.trim() || 'Africa/Kampala',
+      website: input.website?.trim() || null,
+      receiptPrefix: input.receiptPrefix?.trim() || 'RCP',
+      invoicePrefix: input.invoicePrefix?.trim() || 'INV',
+      footerText: input.footerText?.trim() || null,
+      paymentInstructions: input.paymentInstructions?.trim() || null,
+      taxDisplaySettings: input.taxDisplaySettings ?? {},
+      status: 'active',
     })
-    .from(businessMemberships)
-    .innerJoin(businesses, eq(businesses.id, businessMemberships.businessId))
-    .where(eq(businessMemberships.userId, userId))
-    .orderBy(desc(businessMemberships.createdAt))
-  const refundsList = await db.select({ id: refunds.id, amount: refunds.amount, reason: refunds.reason, method: refunds.method, reference: refunds.reference, status: refunds.status, createdAt: refunds.createdAt, requestedBy: refunds.requestedBy, approvedBy: refunds.approvedBy }).from(refunds).where(eq(refunds.businessId, businessId)).orderBy(desc(refunds.createdAt)).limit(50)
-  return { customerCount: customersCount.count, summary, trend, invoices: recentInvoices, customers: recentCustomers, receipts: recentReceipts, expenses: recentExpenses, catalogue, auditTrail, businessId, business, businesses: allBusinesses, refunds: refundsList }
+    await tx.insert(businessMemberships).values({
+      id: randomUUID(), businessId: id, userId, role: 'owner',
+    })
+    await tx.insert(auditLogs).values({
+      id: randomUUID(), businessId: id, userId,
+      action: 'business.created', entityType: 'business', entityId: id, details: { name },
+    })
+  })
+  revalidatePath('/')
+  return { id }
 }
 
-export async function getFinancialReport(days: '30' | '90' | '365' | 'all') {
-  const context = await requireBusinessPermission('reports.read')
-  const { userId, businessId } = context
-  if (!['30', '90', '365', 'all'].includes(days)) throw new Error('Choose a supported reporting period.')
-  const start = new Date()
-  if (days !== 'all') start.setUTCDate(start.getUTCDate() - Number(days))
-  const startDate = start.toISOString().slice(0, 10)
-  const invoiceScope = days === 'all' ? eq(invoices.businessId, businessId) : and(eq(invoices.businessId, businessId), gte(invoices.issueDate, startDate))
-  const paymentScope = days === 'all' ? and(eq(payments.businessId, businessId), eq(payments.status, 'confirmed')) : and(eq(payments.businessId, businessId), eq(payments.status, 'confirmed'), gte(payments.paidAt, startDate))
-  const expenseScope = days === 'all' ? eq(expenses.businessId, businessId) : and(eq(expenses.businessId, businessId), gte(expenses.paidAt, startDate))
-  const [invoiceSummary] = await db.select({ invoiced: sql<string>`coalesce(sum(case when ${invoices.status} not in ('draft','cancelled') then ${invoices.total} else 0 end),0)`, outstanding: sql<string>`coalesce(sum(case when ${invoices.status} not in ('draft','cancelled') then ${invoices.total} - ${invoices.amountPaid} else 0 end),0)` }).from(invoices).where(invoiceScope)
-  const [paymentSummary] = await db.select({ received: sql<string>`coalesce(sum(${payments.amount}),0)` }).from(payments).where(paymentScope)
-  const invoiceRows = await db.select({ number: invoices.number, customer: customers.name, status: invoices.status, date: invoices.issueDate, total: invoices.total, paid: invoices.amountPaid }).from(invoices).innerJoin(customers, and(eq(invoices.customerId, customers.id), eq(customers.businessId, businessId))).where(and(invoiceScope, sql`${invoices.status} not in ('draft','cancelled')`)).orderBy(desc(invoices.issueDate))
-  const paymentRows = await db.select({ receipt: receipts.number, customer: customers.name, method: payments.method, reference: payments.reference, date: payments.paidAt, amount: payments.amount }).from(payments).innerJoin(customers, and(eq(payments.customerId, customers.id), eq(customers.businessId, businessId))).innerJoin(receipts, and(eq(receipts.paymentId, payments.id), eq(receipts.businessId, businessId))).where(paymentScope).orderBy(desc(payments.paidAt))
-  const expenseRows = await db.select({ category: expenses.category, payee: expenses.payee, method: expenses.method, date: expenses.paidAt, amount: expenses.amount }).from(expenses).where(expenseScope).orderBy(desc(expenses.paidAt))
-  return { startDate: days === 'all' ? null : startDate, invoiced: invoiceSummary.invoiced, outstanding: invoiceSummary.outstanding, received: paymentSummary.received, invoices: invoiceRows, payments: paymentRows, expenses: expenseRows }
+export async function listBusinesses() {
+  const userId = await requireUser()
+  loadEnv()
+  const rows = await db
+    .select({
+      id: businesses.id, name: businesses.name, legalName: businesses.legalName,
+      email: businesses.email, phone: businesses.phone,
+      city: businesses.city, country: businesses.country,
+      currency: businesses.currency, status: businesses.status,
+      createdAt: businesses.createdAt,
+    })
+    .from(businesses)
+    .innerJoin(businessMemberships, eq(businessMemberships.businessId, businesses.id))
+    .where(eq(businessMemberships.userId, userId))
+    .orderBy(desc(businesses.createdAt))
+  return rows
 }
+
+export async function setActiveBusiness(input: { businessId: string }) {
+  const userId = await requireUser()
+  loadEnv()
+  const [membership] = await db
+    .select({ id: businessMemberships.id, role: businessMemberships.role })
+    .from(businessMemberships)
+    .where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, userId)))
+    .limit(1)
+  if (!membership) throw new Error('You are not a member of this business.')
+  const [business] = await db.select({ status: businesses.status }).from(businesses).where(eq(businesses.id, input.businessId)).limit(1)
+  if (!business || business.status !== 'active') throw new Error('Business is not active.')
+  await db.insert(businessMemberships).values({
+    id: randomUUID(), businessId: input.businessId, userId, role: membership.role,
+  }).onConflictDoNothing()
+  revalidatePath('/')
+  return { success: true }
+}
+
+/* ------------------------------------------------------------------ */
+/* Business memberships                                               */
+/* ------------------------------------------------------------------ */
+
+export async function listBusinessMembers(input: { businessId: string }) {
+  const context = await requireBusinessPermission('membership.manage')
+  const rows = await db
+    .select({
+      id: businessMemberships.id, userId: businessMemberships.userId,
+      role: businessMemberships.role,
+      userName: user.name, userEmail: user.email,
+    })
+    .from(businessMemberships)
+    .innerJoin(user, eq(user.id, businessMemberships.userId))
+    .where(eq(businessMemberships.businessId, input.businessId))
+    .orderBy(desc(businessMemberships.createdAt))
+  return rows
+}
+
+export async function inviteMember(input: { businessId: string; email: string; role: BusinessRole }) {
+  const context = await requireBusinessPermission('membership.manage')
+  const email = input.email.trim()
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Enter a valid email address.')
+  if (!businessRoles.includes(input.role)) throw new Error('Choose a valid role.')
+  const id = randomUUID()
+  await db.transaction(async (tx) => {
+    await tx.insert(businessMemberships).values({
+      id, businessId: context.businessId, userId: '', role: input.role,
+    })
+    await insertAudit(tx, context, { action: 'membership.invited', entityType: 'business_membership', entityId: id, details: { email, role: input.role } })
+  })
+  revalidatePath('/')
+  return { id }
+}
+
+export async function updateMembershipRole(input: { businessId: string; userId: string; role: BusinessRole }) {
+  const context = await requireBusinessPermission('membership.manage')
+  if (!businessRoles.includes(input.role)) throw new Error('Choose a valid role.')
+  const [existing] = await db.select({ id: businessMemberships.id, role: businessMemberships.role }).from(businessMemberships).where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId))).limit(1)
+  if (!existing) throw new Error('Membership not found.')
+  if (existing.role === 'owner') throw new Error('Cannot change the business owner role.')
+  await db.transaction(async (tx) => {
+    await tx.update(businessMemberships).set({ role: input.role }).where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId)))
+    await insertAudit(tx, context, { action: 'membership.role_updated', entityType: 'business_membership', entityId: input.userId, details: { previousRole: existing.role, newRole: input.role } })
+  })
+  revalidatePath('/')
+  return { success: true }
+}
+
+export async function suspendMembership(input: { businessId: string; userId: string }) {
+  const context = await requireBusinessPermission('membership.manage')
+  const [existing] = await db.select({ role: businessMemberships.role }).from(businessMemberships).where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId))).limit(1)
+  if (!existing) throw new Error('Membership not found.')
+  if (existing.role === 'owner') throw new Error('Cannot suspend the business owner.')
+  await db.transaction(async (tx) => {
+    await tx.update(businessMemberships).set({ role: 'viewer' }).where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId)))
+    await insertAudit(tx, context, { action: 'membership.suspended', entityType: 'business_membership', entityId: input.userId })
+  })
+  revalidatePath('/')
+  return { success: true }
+}
+
+export async function removeMembership(input: { businessId: string; userId: string }) {
+  const context = await requireBusinessPermission('membership.manage')
+  const [existing] = await db.select({ role: businessMemberships.role }).from(businessMemberships).where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId))).limit(1)
+  if (!existing) throw new Error('Membership not found.')
+  if (existing.role === 'owner') throw new Error('Cannot remove the business owner.')
+  await db.transaction(async (tx) => {
+    await tx.delete(businessMemberships).where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId)))
+    await insertAudit(tx, context, { action: 'membership.removed', entityType: 'business_membership', entityId: input.userId })
+  })
+  revalidatePath('/')
+  return { success: true }
+}
+
+/* ------------------------------------------------------------------ */
+/* Customers                                                          */
+/* ------------------------------------------------------------------ */
 
 export async function createCustomer(input: { name: string; email: string; phone: string; address: string }) {
   const context = await requireBusinessPermission('customer.manage')
@@ -242,169 +310,9 @@ export async function updateCustomer(input: { id: string; name: string; email: s
   return { id: input.id }
 }
 
-export async function createInvoice(input: { customerId: string; description: string; quantity: string; unitPrice: string; taxRate: string; dueDate: string; status: 'draft' | 'issued' }) {
-  const context = await requireBusinessPermission(input.status === 'issued' ? 'invoice.issue' : 'invoice.create')
-  const [customer] = await db.select({ id: customers.id, businessId: customers.businessId }).from(customers).where(and(eq(customers.id, input.customerId), eq(customers.businessId, context.businessId))).limit(1)
-  if (!customer) throw new Error('Select a customer in your account.')
-  const description = input.description.trim()
-  const quantityMilli = scaledDecimal(input.quantity, 3, 'Quantity')
-  const taxRateBasisPoints = scaledDecimal(input.taxRate, 4, 'Tax rate')
-  const quantity = Number(quantityMilli) / 1000
-  const taxRate = Number(taxRateBasisPoints) / 100
-  if (!description || description.length > 200) throw new Error('Add a description of up to 200 characters.')
-  if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1000000) throw new Error('Quantity must be greater than zero.')
-  if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) throw new Error('Tax rate must be between 0 and 100 percent.')
-  if (!isValidDate(input.dueDate)) throw new Error('Choose a valid due date.')
-  if (input.status !== 'draft' && input.status !== 'issued') throw new Error('Choose whether to save a draft or issue the invoice.')
-  const unitCents = money(input.unitPrice)
-  const subtotalCents = Number((BigInt(unitCents) * quantityMilli + 500n) / 1000n)
-  const taxCents = Number((BigInt(subtotalCents) * taxRateBasisPoints + 500_000n) / 1_000_000n)
-  if (!Number.isSafeInteger(subtotalCents + taxCents)) throw new Error('Invoice total is too large.')
-  const id = randomUUID()
-  const number = await allocateDocumentNumber(db as any, context.businessId, 'invoice')
-  const format = (cents: number) => (cents / 100).toFixed(2)
-  await db.transaction(async (tx) => {
-    await tx.insert(invoices).values({ id, businessId: context.businessId, userId: context.userId, customerId: customer.id, number, status: input.status, issueDate: new Date().toISOString().slice(0, 10), dueDate: input.dueDate, subtotal: format(subtotalCents), taxAmount: format(taxCents), total: format(subtotalCents + taxCents) })
-    await tx.insert(invoiceItems).values({ id: randomUUID(), businessId: context.businessId, invoiceId: id, description, quantity: (Number(quantityMilli) / 1000).toFixed(3), unitPrice: format(unitCents), taxRate: taxRate.toFixed(4), lineTotal: format(subtotalCents + taxCents) })
-    await insertAudit(tx, context, { action: input.status === 'draft' ? 'invoice.draft_created' : 'invoice.issued', entityType: 'invoice', entityId: id, details: { number } })
-  })
-  revalidatePath('/')
-  return { id, number, status: input.status }
-}
-
-export async function issueDraftInvoice(id: string) {
-  const context = await requireBusinessPermission('invoice.issue')
-  let customerId = ''
-  let currency = ''
-  let total = ''
-  let dueDate = ''
-  let number = ''
-  await db.transaction(async (tx) => {
-    const [invoice] = await tx.select({ id: invoices.id, status: invoices.status, number: invoices.number, businessId: invoices.businessId, customerId: invoices.customerId, currency: invoices.currency, total: invoices.total, dueDate: invoices.dueDate }).from(invoices).where(and(eq(invoices.id, id), eq(invoices.businessId, context.businessId))).limit(1).for('update')
-    if (!invoice || invoice.status !== 'draft') throw new Error('Only a draft invoice in your business can be issued.')
-    customerId = invoice.customerId
-    currency = invoice.currency
-    total = invoice.total
-    dueDate = invoice.dueDate
-    number = invoice.number
-    await tx.update(invoices).set({ status: 'issued', issueDate: new Date().toISOString().slice(0, 10) }).where(and(eq(invoices.id, id), eq(invoices.businessId, context.businessId), eq(invoices.status, 'draft')))
-    await insertAudit(tx, context, { action: 'invoice.issued', entityType: 'invoice', entityId: id, details: { number } })
-  })
-
-  // Send invoice email if customer has an email address
-  try {
-    const [customer] = await db.select({ email: customers.email, name: customers.name }).from(customers).where(eq(customers.id, customerId)).limit(1)
-    if (customer?.email) {
-      await sendInvoiceEmail({
-        to: customer.email,
-        invoiceNumber: number,
-        amount: total,
-        currency,
-        dueDate: safeDate(dueDate),
-        pdfUrl: `${process.env.BETTER_AUTH_URL ?? process.env.VERCEL_PROJECT_PRODUCTION_URL ?? ''}/api/documents/invoice/${id}`,
-      })
-    }
-  } catch {
-    // Email delivery failure must not fail the invoice issuance
-  }
-
-  revalidatePath('/')
-}
-
-export async function recordPayment(input: { invoiceId: string; amount: string; method: string; reference: string; paidAt: string; idempotencyKey?: string }) {
-  const context = await requireBusinessPermission('payment.record')
-  const amount = money(input.amount)
-  if (amount <= 0) throw new Error('Payment must be greater than zero.')
-  if (!['Cash', 'Bank transfer', 'Mobile Money', 'Card', 'Cheque', 'Other'].includes(input.method)) throw new Error('Choose a supported payment method.')
-  const reference = input.reference.trim() || null
-  if (reference && reference.length > 100) throw new Error('Payment reference must be 100 characters or fewer.')
-  const paidDate = input.paidAt || new Date().toISOString().slice(0, 10)
-  if (!isValidDate(paidDate)) throw new Error('Choose a valid payment date.')
-  const idempotencyKey = input.idempotencyKey || null
-  const paymentId = randomUUID()
-  const receiptNumber = await allocateDocumentNumber(db as any, context.businessId, 'receipt')
-  let customerId = ''
-  let currency = ''
-  await db.transaction(async (tx) => {
-    if (idempotencyKey) {
-      const [existing] = await tx.select({ id: payments.id, amount: payments.amount }).from(payments).where(and(eq(payments.businessId, context.businessId), eq(payments.idempotencyKey, idempotencyKey))).limit(1)
-      if (existing) throw new Error('A payment with this request key has already been recorded.')
-    }
-    const [invoice] = await tx.select({ id: invoices.id, status: invoices.status, total: invoices.total, amountPaid: invoices.amountPaid, customerId: invoices.customerId, currency: invoices.currency, businessId: invoices.businessId }).from(invoices).where(and(eq(invoices.id, input.invoiceId), eq(invoices.businessId, context.businessId))).limit(1).for('update')
-    if (!invoice || invoice.status === 'draft' || invoice.status === 'cancelled') throw new Error('The selected invoice cannot receive a payment.')
-    const remaining = money(invoice.total) - money(invoice.amountPaid)
-    if (amount > remaining) throw new Error('Payment exceeds the outstanding balance.')
-    if (reference) {
-      const [duplicate] = await tx.select({ id: payments.id }).from(payments).where(and(eq(payments.businessId, context.businessId), eq(payments.reference, reference))).limit(1)
-      if (duplicate) throw new Error('This payment reference has already been recorded.')
-    }
-    const nextPaid = money(invoice.amountPaid) + amount
-    const verificationToken = createHash('sha256').update(randomBytes(32).toString('hex') + receiptNumber).digest('hex')
-    customerId = invoice.customerId
-    currency = invoice.currency
-    await tx.insert(payments).values({ id: paymentId, businessId: context.businessId, userId: context.userId, customerId: invoice.customerId, reference, idempotencyKey, method: input.method.toLowerCase().replace(' ', '_'), paidAt: paidDate, amount: (amount / 100).toFixed(2) })
-    await tx.insert(paymentAllocations).values({ id: randomUUID(), businessId: context.businessId, paymentId, invoiceId: invoice.id, amount: (amount / 100).toFixed(2) })
-    await tx.insert(receipts).values({ id: randomUUID(), businessId: context.businessId, userId: context.userId, paymentId, number: receiptNumber, verificationToken })
-    await tx.update(invoices).set({ amountPaid: (nextPaid / 100).toFixed(2), status: nextPaid >= money(invoice.total) ? 'paid' : 'partially_paid' }).where(and(eq(invoices.id, invoice.id), eq(invoices.businessId, context.businessId)))
-    await insertAudit(tx, context, { action: 'payment.recorded', entityType: 'payment', entityId: paymentId, details: { invoiceId: invoice.id, receiptNumber, amount: (amount / 100).toFixed(2) } })
-  })
-  revalidatePath('/')
-
-  // Send receipt email if customer has an email address
-  try {
-    const [customer] = await db.select({ email: customers.email, name: customers.name }).from(customers).where(eq(customers.id, customerId)).limit(1)
-    if (customer?.email) {
-      await sendReceiptEmail({
-        to: customer.email,
-        receiptNumber,
-        amount: (amount / 100).toFixed(2),
-        currency,
-        paidAt: paidDate,
-        pdfUrl: `${process.env.BETTER_AUTH_URL ?? process.env.VERCEL_PROJECT_PRODUCTION_URL ?? ''}/api/documents/receipt/${paymentId}`,
-      })
-    }
-  } catch {
-    // Email delivery failure must not fail the payment recording
-  }
-
-  return { receiptNumber }
-}
-
-export async function saveCatalogueItem(input: { id?: string; name: string; description: string; unitPrice: string }) {
-  const context = await requireBusinessPermission('catalogue.manage')
-  const name = input.name.trim()
-  const description = input.description.trim()
-  const unitPrice = money(input.unitPrice)
-  if (name.length < 2 || name.length > 160) throw new Error('Item name must be between 2 and 160 characters.')
-  if (description.length > 500) throw new Error('Description must be 500 characters or fewer.')
-  if (unitPrice < 0) throw new Error('Price cannot be negative.')
-  const id = input.id || randomUUID()
-  const values = { name, description: description || null, unitPrice: (unitPrice / 100).toFixed(2) }
-  await db.transaction(async (tx) => {
-    if (input.id) {
-      const [existing] = await tx.select({ id: catalogueItems.id }).from(catalogueItems).where(and(eq(catalogueItems.id, input.id), eq(catalogueItems.businessId, context.businessId))).limit(1)
-      if (!existing) throw new Error('Catalogue item not found.')
-      await tx.update(catalogueItems).set(values).where(and(eq(catalogueItems.id, input.id), eq(catalogueItems.businessId, context.businessId)))
-    } else {
-      await tx.insert(catalogueItems).values({ id, businessId: context.businessId, userId: context.userId, ...values, status: 'active' })
-    }
-    await insertAudit(tx, context, { action: input.id ? 'catalogue_item.updated' : 'catalogue_item.created', entityType: 'catalogue_item', entityId: id })
-  })
-  revalidatePath('/')
-  return { id }
-}
-
-export async function setCatalogueItemStatus(input: { id: string; status: 'active' | 'inactive' }) {
-  const context = await requireBusinessPermission('catalogue.manage')
-  if (input.status !== 'active' && input.status !== 'inactive') throw new Error('Choose a valid catalogue status.')
-  await db.transaction(async (tx) => {
-    const [item] = await tx.select({ id: catalogueItems.id }).from(catalogueItems).where(and(eq(catalogueItems.id, input.id), eq(catalogueItems.businessId, context.businessId))).limit(1)
-    if (!item) throw new Error('Catalogue item not found.')
-    await tx.update(catalogueItems).set({ status: input.status }).where(and(eq(catalogueItems.id, input.id), eq(catalogueItems.businessId, context.businessId)))
-    await insertAudit(tx, context, { action: `catalogue_item.${input.status}`, entityType: 'catalogue_item', entityId: input.id })
-  })
-  revalidatePath('/')
-}
+/* ------------------------------------------------------------------ */
+/* Expenses                                                           */
+/* ------------------------------------------------------------------ */
 
 export async function recordExpense(input: { category: string; payee: string; description: string; method: string; paidAt: string; amount: string }) {
   const context = await requireBusinessPermission('expense.record')
@@ -425,6 +333,10 @@ export async function recordExpense(input: { category: string; payee: string; de
   return { id }
 }
 
+/* ------------------------------------------------------------------ */
+/* Refunds                                                            */
+/* ------------------------------------------------------------------ */
+
 export async function recordRefund(input: { paymentId: string; amount: string; reason: string; method: string; reference: string; idempotencyKey?: string }) {
   const context = await requireBusinessPermission('refund.create')
   const amount = money(input.amount)
@@ -444,10 +356,7 @@ export async function recordRefund(input: { paymentId: string; amount: string; r
     const alreadyRefunded = await tx.select({ total: sql<string>`coalesce(sum(${refunds.amount}),0)` }).from(refunds).where(and(eq(refunds.paymentId, payment.id), eq(refunds.status, 'completed'))).limit(1)
     const refundable = money(payment.amount) - money(alreadyRefunded[0]?.total ?? '0')
     if (amount > refundable) throw new Error('Refund exceeds the refundable amount.')
-    await tx.insert(refunds).values({
-      id: refundId, businessId: context.businessId, paymentId: payment.id, requestedBy: context.userId,
-      amount: (amount / 100).toFixed(2), reason: input.reason.trim(), method, reference, status: 'pending', idempotencyKey,
-    })
+    await tx.insert(refunds).values({ id: refundId, businessId: context.businessId, paymentId: payment.id, requestedBy: context.userId, amount: (amount / 100).toFixed(2), reason: input.reason.trim(), method, reference, status: 'pending', idempotencyKey })
     await insertAudit(tx, context, { action: 'refund.requested', entityType: 'refund', entityId: refundId, details: { paymentId: payment.id, amount: (amount / 100).toFixed(2) } })
   })
   revalidatePath('/')
@@ -484,6 +393,10 @@ export async function completeRefund(input: { refundId: string }) {
   revalidatePath('/')
 }
 
+/* ------------------------------------------------------------------ */
+/* Receipts & Invoices                                                */
+/* ------------------------------------------------------------------ */
+
 export async function voidReceipt(input: { receiptId: string }) {
   const context = await requireBusinessPermission('receipt.void')
   await db.transaction(async (tx) => {
@@ -508,6 +421,10 @@ export async function cancelInvoice(input: { invoiceId: string }) {
   })
   revalidatePath('/')
 }
+
+/* ------------------------------------------------------------------ */
+/* Business settings                                                  */
+/* ------------------------------------------------------------------ */
 
 export async function updateBusiness(input: {
   name?: string; legalName?: string; registrationNumber?: string;
@@ -561,24 +478,355 @@ export async function updateBusiness(input: {
   return { id: context.businessId }
 }
 
-export async function createBusiness(input: {
+/* ------------------------------------------------------------------ */
+/* Invoices                                                           */
+/* ------------------------------------------------------------------ */
+
+export async function createInvoice(input: { customerId: string; description: string; quantity: string; unitPrice: string; taxRate: string; dueDate: string; status: 'draft' | 'issued' }) {
+  const context = await requireBusinessPermission(input.status === 'issued' ? 'invoice.issue' : 'invoice.create')
+  const [customer] = await db.select({ id: customers.id, businessId: customers.businessId }).from(customers).where(and(eq(customers.id, input.customerId), eq(customers.businessId, context.businessId))).limit(1)
+  if (!customer) throw new Error('Select a customer in your account.')
+  const description = input.description.trim()
+  const quantityMilli = scaledDecimal(input.quantity, 3, 'Quantity')
+  const taxRateBasisPoints = scaledDecimal(input.taxRate, 4, 'Tax rate')
+  const quantity = Number(quantityMilli) / 1000
+  const taxRate = Number(taxRateBasisPoints) / 100
+  if (!description || description.length > 200) throw new Error('Add a description of up to 200 characters.')
+  if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1000000) throw new Error('Quantity must be greater than zero.')
+  if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) throw new Error('Tax rate must be between 0 and 100 percent.')
+  if (!isValidDate(input.dueDate)) throw new Error('Choose a valid due date.')
+  if (input.status !== 'draft' && input.status !== 'issued') throw new Error('Choose whether to save a draft or issue the invoice.')
+  const unitCents = money(input.unitPrice)
+  const subtotalCents = Number((BigInt(unitCents) * quantityMilli + 500n) / 1000n)
+  const taxCents = Number((BigInt(subtotalCents) * taxRateBasisPoints + 500_000n) / 1_000_000n)
+  if (!Number.isSafeInteger(subtotalCents + taxCents)) throw new Error('Invoice total is too large.')
+  const id = randomUUID()
+  const number = await allocateDocumentNumber(db as any, context.businessId, 'invoice')
+  const format = (cents: number) => (cents / 100).toFixed(2)
+  await db.transaction(async (tx) => {
+    await tx.insert(invoices).values({ id, businessId: context.businessId, userId: context.userId, customerId: customer.id, number, status: input.status, issueDate: new Date().toISOString().slice(0, 10), dueDate: input.dueDate, subtotal: format(subtotalCents), taxAmount: format(taxCents), total: format(subtotalCents + taxCents) })
+    await tx.insert(invoiceItems).values({ id: randomUUID(), businessId: context.businessId, invoiceId: id, description, quantity: (Number(quantityMilli) / 1000).toFixed(3), unitPrice: format(unitCents), taxRate: taxRate.toFixed(4), lineTotal: format(subtotalCents + taxCents) })
+    await insertAudit(tx, context, { action: input.status === 'draft' ? 'invoice.draft_created' : 'invoice.issued', entityType: 'invoice', entityId: id, details: { number } })
+  })
+  revalidatePath('/')
+  return { id, number, status: input.status }
+}
+
+export async function issueDraftInvoice(id: string) {
+  const context = await requireBusinessPermission('invoice.issue')
+  let customerId = ''
+  let currency = ''
+  let total = ''
+  let dueDate = ''
+  let number = ''
+  await db.transaction(async (tx) => {
+    const [invoice] = await tx.select({ id: invoices.id, status: invoices.status, number: invoices.number, businessId: invoices.businessId, customerId: invoices.customerId, currency: invoices.currency, total: invoices.total, dueDate: invoices.dueDate }).from(invoices).where(and(eq(invoices.id, id), eq(invoices.businessId, context.businessId))).limit(1).for('update')
+    if (!invoice || invoice.status !== 'draft') throw new Error('Only a draft invoice in your business can be issued.')
+    customerId = invoice.customerId
+    currency = invoice.currency
+    total = invoice.total
+    dueDate = invoice.dueDate
+    number = invoice.number
+    await tx.update(invoices).set({ status: 'issued', issueDate: new Date().toISOString().slice(0, 10) }).where(and(eq(invoices.id, id), eq(invoices.businessId, context.businessId), eq(invoices.status, 'draft')))
+    await insertAudit(tx, context, { action: 'invoice.issued', entityType: 'invoice', entityId: id, details: { number } })
+  })
+  try {
+    const [customer] = await db.select({ email: customers.email, name: customers.name }).from(customers).where(eq(customers.id, customerId)).limit(1)
+    if (customer?.email) {
+      await sendInvoiceEmail({ to: customer.email, invoiceNumber: number, amount: total, currency, dueDate: safeDate(dueDate), pdfUrl: `${process.env.BETTER_AUTH_URL ?? process.env.VERCEL_PROJECT_PRODUCTION_URL ?? ''}/api/documents/invoice/${id}` })
+    }
+  } catch { }
+  revalidatePath('/')
+}
+
+export async function recordPayment(input: { invoiceId: string; amount: string; method: string; reference: string; paidAt: string; idempotencyKey?: string }) {
+  const context = await requireBusinessPermission('payment.record')
+  const amount = money(input.amount)
+  if (amount <= 0) throw new Error('Payment must be greater than zero.')
+  if (!['Cash', 'Bank transfer', 'Mobile Money', 'Card', 'Cheque', 'Other'].includes(input.method)) throw new Error('Choose a supported payment method.')
+  const reference = input.reference.trim() || null
+  if (reference && reference.length > 100) throw new Error('Payment reference must be 100 characters or fewer.')
+  const paidDate = input.paidAt || new Date().toISOString().slice(0, 10)
+  if (!isValidDate(paidDate)) throw new Error('Choose a valid payment date.')
+  const idempotencyKey = input.idempotencyKey || null
+  const paymentId = randomUUID()
+  const receiptNumber = await allocateDocumentNumber(db as any, context.businessId, 'receipt')
+  let customerId = ''
+  let currency = ''
+  await db.transaction(async (tx) => {
+    if (idempotencyKey) {
+      const [existing] = await tx.select({ id: payments.id, amount: payments.amount }).from(payments).where(and(eq(payments.businessId, context.businessId), eq(payments.idempotencyKey, idempotencyKey))).limit(1)
+      if (existing) throw new Error('A payment with this request key has already been recorded.')
+    }
+    const [invoice] = await tx.select({ id: invoices.id, status: invoices.status, total: invoices.total, amountPaid: invoices.amountPaid, customerId: invoices.customerId, currency: invoices.currency, businessId: invoices.businessId }).from(invoices).where(and(eq(invoices.id, input.invoiceId), eq(invoices.businessId, context.businessId))).limit(1).for('update')
+    if (!invoice || invoice.status === 'draft' || invoice.status === 'cancelled') throw new Error('The selected invoice cannot receive a payment.')
+    const remaining = money(invoice.total) - money(invoice.amountPaid)
+    if (amount > remaining) throw new Error('Payment exceeds the outstanding balance.')
+    if (reference) {
+      const [duplicate] = await tx.select({ id: payments.id }).from(payments).where(and(eq(payments.businessId, context.businessId), eq(payments.reference, reference))).limit(1)
+      if (duplicate) throw new Error('This payment reference has already been recorded.')
+    }
+    const nextPaid = money(invoice.amountPaid) + amount
+    const verificationToken = createHash('sha256').update(randomBytes(32).toString('hex') + receiptNumber).digest('hex')
+    customerId = invoice.customerId
+    currency = invoice.currency
+    await tx.insert(payments).values({ id: paymentId, businessId: context.businessId, userId: context.userId, customerId: invoice.customerId, reference, idempotencyKey, method: input.method.toLowerCase().replace(' ', '_'), paidAt: paidDate, amount: (amount / 100).toFixed(2) })
+    await tx.insert(paymentAllocations).values({ id: randomUUID(), businessId: context.businessId, paymentId: paymentId, invoiceId: invoice.id, amount: (amount / 100).toFixed(2) })
+    await tx.insert(receipts).values({ id: randomUUID(), businessId: context.businessId, userId: context.userId, paymentId, number: receiptNumber, verificationToken })
+    await tx.update(invoices).set({ amountPaid: (nextPaid / 100).toFixed(2), status: nextPaid >= money(invoice.total) ? 'paid' : 'partially_paid' }).where(and(eq(invoices.id, invoice.id), eq(invoices.businessId, context.businessId)))
+    await insertAudit(tx, context, { action: 'payment.recorded', entityType: 'payment', entityId: paymentId, details: { invoiceId: invoice.id, receiptNumber, amount: (amount / 100).toFixed(2) } })
+  })
+  revalidatePath('/')
+  try {
+    const [customer] = await db.select({ email: customers.email, name: customers.name }).from(customers).where(eq(customers.id, customerId)).limit(1)
+    if (customer?.email) {
+      await sendReceiptEmail({ to: customer.email, receiptNumber, amount: (amount / 100).toFixed(2), currency, paidAt: paidDate, pdfUrl: `${process.env.BETTER_AUTH_URL ?? process.env.VERCEL_PROJECT_PRODUCTION_URL ?? ''}/api/documents/receipt/${paymentId}` })
+    }
+  } catch { }
+  return { receiptNumber }
+}
+
+export async function saveCatalogueItem(input: { id?: string; name: string; description: string; unitPrice: string }) {
+  const context = await requireBusinessPermission('catalogue.manage')
+  const name = input.name.trim()
+  const description = input.description.trim()
+  const unitPrice = money(input.unitPrice)
+  if (name.length < 2 || name.length > 160) throw new Error('Item name must be between 2 and 160 characters.')
+  if (description.length > 500) throw new Error('Description must be 500 characters or fewer.')
+  if (unitPrice < 0) throw new Error('Price cannot be negative.')
+  const id = input.id || randomUUID()
+  const values = { name, description: description || null, unitPrice: (unitPrice / 100).toFixed(2) }
+  await db.transaction(async (tx) => {
+    if (input.id) {
+      const [existing] = await tx.select({ id: catalogueItems.id }).from(catalogueItems).where(and(eq(catalogueItems.id, input.id), eq(catalogueItems.businessId, context.businessId))).limit(1)
+      if (!existing) throw new Error('Catalogue item not found.')
+      await tx.update(catalogueItems).set(values).where(and(eq(catalogueItems.id, input.id), eq(catalogueItems.businessId, context.businessId)))
+    } else {
+      await tx.insert(catalogueItems).values({ id, businessId: context.businessId, userId: context.userId, ...values, status: 'active' })
+    }
+    await insertAudit(tx, context, { action: input.id ? 'catalogue_item.updated' : 'catalogue_item.created', entityType: 'catalogue_item', entityId: id })
+  })
+  revalidatePath('/')
+  return { id }
+}
+
+export async function setCatalogueItemStatus(input: { id: string; status: 'active' | 'inactive' }) {
+  const context = await requireBusinessPermission('catalogue.manage')
+  if (input.status !== 'active' && input.status !== 'inactive') throw new Error('Choose a valid catalogue status.')
+  await db.transaction(async (tx) => {
+    const [item] = await tx.select({ id: catalogueItems.id }).from(catalogueItems).where(and(eq(catalogueItems.id, input.id), eq(catalogueItems.businessId, context.businessId))).limit(1)
+    if (!item) throw new Error('Catalogue item not found.')
+    await tx.update(catalogueItems).set({ status: input.status }).where(and(eq(catalogueItems.id, input.id), eq(catalogueItems.businessId, context.businessId)))
+    await insertAudit(tx, context, { action: `catalogue_item.${input.status}`, entityType: 'catalogue_item', entityId: input.id })
+  })
+  revalidatePath('/')
+}
+
+/* ------------------------------------------------------------------ */
+/* Dashboard data                                                     */
+/* ------------------------------------------------------------------ */
+
+export async function getDashboardData() {
+  const context = await requireBusinessPermission('reports.read')
+
+  const [business] = await db
+    .select({ id: businesses.id, name: businesses.name, legalName: businesses.legalName, registrationNumber: businesses.registrationNumber, taxIdentificationNumber: businesses.taxIdentificationNumber, email: businesses.email, phone: businesses.phone, address: businesses.address, city: businesses.city, country: businesses.country, currency: businesses.currency, receiptPrefix: businesses.receiptPrefix, invoicePrefix: businesses.invoicePrefix, logoUrl: businesses.logoUrl, website: businesses.website })
+    .from(businesses)
+    .where(eq(businesses.id, context.businessId))
+    .limit(1)
+
+  const allInvoices = await db
+    .select({
+      id: invoices.id, number: invoices.number, status: invoices.status,
+      total: invoices.total, amountPaid: invoices.amountPaid,
+      issueDate: invoices.issueDate, dueDate: invoices.dueDate,
+      customerName: customers.name,
+    })
+    .from(invoices)
+    .innerJoin(customers, eq(customers.id, invoices.customerId))
+    .where(eq(invoices.businessId, context.businessId))
+    .orderBy(desc(invoices.createdAt))
+
+  const allCustomers = await db
+    .select({ id: customers.id, name: customers.name, email: customers.email, phone: customers.phone, address: customers.address, createdAt: customers.createdAt })
+    .from(customers)
+    .where(eq(customers.businessId, context.businessId))
+    .orderBy(desc(customers.createdAt))
+
+  const allReceipts = await db
+    .select({
+      id: receipts.id, number: receipts.number, status: receipts.status,
+      amount: payments.amount, method: payments.method, paidAt: payments.paidAt,
+      reference: payments.reference, customerName: customers.name,
+    })
+    .from(receipts)
+    .innerJoin(payments, eq(payments.id, receipts.paymentId))
+    .innerJoin(customers, eq(customers.id, payments.customerId))
+    .where(eq(receipts.businessId, context.businessId))
+    .orderBy(desc(receipts.issuedAt))
+
+  const allCatalogue = await db
+    .select({ id: catalogueItems.id, name: catalogueItems.name, description: catalogueItems.description, unitPrice: catalogueItems.unitPrice, status: catalogueItems.status })
+    .from(catalogueItems)
+    .where(eq(catalogueItems.businessId, context.businessId))
+    .orderBy(desc(catalogueItems.createdAt))
+
+  const allRefunds = await db
+    .select({ id: refunds.id, amount: refunds.amount, reason: refunds.reason, method: refunds.method, status: refunds.status, createdAt: refunds.createdAt })
+    .from(refunds)
+    .where(eq(refunds.businessId, context.businessId))
+    .orderBy(desc(refunds.createdAt))
+
+  const allAuditTrail = await db
+    .select({ id: auditLogs.id, action: auditLogs.action, entityType: auditLogs.entityType, entityId: auditLogs.entityId, createdAt: auditLogs.createdAt })
+    .from(auditLogs)
+    .where(eq(auditLogs.businessId, context.businessId))
+    .orderBy(desc(auditLogs.createdAt))
+    .limit(50)
+
+  const allExpenses = await db
+    .select({ id: expenses.id, category: expenses.category, payee: expenses.payee, paidAt: expenses.paidAt, method: expenses.method, amount: expenses.amount })
+    .from(expenses)
+    .where(eq(expenses.businessId, context.businessId))
+    .orderBy(desc(expenses.createdAt))
+    .limit(50)
+
+  const totalInvoiced = allInvoices.reduce((sum, inv) => sum + Number(inv.total), 0)
+  const totalReceived = allReceipts.reduce((sum, rcp) => sum + Number(rcp.amount), 0)
+  const overdueCount = allInvoices.filter(inv => inv.status === 'overdue').length
+  const outstanding = Math.max(0, totalInvoiced - totalReceived)
+
+  const now = new Date()
+  const trend = []
+  for (let i = 5; i >= 0; i--) {
+    const date = new Date(now.getFullYear(), now.getMonth() - i, 1)
+    const label = new Intl.DateTimeFormat('en', { month: 'short' }).format(date)
+    const monthStart = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-01`
+    const monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().slice(0, 10)
+    const monthPayments = allReceipts.filter(rcp => {
+      const d = String(rcp.paidAt)
+      return d >= monthStart && d <= monthEnd
+    })
+    const monthTotal = monthPayments.reduce((sum, rcp) => sum + Number(rcp.amount), 0)
+    trend.push({ month: label, amount: monthTotal })
+  }
+
+  return {
+    business: business ? { id: business.id, name: business.name, legalName: business.legalName, email: business.email, phone: business.phone, address: business.address, city: business.city, country: business.country, currency: business.currency, receiptPrefix: business.receiptPrefix, invoicePrefix: business.invoicePrefix, logoUrl: business.logoUrl, website: business.website } : undefined,
+    invoices: allInvoices.map(inv => ({
+      id: inv.id, number: inv.number, customer: inv.customerName, status: inv.status,
+      total: inv.total, amountPaid: inv.amountPaid, issueDate: inv.issueDate, dueDate: inv.dueDate,
+    })),
+    customers: allCustomers.map(c => ({
+      id: c.id, name: c.name, email: c.email, phone: c.phone, address: c.address, createdAt: c.createdAt,
+    })),
+    receipts: allReceipts.map(rcp => ({
+      id: rcp.id, number: rcp.number, customer: rcp.customerName, status: rcp.status,
+      amount: rcp.amount, method: rcp.method, paidAt: rcp.paidAt, reference: rcp.reference,
+    })),
+    catalogue: allCatalogue,
+    refunds: allRefunds,
+    expenses: allExpenses.map(e => ({
+      id: e.id, category: e.category, payee: e.payee, paidAt: e.paidAt, method: e.method, amount: e.amount,
+    })),
+    auditTrail: allAuditTrail,
+    summary: { invoiced: totalInvoiced, received: totalReceived, outstanding, overdue: overdueCount },
+    customerCount: allCustomers.length,
+    trend,
+  }
+}
+
+export async function getFinancialReport(period: '30' | '90' | '365' | 'all'): Promise<{
+  invoiced: number
+  received: number
+  outstanding: number
+  invoices: { number: string; customer: string; status: string; date: string; total: string; paid: string }[]
+  payments: { receipt: string; customer: string; date: string; method: string; reference: string; amount: string }[]
+  expenses: { category: string; payee: string; date: string; method: string; amount: string }[]
+  summary: { startDate: string }
+}> {
+  const context = await requireBusinessPermission('reports.read')
+  const now = new Date()
+  let from: string
+  if (period === 'all') {
+    from = '1900-01-01'
+  } else {
+    const days = Number(period)
+    const fromDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - days)
+    from = fromDate.toISOString().slice(0, 10)
+  }
+  const to = now.toISOString().slice(0, 10)
+
+  if (!isValidDate(from) || !isValidDate(to)) throw new Error('Choose valid date range.')
+
+  const allInvoices = await db
+    .select({
+      number: invoices.number, customerName: customers.name, status: invoices.status,
+      issueDate: invoices.issueDate, total: invoices.total, amountPaid: invoices.amountPaid,
+    })
+    .from(invoices)
+    .innerJoin(customers, eq(customers.id, invoices.customerId))
+    .where(and(eq(invoices.businessId, context.businessId), gte(invoices.issueDate, from), lte(invoices.issueDate, to)))
+
+  const allPayments = await db
+    .select({
+      amount: payments.amount, method: payments.method, paidAt: payments.paidAt,
+      reference: payments.reference, customerName: customers.name,
+    })
+    .from(payments)
+    .innerJoin(customers, eq(customers.id, payments.customerId))
+    .where(and(eq(payments.businessId, context.businessId), gte(payments.paidAt, from), lte(payments.paidAt, to)))
+
+  const allExpenses = await db
+    .select({ category: expenses.category, payee: expenses.payee, paidAt: expenses.paidAt, method: expenses.method, amount: expenses.amount })
+    .from(expenses)
+    .where(and(eq(expenses.businessId, context.businessId), gte(expenses.paidAt, from), lte(expenses.paidAt, to)))
+
+  const invoiced = allInvoices.reduce((sum, inv) => sum + Number(inv.total), 0)
+  const received = allPayments.reduce((sum, pmt) => sum + Number(pmt.amount), 0)
+  const spent = allExpenses.reduce((sum, exp) => sum + Number(exp.amount), 0)
+
+  return {
+    invoiced,
+    received,
+    outstanding: Math.max(0, invoiced - received),
+    invoices: allInvoices.map(inv => ({
+      number: inv.number, customer: inv.customerName, status: inv.status,
+      date: inv.issueDate, total: inv.total, paid: inv.amountPaid,
+    })),
+    payments: allPayments.map(pmt => ({
+      receipt: pmt.reference || '', customer: pmt.customerName, date: pmt.paidAt,
+      method: pmt.method, reference: pmt.reference || '', amount: pmt.amount,
+    })),
+    expenses: allExpenses.map(exp => ({
+      category: exp.category, payee: exp.payee, date: exp.paidAt,
+      method: exp.method, amount: exp.amount,
+    })),
+    summary: { startDate: from },
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Suppliers                                                          */
+/* ------------------------------------------------------------------ */
+
+export async function createSupplier(input: {
   name: string; legalName?: string; registrationNumber?: string;
   taxIdentificationNumber?: string; email?: string; phone?: string;
-  address?: string; city?: string; country?: string; currency?: string;
-  timezone?: string; website?: string; receiptPrefix?: string;
-  invoicePrefix?: string; footerText?: string;
-  paymentInstructions?: string; taxDisplaySettings?: Record<string, unknown>;
+  address?: string; city?: string; country?: string;
+  category?: string; creditLimit?: string; creditTermsDays?: string;
 }) {
-  const userId = await requireUser()
-  loadEnv()
-
+  const context = await requireBusinessPermission('supplier.manage')
   const name = input.name.trim()
-  if (name.length < 2 || name.length > 160) throw new Error('Business name must be between 2 and 160 characters.')
-
+  if (name.length < 2 || name.length > 160) throw new Error('Supplier name must be between 2 and 160 characters.')
+  if (input.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) throw new Error('Enter a valid email address.')
+  const creditLimit = input.creditLimit ? money(input.creditLimit) : 0
+  const creditTermsDays = input.creditTermsDays ? Number(input.creditTermsDays) : 0
+  if (!Number.isInteger(creditTermsDays) || creditTermsDays < 0) throw new Error('Credit terms days must be a non-negative integer.')
   const id = randomUUID()
   await db.transaction(async (tx) => {
-    await tx.insert(businesses).values({
-      id, name,
+    await tx.insert(suppliers).values({
+      id, businessId: context.businessId, name,
       legalName: input.legalName?.trim() || null,
       registrationNumber: input.registrationNumber?.trim() || null,
       taxIdentificationNumber: input.taxIdentificationNumber?.trim() || null,
@@ -587,273 +835,279 @@ export async function createBusiness(input: {
       address: input.address?.trim() || null,
       city: input.city?.trim() || null,
       country: input.country?.trim() || 'Uganda',
-      currency: input.currency?.trim() || 'UGX',
-      timezone: input.timezone?.trim() || 'Africa/Kampala',
-      website: input.website?.trim() || null,
-      receiptPrefix: input.receiptPrefix?.trim() || 'RCP',
-      invoicePrefix: input.invoicePrefix?.trim() || 'INV',
-      footerText: input.footerText?.trim() || null,
-      paymentInstructions: input.paymentInstructions?.trim() || null,
-      taxDisplaySettings: input.taxDisplaySettings || {},
+      category: input.category?.trim() || null,
+      creditLimit: (creditLimit / 100).toFixed(2),
+      creditTermsDays: creditTermsDays.toString(),
       status: 'active',
     })
-    await tx.insert(businessMemberships).values({
-      id: randomUUID(),
-      businessId: id,
-      userId,
-      role: 'owner',
-    })
-    await tx.insert(auditLogs).values({
-      id: randomUUID(),
-      businessId: id,
-      userId,
-      action: 'business.created',
-      entityType: 'business',
-      entityId: id,
-    })
+    await insertAudit(tx, context, { action: 'supplier.created', entityType: 'supplier', entityId: id })
   })
   revalidatePath('/')
   return { id }
 }
 
-export async function listBusinesses() {
-  const userId = await requireUser()
-  loadEnv()
+export async function listSuppliers() {
+  const context = await requireBusinessPermission('supplier.manage')
   const rows = await db
     .select({
-      id: businesses.id,
-      name: businesses.name,
-      currency: businesses.currency,
-      city: businesses.city,
-      country: businesses.country,
-      status: businesses.status,
-      logoUrl: businesses.logoUrl,
-      role: businessMemberships.role,
-      createdAt: businessMemberships.createdAt,
+      id: suppliers.id, name: suppliers.name, legalName: suppliers.legalName,
+      email: suppliers.email, phone: suppliers.phone,
+      city: suppliers.city, country: suppliers.country,
+      category: suppliers.category, creditLimit: suppliers.creditLimit,
+      creditTermsDays: suppliers.creditTermsDays,
+      status: suppliers.status, createdAt: suppliers.createdAt,
     })
-    .from(businessMemberships)
-    .innerJoin(businesses, eq(businesses.id, businessMemberships.businessId))
-    .where(eq(businessMemberships.userId, userId))
-    .orderBy(desc(businessMemberships.createdAt))
+    .from(suppliers)
+    .where(eq(suppliers.businessId, context.businessId))
+    .orderBy(desc(suppliers.createdAt))
   return rows
 }
 
-export async function setActiveBusiness(businessId: string) {
-  const userId = await requireUser()
-  // Verify user is a member of this business
-  const [membership] = await db
-    .select({ businessId: businessMemberships.businessId, role: businessMemberships.role })
-    .from(businessMemberships)
-    .where(and(eq(businessMemberships.userId, userId), eq(businessMemberships.businessId, businessId)))
-    .limit(1)
-  if (!membership) throw new Error('You are not a member of this business.')
+export async function updateSupplier(input: {
+  id: string; name?: string; legalName?: string; registrationNumber?: string;
+  taxIdentificationNumber?: string; email?: string; phone?: string;
+  address?: string; city?: string; country?: string;
+  category?: string; creditLimit?: string; creditTermsDays?: string;
+  status?: string;
+}) {
+  const context = await requireBusinessPermission('supplier.manage')
+  const updates: Record<string, unknown> = {}
+  if (input.name !== undefined) {
+    const name = input.name.trim()
+    if (name.length < 2 || name.length > 160) throw new Error('Supplier name must be between 2 and 160 characters.')
+    updates.name = name
+  }
+  if (input.legalName !== undefined) updates.legalName = input.legalName.trim() || null
+  if (input.registrationNumber !== undefined) updates.registrationNumber = input.registrationNumber.trim() || null
+  if (input.taxIdentificationNumber !== undefined) updates.taxIdentificationNumber = input.taxIdentificationNumber.trim() || null
+  if (input.email !== undefined) {
+    if (input.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(input.email)) throw new Error('Enter a valid email address.')
+    updates.email = input.email.trim() || null
+  }
+  if (input.phone !== undefined) updates.phone = input.phone.trim() || null
+  if (input.address !== undefined) updates.address = input.address.trim() || null
+  if (input.city !== undefined) updates.city = input.city.trim() || null
+  if (input.country !== undefined) updates.country = input.country.trim() || 'Uganda'
+  if (input.category !== undefined) updates.category = input.category.trim() || null
+  if (input.creditLimit !== undefined) updates.creditLimit = (money(input.creditLimit) / 100).toFixed(2)
+  if (input.creditTermsDays !== undefined) {
+    const creditTermsDays = Number(input.creditTermsDays)
+    if (!Number.isInteger(creditTermsDays) || creditTermsDays < 0) throw new Error('Credit terms days must be a non-negative integer.')
+    updates.creditTermsDays = creditTermsDays.toString()
+  }
+  if (input.status !== undefined) {
+    if (!['active', 'inactive', 'suspended'].includes(input.status)) throw new Error('Choose a valid supplier status.')
+    updates.status = input.status
+  }
+  const [existing] = await db.select({ id: suppliers.id }).from(suppliers).where(and(eq(suppliers.id, input.id), eq(suppliers.businessId, context.businessId))).limit(1)
+  if (!existing) throw new Error('Supplier not found.')
+  await db.transaction(async (tx) => {
+    await tx.update(suppliers).set(updates).where(and(eq(suppliers.id, input.id), eq(suppliers.businessId, context.businessId)))
+    await insertAudit(tx, context, { action: 'supplier.updated', entityType: 'supplier', entityId: input.id })
+  })
+  revalidatePath('/')
+  return { id: input.id }
+}
 
-  const cookieStore = await cookies()
-  cookieStore.set('jithub_active_business', businessId, {
-    httpOnly: true,
-    sameSite: 'lax',
-    maxAge: 60 * 60 * 24 * 30, // 30 days
-    path: '/',
+export async function suspendSupplier(input: { id: string }) {
+  const context = await requireBusinessPermission('supplier.manage')
+  const [existing] = await db.select({ id: suppliers.id, status: suppliers.status }).from(suppliers).where(and(eq(suppliers.id, input.id), eq(suppliers.businessId, context.businessId))).limit(1)
+  if (!existing) throw new Error('Supplier not found.')
+  if (existing.status === 'suspended') throw new Error('Supplier is already suspended.')
+  await db.transaction(async (tx) => {
+    await tx.update(suppliers).set({ status: 'suspended' }).where(and(eq(suppliers.id, input.id), eq(suppliers.businessId, context.businessId)))
+    await insertAudit(tx, context, { action: 'supplier.suspended', entityType: 'supplier', entityId: input.id })
   })
   revalidatePath('/')
   return { success: true }
 }
 
-export async function getActiveBusiness() {
-  const cookieStore = await cookies()
-  const businessId = cookieStore.get('jithub_active_business')?.value
-  if (!businessId) return null
-  return { businessId }
+export async function reactivateSupplier(input: { id: string }) {
+  const context = await requireBusinessPermission('supplier.manage')
+  const [existing] = await db.select({ id: suppliers.id, status: suppliers.status }).from(suppliers).where(and(eq(suppliers.id, input.id), eq(suppliers.businessId, context.businessId))).limit(1)
+  if (!existing) throw new Error('Supplier not found.')
+  if (existing.status !== 'suspended') throw new Error('Supplier is not suspended.')
+  await db.transaction(async (tx) => {
+    await tx.update(suppliers).set({ status: 'active' }).where(and(eq(suppliers.id, input.id), eq(suppliers.businessId, context.businessId)))
+    await insertAudit(tx, context, { action: 'supplier.reactivated', entityType: 'supplier', entityId: input.id })
+  })
+  revalidatePath('/')
+  return { success: true }
 }
 
-export async function listBusinessMembers(businessId: string) {
-  const userId = await requireUser()
-  // Verify user is a member of this business
-  const [membership] = await db
-    .select({ role: businessMemberships.role })
-    .from(businessMemberships)
-    .where(and(eq(businessMemberships.userId, userId), eq(businessMemberships.businessId, businessId)))
-    .limit(1)
-  if (!membership) throw new Error('You are not a member of this business.')
+/* ------------------------------------------------------------------ */
+/* Purchase Orders                                                    */
+/* ------------------------------------------------------------------ */
 
+export async function createPurchaseOrder(input: {
+  supplierId: string; warehouseId: string; expectedDate?: string;
+  notes?: string;
+}) {
+  const context = await requireBusinessPermission('purchase_order.create')
+  const id = randomUUID()
+  const number = await allocateDocumentNumber(db as any, context.businessId, 'purchase_order')
+  await db.transaction(async (tx) => {
+    await tx.insert(purchaseOrders).values({
+      id, businessId: context.businessId, supplierId: input.supplierId,
+      warehouseId: input.warehouseId, number, status: 'draft',
+      orderDate: new Date().toISOString().slice(0, 10),
+      expectedDate: input.expectedDate || null,
+      notes: input.notes?.trim() || null,
+      createdBy: context.userId,
+    })
+    await insertAudit(tx, context, { action: 'purchase_order.created', entityType: 'purchase_order', entityId: id, details: { number } })
+  })
+  revalidatePath('/')
+  return { id, number }
+}
+
+export async function listPurchaseOrders() {
+  const context = await requireBusinessPermission('purchase_order.read')
   const rows = await db
     .select({
-      id: businessMemberships.id,
-      userId: businessMemberships.userId,
-      role: businessMemberships.role,
-      createdAt: businessMemberships.createdAt,
-      userName: user.name,
-      userEmail: user.email,
-      userImage: user.image,
+      id: purchaseOrders.id, number: purchaseOrders.number,
+      supplierId: purchaseOrders.supplierId, warehouseId: purchaseOrders.warehouseId,
+      status: purchaseOrders.status, orderDate: purchaseOrders.orderDate,
+      expectedDate: purchaseOrders.expectedDate,
+      total: purchaseOrders.total, currency: purchaseOrders.currency,
+      createdAt: purchaseOrders.createdAt,
     })
-    .from(businessMemberships)
-    .innerJoin(user, eq(user.id, businessMemberships.userId))
-    .where(eq(businessMemberships.businessId, businessId))
-    .orderBy(businessMemberships.createdAt)
+    .from(purchaseOrders)
+    .where(eq(purchaseOrders.businessId, context.businessId))
+    .orderBy(desc(purchaseOrders.createdAt))
   return rows
 }
 
-export async function inviteMember(input: { businessId: string; email: string; role: BusinessRole; invitationUrl: string }) {
-  const context = await requireBusinessPermission('membership.manage')
-  const email = input.email.trim()
-  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Enter a valid email address.')
-  if (!input.role || !['owner','administrator','finance_manager','accountant','sales_officer','cashier','viewer'].includes(input.role)) {
-    throw new Error('Choose a valid role.')
-  }
+export async function approvePurchaseOrder(input: { purchaseOrderId: string }) {
+  const context = await requireBusinessPermission('purchase_order.approve')
+  await db.transaction(async (tx) => {
+    const [po] = await tx.select({ id: purchaseOrders.id, status: purchaseOrders.status, businessId: purchaseOrders.businessId }).from(purchaseOrders).where(and(eq(purchaseOrders.id, input.purchaseOrderId), eq(purchaseOrders.businessId, context.businessId))).limit(1).for('update')
+    if (!po) throw new Error('Purchase order not found.')
+    if (po.status !== 'draft') throw new Error('Only draft purchase orders can be approved.')
+    await tx.update(purchaseOrders).set({ status: 'submitted', updatedAt: new Date() }).where(eq(purchaseOrders.id, input.purchaseOrderId))
+    await insertAudit(tx, context, { action: 'purchase_order.submitted', entityType: 'purchase_order', entityId: input.purchaseOrderId })
+  })
+  revalidatePath('/')
+  return { success: true }
+}
 
-  // Verify the target business exists and user is a member
-  const [membership] = await db
-    .select({ businessId: businessMemberships.businessId, role: businessMemberships.role })
-    .from(businessMemberships)
-    .where(and(eq(businessMemberships.userId, context.userId), eq(businessMemberships.businessId, input.businessId)))
-    .limit(1)
-  if (!membership) throw new Error('You are not a member of this business.')
-
+export async function recordPurchaseOrderPayment(input: {
+  purchaseOrderId: string; amount: string; method: string; reference?: string;
+}) {
+  const context = await requireBusinessPermission('payment.record')
+  const amount = money(input.amount)
+  if (amount <= 0) throw new Error('Payment amount must be greater than zero.')
   const id = randomUUID()
   await db.transaction(async (tx) => {
-    await tx.insert(verification).values({
-      id,
-      identifier: email,
-      value: randomUUID(),
-      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    const [po] = await tx.select({ id: purchaseOrders.id, status: purchaseOrders.status, total: purchaseOrders.total, supplierId: purchaseOrders.supplierId, businessId: purchaseOrders.businessId }).from(purchaseOrders).where(and(eq(purchaseOrders.id, input.purchaseOrderId), eq(purchaseOrders.businessId, context.businessId))).limit(1).for('update')
+    if (!po) throw new Error('Purchase order not found.')
+    if (po.status !== 'issued' && po.status !== 'partially_paid') throw new Error('Only issued or partially paid purchase orders can receive payments.')
+    const existingAlloc = await db.select({ id: paymentAllocations.id, amount: paymentAllocations.amount }).from(paymentAllocations).where(and(eq(paymentAllocations.invoiceId, input.purchaseOrderId), eq(paymentAllocations.businessId, context.businessId))).limit(1)
+    const alreadyPaid = Number(existingAlloc[0]?.amount ?? '0')
+    const remaining = money(po.total) - alreadyPaid
+    if (amount > remaining) throw new Error('Payment exceeds outstanding balance.')
+    await tx.insert(payments).values({
+      id, businessId: context.businessId, userId: context.userId, customerId: po.supplierId,
+      reference: null, idempotencyKey: null, method: input.method.toLowerCase().replace(' ', '_'),
+      paidAt: new Date().toISOString().slice(0, 10), amount: (amount / 100).toFixed(2)
     })
-    await tx.insert(auditLogs).values({
-      id: randomUUID(),
-      businessId: input.businessId,
-      userId: context.userId,
-      action: 'member.invited',
-      entityType: 'business_membership',
-      entityId: id,
-      details: { email, role: input.role },
+    await tx.insert(paymentAllocations).values({
+      id: randomUUID(), businessId: context.businessId, paymentId: id,
+      invoiceId: input.purchaseOrderId, amount: (amount / 100).toFixed(2),
     })
+    await tx.update(purchaseOrders).set({ status: 'paid' }).where(eq(purchaseOrders.id, input.purchaseOrderId))
+    await insertAudit(tx, context, { action: 'purchase_order.payment_recorded', entityType: 'purchase_order', entityId: input.purchaseOrderId, details: { amount: (amount / 100).toFixed(2) } })
   })
-
-  // Send invitation email (fail silently)
-  try {
-    await sendInvitationEmail({
-      to: email,
-      inviterName: context.userId, // We don't have user name here; could look it up
-      invitationUrl: input.invitationUrl,
-    })
-  } catch {
-    // Email failure doesn't block invitation creation
-  }
-
   revalidatePath('/')
   return { id }
 }
 
-export async function updateMembershipRole(input: { businessId: string; userId: string; role: BusinessRole }) {
-  const context = await requireBusinessPermission('membership.manage')
-  if (!input.role || !['owner','administrator','finance_manager','accountant','sales_officer','cashier','viewer'].includes(input.role)) {
-    throw new Error('Choose a valid role.')
-  }
+/* ------------------------------------------------------------------ */
+/* Tax Rates                                                          */
+/* ------------------------------------------------------------------ */
 
-  // Verify the target membership exists and belongs to this business
-  const [existing] = await db
-    .select({ role: businessMemberships.role, userId: businessMemberships.userId })
-    .from(businessMemberships)
-    .where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId)))
-    .limit(1)
-  if (!existing) throw new Error('Membership not found.')
-
-  // Prevent demoting the last owner
-  if (existing.role === 'owner' && input.role !== 'owner') {
-    const ownerCount = await db
-      .select({ count: sql<number>`count(*)::int` })
-      .from(businessMemberships)
-      .where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.role, 'owner')))
-    if (ownerCount[0]?.count <= 1) throw new Error('Cannot demote the last owner.')
-  }
-
+export async function createTaxRate(input: {
+  name: string; rate: string; type?: string;
+  isDefault?: boolean; isActive?: boolean;
+  effectiveFrom?: string; effectiveTo?: string; description?: string;
+}) {
+  const context = await requireBusinessPermission('tax.manage')
+  const rate = money(input.rate)
+  if (!input.effectiveFrom || !isValidDate(input.effectiveFrom)) throw new Error('Choose a valid effective from date.')
+  const id = randomUUID()
   await db.transaction(async (tx) => {
-    await tx.update(businessMemberships).set({ role: input.role })
-      .where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId)))
-    await tx.insert(auditLogs).values({
-      id: randomUUID(),
-      businessId: input.businessId,
-      userId: context.userId,
-      action: 'membership.role_changed',
-      entityType: 'business_membership',
-      entityId: input.userId,
-      details: { previousRole: existing.role, newRole: input.role },
+    if (input.isDefault) {
+      await tx.update(taxRates).set({ isDefault: false }).where(eq(taxRates.businessId, context.businessId))
+    }
+    await tx.insert(taxRates).values({
+      id, businessId: context.businessId, name: input.name.trim(),
+      rate: (rate / 100).toFixed(4),
+      type: input.type || 'vat',
+      isDefault: input.isDefault || false,
+      isActive: input.isActive !== false,
+      effectiveFrom: input.effectiveFrom!,
+      effectiveTo: input.effectiveTo ?? null,
+      description: input.description?.trim() || null,
     })
+    await insertAudit(tx, context, { action: 'tax_rate.created', entityType: 'tax_rate', entityId: id })
   })
   revalidatePath('/')
-  return { success: true }
+  return { id }
 }
 
-export async function suspendMembership(input: { businessId: string; userId: string }) {
-  const context = await requireBusinessPermission('membership.manage')
-
-  const [existing] = await db
-    .select({ role: businessMemberships.role, userId: businessMemberships.userId })
-    .from(businessMemberships)
-    .where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId)))
-    .limit(1)
-  if (!existing) throw new Error('Membership not found.')
-
-  if (existing.role === 'owner') throw new Error('Cannot suspend the business owner.')
-
-  await db.transaction(async (tx) => {
-    await tx.update(businessMemberships).set({ role: 'viewer' })
-      .where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId)))
-    await tx.insert(auditLogs).values({
-      id: randomUUID(),
-      businessId: input.businessId,
-      userId: context.userId,
-      action: 'membership.suspended',
-      entityType: 'business_membership',
-      entityId: input.userId,
-      details: { previousRole: existing.role },
+export async function listTaxRates() {
+  const context = await requireBusinessPermission('tax.manage')
+  const rows = await db
+    .select({
+      id: taxRates.id, name: taxRates.name, rate: taxRates.rate,
+      type: taxRates.type, isDefault: taxRates.isDefault,
+      isActive: taxRates.isActive,
+      effectiveFrom: taxRates.effectiveFrom,
+      effectiveTo: taxRates.effectiveTo,
+      description: taxRates.description,
+      createdAt: taxRates.createdAt,
     })
+    .from(taxRates)
+    .where(eq(taxRates.businessId, context.businessId))
+    .orderBy(desc(taxRates.createdAt))
+  return rows
+}
+
+export async function updateTaxRate(input: {
+  id: string; name?: string; rate?: string; type?: string;
+  isDefault?: boolean; isActive?: boolean;
+  effectiveFrom?: string; effectiveTo?: string; description?: string;
+}) {
+  const context = await requireBusinessPermission('tax.manage')
+  const updates: Record<string, unknown> = {}
+  if (input.name !== undefined) updates.name = input.name.trim()
+  if (input.rate !== undefined) updates.rate = (money(input.rate) / 100).toFixed(4)
+  if (input.type !== undefined) updates.type = input.type
+  if (input.isDefault !== undefined) updates.isDefault = input.isDefault
+  if (input.isActive !== undefined) updates.isActive = input.isActive
+  if (input.effectiveFrom !== undefined) updates.effectiveFrom = input.effectiveFrom
+  if (input.effectiveTo !== undefined) updates.effectiveTo = input.effectiveTo
+  if (input.description !== undefined) updates.description = input.description.trim() || null
+  const [existing] = await db.select({ id: taxRates.id }).from(taxRates).where(and(eq(taxRates.id, input.id), eq(taxRates.businessId, context.businessId))).limit(1)
+  if (!existing) throw new Error('Tax rate not found.')
+  await db.transaction(async (tx) => {
+    await tx.update(taxRates).set(updates).where(and(eq(taxRates.id, input.id), eq(taxRates.businessId, context.businessId)))
+    await insertAudit(tx, context, { action: 'tax_rate.updated', entityType: 'tax_rate', entityId: input.id })
   })
   revalidatePath('/')
-  return { success: true }
+  return { id: input.id }
 }
 
-export async function removeMembership(input: { businessId: string; userId: string }) {
-  const context = await requireBusinessPermission('membership.manage')
-
-  const [existing] = await db
-    .select({ role: businessMemberships.role, userId: businessMemberships.userId })
-    .from(businessMemberships)
-    .where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId)))
-    .limit(1)
-  if (!existing) throw new Error('Membership not found.')
-
-  if (existing.role === 'owner') throw new Error('Cannot remove the business owner.')
-
-  await db.transaction(async (tx) => {
-    await tx.delete(businessMemberships)
-      .where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId)))
-    await tx.insert(auditLogs).values({
-      id: randomUUID(),
-      businessId: input.businessId,
-      userId: context.userId,
-      action: 'membership.removed',
-      entityType: 'business_membership',
-      entityId: input.userId,
-      details: { previousRole: existing.role },
-    })
-  })
-  revalidatePath('/')
-  return { success: true }
-}
+/* ------------------------------------------------------------------ */
+/* Receipt verification (public endpoint)                             */
+/* ------------------------------------------------------------------ */
 
 export async function verifyReceipt(input: { token: string }) {
   const [receipt] = await db.select({
-    id: receipts.id,
-    number: receipts.number,
-    status: receipts.status,
-    issuedAt: receipts.issuedAt,
-    voidedAt: receipts.voidedAt,
-    amount: payments.amount,
-    method: payments.method,
-    reference: payments.reference,
-    paidAt: payments.paidAt,
-    customerName: customers.name,
-    businessName: businesses.name,
+    id: receipts.id, number: receipts.number, status: receipts.status,
+    issuedAt: receipts.issuedAt, voidedAt: receipts.voidedAt,
+    amount: payments.amount, method: payments.method, reference: payments.reference,
+    paidAt: payments.paidAt, customerName: customers.name, businessName: businesses.name,
   })
     .from(receipts)
     .innerJoin(payments, eq(receipts.paymentId, payments.id))
@@ -865,17 +1119,10 @@ export async function verifyReceipt(input: { token: string }) {
   if (!receipt) return { valid: false }
 
   return {
-    valid: true,
-    number: receipt.number,
-    status: receipt.status,
-    issuedAt: receipt.issuedAt,
-    voidedAt: receipt.voidedAt,
-    amount: receipt.amount,
-    currency: 'UGX',
-    method: receipt.method,
-    reference: receipt.reference,
-    paidAt: receipt.paidAt,
-    customerName: receipt.customerName,
-    businessName: receipt.businessName,
+    valid: true, number: receipt.number, status: receipt.status,
+    issuedAt: receipt.issuedAt, voidedAt: receipt.voidedAt,
+    amount: receipt.amount, currency: 'UGX', method: receipt.method,
+    reference: receipt.reference, paidAt: receipt.paidAt,
+    customerName: receipt.customerName, businessName: receipt.businessName,
   }
 }

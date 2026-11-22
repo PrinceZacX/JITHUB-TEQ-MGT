@@ -25,7 +25,7 @@ export default async function BusinessMembersPage({ searchParams }: { searchPara
     if (!businessId) return
     setMembersLoading(true)
     try {
-      const rows = await listBusinessMembers(businessId)
+      const rows = await listBusinessMembers({ businessId })
       setMembers(rows)
     } catch {
       setMembers([])
@@ -77,7 +77,7 @@ export default async function BusinessMembersPage({ searchParams }: { searchPara
     setBusy(true)
     setError('')
     try {
-      await inviteMember({ businessId: businessId!, email: inviteForm.email, role: inviteForm.role, invitationUrl: `${window.location.origin}/sign-in` })
+      await inviteMember({ businessId: businessId!, email: inviteForm.email, role: inviteForm.role })
       setError('Invitation sent.')
       setInviteFormOpen(false)
       setInviteForm({ email: '', role: 'cashier' as BusinessRole })
