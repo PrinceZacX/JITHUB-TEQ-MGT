@@ -108,7 +108,7 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
   return <div className="app-shell">
     <aside className={`app-sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
       <a className="brand-lockup" href="/" aria-label="JITHUB-TEQ dashboard"><span className="brand-mark">J</span><span>JITHUB<span className="brand-dash">-</span>TEQ</span></a>
-      <div className="workspace-switch"><span className="workspace-emblem">J</span><span className="workspace-label"><strong>{user.name ? `${user.name.split(' ')[0]}'s workspace` : 'My workspace'}</strong><small>Business account</small></span><ChevronDown size={15}/></div>
+      <div className="workspace-switch"><span className="workspace-emblem">J</span><span className="workspace-label"><strong>{data.business?.name || `${user.name ? `${user.name.split(' ')[0]}'s workspace` : 'My workspace'}`}</strong><small>{data.business?.city ? `${data.business.city}, ${data.business.country}` : 'Business account'}</small></span><ChevronDown size={15}/></div>
       <nav className="side-navigation" aria-label="Main navigation">{['WORKSPACE', 'MANAGE', 'ADMINISTRATION'].map((group) => <div className="nav-group" key={group}><span className="nav-group-label">{group}</span>{navigation.filter((item) => item.group === group).map(({ label, icon: Icon }) => <button key={label} className={`nav-item ${section === label ? 'nav-item-active' : ''}`} aria-current={section === label ? 'page' : undefined} onClick={() => { setSection(label); setQuery(''); setSidebarOpen(false) }}><Icon size={17} strokeWidth={1.8}/><span>{label}</span>{label === 'Invoices' && data.invoices.length > 0 && <small className="nav-count">{data.invoices.length}</small>}</button>)}</div>)}</nav>
       <div className="sidebar-bottom"><div className="help-card"><span className="help-icon"><CircleHelp size={16}/></span><div><strong>Need a hand?</strong><p>We&apos;re here to help you get started.</p><button onClick={() => setToast('Support resources will be available in your workspace shortly.')}>Visit help centre <ArrowRight size={12}/></button></div></div><div className="profile-row"><span className="profile-avatar">{user.name?.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'JT'}</span><span className="profile-copy"><strong>{user.name || 'Account owner'}</strong><small>{user.email}</small></span><button className="icon-button profile-more" aria-label="Sign out" onClick={async () => { await authClient.signOut(); router.push('/sign-in'); router.refresh() }}><LogOut size={16}/></button></div></div>
     </aside>
@@ -116,7 +116,7 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
     <main className="app-main">
       <header className="topbar"><button className="icon-button mobile-menu" aria-label="Open navigation" onClick={() => setSidebarOpen(true)}><Menu size={20}/></button><div className="breadcrumbs"><span>JITHUB-TEQ</span><span className="breadcrumb-slash">/</span><strong>{section}</strong></div><div className="topbar-actions"><span className="secure-indicator"><span/> Workspace secure</span><button className="icon-button notification-button" aria-label="Notifications" onClick={() => setSection('Notifications')}><Bell size={18}/><i/></button><span className="topbar-divider"/><button className="topbar-user" onClick={() => setSection('Settings')}><span className="profile-avatar small-avatar">{user.name?.[0]?.toUpperCase() || 'J'}</span><ChevronDown size={14}/></button></div></header>
       <div className="page-content">
-        <div className="page-heading"><div><div className="page-kicker"><Building2 size={13}/> JITHUB-TEQ LTD <span>·</span> UGX</div><h1>{section === 'Dashboard' ? 'Good morning' : section}</h1><p>{section === 'Dashboard' ? 'Here’s what’s happening with your business today.' : sectionDescription[section]}</p></div><div className="heading-actions">{section === 'Dashboard' && <button className="button-secondary" onClick={() => setToast('Your latest financial figures are up to date.')}><CalendarDays size={15}/> This month <ChevronDown size={14}/></button>}{(section === 'Dashboard' || section === 'Invoices') && <button className="primary-button" onClick={() => setModal('invoice')}><Plus size={16}/> New invoice</button>}</div></div>
+        <div className="page-heading"><div><div className="page-kicker"><Building2 size={13}/> {data.business?.name || 'JITHUB-TEQ LTD'} <span>·</span> {data.business?.currency || 'UGX'}</div><h1>{section === 'Dashboard' ? 'Good morning' : section}</h1><p>{section === 'Dashboard' ? 'Here’s what’s happening with your business today.' : sectionDescription[section]}</p></div><div className="heading-actions">{section === 'Dashboard' && <button className="button-secondary" onClick={() => setToast('Your latest financial figures are up to date.')}><CalendarDays size={15}/> This month <ChevronDown size={14}/></button>}{(section === 'Dashboard' || section === 'Invoices') && <button className="primary-button" onClick={() => setModal('invoice')}><Plus size={16}/> New invoice</button>}</div></div>
         {section === 'Dashboard' && <>
           <section className="metric-grid" aria-label="Financial overview">
             <Metric label="Total invoiced" value={money(data.summary?.invoiced ?? 0)} icon={FileText} note={`${data.invoices.length} invoices recorded`} tone="teal"/>
@@ -145,12 +145,12 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
       {modal === 'catalogue' && <><label>Product or service name<input name="name" defaultValue={selectedCatalogue?.name || ''} placeholder="e.g. Business consulting" required minLength={2} maxLength={160}/></label><label>Description<input name="description" defaultValue={selectedCatalogue?.description || ''} placeholder="What does this item include?" maxLength={500}/></label><label>Unit price · UGX<input name="unitPrice" defaultValue={selectedCatalogue?.unitPrice || ''} inputMode="decimal" placeholder="350000.00" required/></label><p className="form-footnote"><ShieldCheck size={14}/> Archiving an item keeps it available on historical invoices.</p></>}
       {error && <p className="form-error" role="alert">{error}</p>}<div className="modal-actions"><button className="button-secondary" type="button" onClick={() => { setModal(null); setSelectedCatalogue(null); setSelectedCustomer(null) }}>Cancel</button>{modal === 'invoice' ? <><button className="button-secondary" type="submit" name="invoiceStatus" value="draft" disabled={busy || !data.customers.length}>{busy ? 'Saving…' : 'Save draft'}</button><button className="primary-button" type="submit" name="invoiceStatus" value="issued" disabled={busy || !data.customers.length}>{busy ? 'Saving…' : 'Issue invoice'}<ArrowRight size={15}/></button></> : <button className="primary-button" type="submit" disabled={busy || (modal === 'payment' && !data.invoices.some((invoice) => !['draft','cancelled'].includes(invoice.status) && Number(invoice.total) > Number(invoice.amountPaid)))}>{busy ? 'Saving…' : modal === 'payment' ? 'Record payment' : modal === 'expense' ? 'Save expense' : modal === 'catalogue' ? 'Save catalogue item' : selectedCustomer ? 'Save customer changes' : 'Save customer'}<ArrowRight size={15}/></button>}</div>
     </form></section></div>}
-    {selectedReceipt && <ReceiptDialog receipt={selectedReceipt} onClose={() => setSelectedReceipt(null)} />}
+    {selectedReceipt && <ReceiptDialog receipt={selectedReceipt} business={data.business} onClose={() => setSelectedReceipt(null)} />}
     {toast && <div role="status" className="toast-message"><span><Check size={14}/></span>{toast}<button onClick={() => setToast('')} aria-label="Dismiss"><X size={15}/></button></div>}
   </div>
 }
 
-function ReceiptDialog({ receipt, onClose }: { receipt: Data['receipts'][number]; onClose: () => void }) {
+function ReceiptDialog({ receipt, business, onClose }: { receipt: Data['receipts'][number]; business: Data['business'] | undefined; onClose: () => void }) {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const onCloseRef = useRef(onClose)
@@ -188,8 +188,8 @@ function ReceiptDialog({ receipt, onClose }: { receipt: Data['receipts'][number]
         </div>
       </div>
       <article className="receipt-document">
-        <div className="receipt-brand"><span className="brand-mark">J</span><div><strong>JITHUB-TEQ</strong><small>Beyond Technology, We Build Trust.</small></div></div>
-        <div className="receipt-title"><span>OFFICIAL RECEIPT</span><h2 id="receipt-title">{receipt.number}</h2><span className="status-pill status-paid"><i/>Payment confirmed</span></div>
+        <div className="receipt-brand"><span className="brand-mark">J</span><div><strong>{business?.name || 'JITHUB-TEQ'}</strong><small>Beyond Technology, We Build Trust.</small></div></div>
+        <div className="receipt-title"><span>OFFICIAL RECEIPT</span><h2 id="receipt-title">{receipt.number}</h2><span className={`status-pill status-${receipt.status || 'issued'}`}><i/>{receipt.status === 'voided' ? 'Voided' : 'Payment confirmed'}</span></div>
         <div className="receipt-amount"><small>AMOUNT RECEIVED</small><strong>{money(receipt.amount)}</strong></div>
         <dl className="receipt-details">
           <div><dt>Received from</dt><dd>{receipt.customer}</dd></div>
@@ -198,7 +198,7 @@ function ReceiptDialog({ receipt, onClose }: { receipt: Data['receipts'][number]
           <div><dt>Payment reference</dt><dd>{receipt.reference || 'Not provided'}</dd></div>
         </dl>
         <p className="receipt-thanks">Thank you for your payment.</p>
-        <div className="receipt-foot">JITHUB-TEQ LTD <span>·</span> KAMPALA, UGANDA <span>·</span> UGX</div>
+        <div className="receipt-foot">{business?.name || 'JITHUB-TEQ LTD'} <span>·</span> {business?.city || 'Kampala'}, {business?.country || 'UGANDA'} <span>·</span> {business?.currency || 'UGX'}</div>
       </article>
     </section>
   </dialog>
