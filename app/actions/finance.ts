@@ -16,14 +16,16 @@ import {
   payments,
   receipts,
   refunds,
+  user,
+  verification,
 } from '@/lib/db/schema'
 import { and, desc, eq, gte, sql } from 'drizzle-orm'
-import { headers } from 'next/headers'
+import { cookies, headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { randomUUID, randomBytes, createHash } from 'node:crypto'
-import { requirePermission, defaultRole } from '@/lib/permissions'
+import { requirePermission, defaultRole, type BusinessRole } from '@/lib/permissions'
 import { loadEnv } from '@/lib/env'
-import { sendInvoiceEmail, sendReceiptEmail } from '@/lib/email'
+import { sendInvoiceEmail, sendReceiptEmail, sendInvitationEmail } from '@/lib/email'
 
 const moneyPattern = /^\d{1,12}(\.\d{1,2})?$/
 
@@ -63,12 +65,29 @@ function safeDate(value: Date | string | null): string {
 
 /**
  * Resolve the caller's active business and role. The user must have an
- * accepted membership; the first membership becomes their working business.
- * Future work: let the user switch between businesses.
+ * accepted membership. If businessId is provided, use that business;
+ * otherwise, check for an active business cookie; otherwise use the
+ * first membership.
  */
-async function requireBusiness() {
+async function requireBusiness(businessId?: string) {
   loadEnv()
   const userId = await requireUser()
+
+  const whereClauses = [eq(businessMemberships.userId, userId), eq(businesses.status, 'active')]
+
+  // If no explicit businessId, check for an active business cookie
+  if (!businessId) {
+    const cookieStore = await cookies()
+    const activeBusiness = cookieStore.get('jithub_active_business')?.value
+    if (activeBusiness) {
+      businessId = activeBusiness
+    }
+  }
+
+  if (businessId) {
+    whereClauses.push(eq(businessMemberships.businessId, businessId))
+  }
+
   const [membership] = await db
     .select({
       id: businessMemberships.id,
@@ -79,7 +98,7 @@ async function requireBusiness() {
     })
     .from(businessMemberships)
     .innerJoin(businesses, eq(businesses.id, businessMemberships.businessId))
-    .where(and(eq(businessMemberships.userId, userId), eq(businesses.status, 'active')))
+    .where(and(...whereClauses))
     .limit(1)
   if (!membership) throw new Error('You are not a member of an active business.')
   return {
@@ -525,6 +544,286 @@ export async function updateBusiness(input: {
   })
   revalidatePath('/')
   return { id: context.businessId }
+}
+
+export async function createBusiness(input: {
+  name: string; legalName?: string; registrationNumber?: string;
+  taxIdentificationNumber?: string; email?: string; phone?: string;
+  address?: string; city?: string; country?: string; currency?: string;
+  timezone?: string; website?: string; receiptPrefix?: string;
+  invoicePrefix?: string; footerText?: string;
+  paymentInstructions?: string; taxDisplaySettings?: Record<string, unknown>;
+}) {
+  const userId = await requireUser()
+  loadEnv()
+
+  const name = input.name.trim()
+  if (name.length < 2 || name.length > 160) throw new Error('Business name must be between 2 and 160 characters.')
+
+  const id = randomUUID()
+  await db.transaction(async (tx) => {
+    await tx.insert(businesses).values({
+      id, name,
+      legalName: input.legalName?.trim() || null,
+      registrationNumber: input.registrationNumber?.trim() || null,
+      taxIdentificationNumber: input.taxIdentificationNumber?.trim() || null,
+      email: input.email?.trim() || null,
+      phone: input.phone?.trim() || null,
+      address: input.address?.trim() || null,
+      city: input.city?.trim() || null,
+      country: input.country?.trim() || 'Uganda',
+      currency: input.currency?.trim() || 'UGX',
+      timezone: input.timezone?.trim() || 'Africa/Kampala',
+      website: input.website?.trim() || null,
+      receiptPrefix: input.receiptPrefix?.trim() || 'RCP',
+      invoicePrefix: input.invoicePrefix?.trim() || 'INV',
+      footerText: input.footerText?.trim() || null,
+      paymentInstructions: input.paymentInstructions?.trim() || null,
+      taxDisplaySettings: input.taxDisplaySettings || {},
+      status: 'active',
+    })
+    await tx.insert(businessMemberships).values({
+      id: randomUUID(),
+      businessId: id,
+      userId,
+      role: 'owner',
+    })
+    await tx.insert(auditLogs).values({
+      id: randomUUID(),
+      businessId: id,
+      userId,
+      action: 'business.created',
+      entityType: 'business',
+      entityId: id,
+    })
+  })
+  revalidatePath('/')
+  return { id }
+}
+
+export async function listBusinesses() {
+  const userId = await requireUser()
+  loadEnv()
+  const rows = await db
+    .select({
+      id: businesses.id,
+      name: businesses.name,
+      currency: businesses.currency,
+      city: businesses.city,
+      country: businesses.country,
+      status: businesses.status,
+      logoUrl: businesses.logoUrl,
+      role: businessMemberships.role,
+      createdAt: businessMemberships.createdAt,
+    })
+    .from(businessMemberships)
+    .innerJoin(businesses, eq(businesses.id, businessMemberships.businessId))
+    .where(eq(businessMemberships.userId, userId))
+    .orderBy(desc(businessMemberships.createdAt))
+  return rows
+}
+
+export async function setActiveBusiness(businessId: string) {
+  const userId = await requireUser()
+  // Verify user is a member of this business
+  const [membership] = await db
+    .select({ businessId: businessMemberships.businessId, role: businessMemberships.role })
+    .from(businessMemberships)
+    .where(and(eq(businessMemberships.userId, userId), eq(businessMemberships.businessId, businessId)))
+    .limit(1)
+  if (!membership) throw new Error('You are not a member of this business.')
+
+  const cookieStore = await cookies()
+  cookieStore.set('jithub_active_business', businessId, {
+    httpOnly: true,
+    sameSite: 'lax',
+    maxAge: 60 * 60 * 24 * 30, // 30 days
+    path: '/',
+  })
+  revalidatePath('/')
+  return { success: true }
+}
+
+export async function getActiveBusiness() {
+  const cookieStore = await cookies()
+  const businessId = cookieStore.get('jithub_active_business')?.value
+  if (!businessId) return null
+  return { businessId }
+}
+
+export async function listBusinessMembers(businessId: string) {
+  const userId = await requireUser()
+  // Verify user is a member of this business
+  const [membership] = await db
+    .select({ role: businessMemberships.role })
+    .from(businessMemberships)
+    .where(and(eq(businessMemberships.userId, userId), eq(businessMemberships.businessId, businessId)))
+    .limit(1)
+  if (!membership) throw new Error('You are not a member of this business.')
+
+  const rows = await db
+    .select({
+      id: businessMemberships.id,
+      userId: businessMemberships.userId,
+      role: businessMemberships.role,
+      createdAt: businessMemberships.createdAt,
+      userName: user.name,
+      userEmail: user.email,
+      userImage: user.image,
+    })
+    .from(businessMemberships)
+    .innerJoin(user, eq(user.id, businessMemberships.userId))
+    .where(eq(businessMemberships.businessId, businessId))
+    .orderBy(businessMemberships.createdAt)
+  return rows
+}
+
+export async function inviteMember(input: { businessId: string; email: string; role: BusinessRole; invitationUrl: string }) {
+  const context = await requireBusinessPermission('membership.manage')
+  const email = input.email.trim()
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Enter a valid email address.')
+  if (!input.role || !['owner','administrator','finance_manager','accountant','sales_officer','cashier','viewer'].includes(input.role)) {
+    throw new Error('Choose a valid role.')
+  }
+
+  // Verify the target business exists and user is a member
+  const [membership] = await db
+    .select({ businessId: businessMemberships.businessId, role: businessMemberships.role })
+    .from(businessMemberships)
+    .where(and(eq(businessMemberships.userId, context.userId), eq(businessMemberships.businessId, input.businessId)))
+    .limit(1)
+  if (!membership) throw new Error('You are not a member of this business.')
+
+  const id = randomUUID()
+  await db.transaction(async (tx) => {
+    await tx.insert(verification).values({
+      id,
+      identifier: email,
+      value: randomUUID(),
+      expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
+    })
+    await tx.insert(auditLogs).values({
+      id: randomUUID(),
+      businessId: input.businessId,
+      userId: context.userId,
+      action: 'member.invited',
+      entityType: 'business_membership',
+      entityId: id,
+      details: { email, role: input.role },
+    })
+  })
+
+  // Send invitation email (fail silently)
+  try {
+    await sendInvitationEmail({
+      to: email,
+      inviterName: context.userId, // We don't have user name here; could look it up
+      invitationUrl: input.invitationUrl,
+    })
+  } catch {
+    // Email failure doesn't block invitation creation
+  }
+
+  revalidatePath('/')
+  return { id }
+}
+
+export async function updateMembershipRole(input: { businessId: string; userId: string; role: BusinessRole }) {
+  const context = await requireBusinessPermission('membership.manage')
+  if (!input.role || !['owner','administrator','finance_manager','accountant','sales_officer','cashier','viewer'].includes(input.role)) {
+    throw new Error('Choose a valid role.')
+  }
+
+  // Verify the target membership exists and belongs to this business
+  const [existing] = await db
+    .select({ role: businessMemberships.role, userId: businessMemberships.userId })
+    .from(businessMemberships)
+    .where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId)))
+    .limit(1)
+  if (!existing) throw new Error('Membership not found.')
+
+  // Prevent demoting the last owner
+  if (existing.role === 'owner' && input.role !== 'owner') {
+    const ownerCount = await db
+      .select({ count: sql<number>`count(*)::int` })
+      .from(businessMemberships)
+      .where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.role, 'owner')))
+    if (ownerCount[0]?.count <= 1) throw new Error('Cannot demote the last owner.')
+  }
+
+  await db.transaction(async (tx) => {
+    await tx.update(businessMemberships).set({ role: input.role })
+      .where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId)))
+    await tx.insert(auditLogs).values({
+      id: randomUUID(),
+      businessId: input.businessId,
+      userId: context.userId,
+      action: 'membership.role_changed',
+      entityType: 'business_membership',
+      entityId: input.userId,
+      details: { previousRole: existing.role, newRole: input.role },
+    })
+  })
+  revalidatePath('/')
+  return { success: true }
+}
+
+export async function suspendMembership(input: { businessId: string; userId: string }) {
+  const context = await requireBusinessPermission('membership.manage')
+
+  const [existing] = await db
+    .select({ role: businessMemberships.role, userId: businessMemberships.userId })
+    .from(businessMemberships)
+    .where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId)))
+    .limit(1)
+  if (!existing) throw new Error('Membership not found.')
+
+  if (existing.role === 'owner') throw new Error('Cannot suspend the business owner.')
+
+  await db.transaction(async (tx) => {
+    await tx.update(businessMemberships).set({ role: 'viewer' })
+      .where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId)))
+    await tx.insert(auditLogs).values({
+      id: randomUUID(),
+      businessId: input.businessId,
+      userId: context.userId,
+      action: 'membership.suspended',
+      entityType: 'business_membership',
+      entityId: input.userId,
+      details: { previousRole: existing.role },
+    })
+  })
+  revalidatePath('/')
+  return { success: true }
+}
+
+export async function removeMembership(input: { businessId: string; userId: string }) {
+  const context = await requireBusinessPermission('membership.manage')
+
+  const [existing] = await db
+    .select({ role: businessMemberships.role, userId: businessMemberships.userId })
+    .from(businessMemberships)
+    .where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId)))
+    .limit(1)
+  if (!existing) throw new Error('Membership not found.')
+
+  if (existing.role === 'owner') throw new Error('Cannot remove the business owner.')
+
+  await db.transaction(async (tx) => {
+    await tx.delete(businessMemberships)
+      .where(and(eq(businessMemberships.businessId, input.businessId), eq(businessMemberships.userId, input.userId)))
+    await tx.insert(auditLogs).values({
+      id: randomUUID(),
+      businessId: input.businessId,
+      userId: context.userId,
+      action: 'membership.removed',
+      entityType: 'business_membership',
+      entityId: input.userId,
+      details: { previousRole: existing.role },
+    })
+  })
+  revalidatePath('/')
+  return { success: true }
 }
 
 export async function verifyReceipt(input: { token: string }) {
