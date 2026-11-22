@@ -3,8 +3,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { authClient } from '@/lib/auth-client'
-import { createCustomer, createInvoice, getFinancialReport, issueDraftInvoice, recordExpense, recordPayment, recordRefund, approveRefund, completeRefund, saveCatalogueItem, setCatalogueItemStatus, updateCustomer, updateBusiness, voidReceipt, cancelInvoice } from '@/app/actions/finance'
+import { createCustomer, createInvoice, getFinancialReport, issueDraftInvoice, recordExpense, recordPayment, recordRefund, approveRefund, completeRefund, saveCatalogueItem, setCatalogueItemStatus, updateCustomer, updateBusiness, voidReceipt, cancelInvoice, createBusiness, listBusinesses, setActiveBusiness, listBusinessMembers, inviteMember, updateMembershipRole, suspendMembership, removeMembership } from '@/app/actions/finance'
 import { filterReceipts, formatReceiptDate, sortReceipts, type ReceiptSort } from '@/lib/receipt-ui'
+import { type BusinessRole } from '@/lib/permissions'
 import { Activity, ArrowDownLeft, ArrowRight, ArrowUpRight, Bell, BookOpenCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronDown, CircleHelp, ClipboardList, CreditCard, Download, FileClock, FilePlus2, FileText, LayoutDashboard, LogOut, Menu, MoreHorizontal, Package, Plus, ReceiptText, Search, Settings2, ShieldCheck, Users, WalletCards, X } from 'lucide-react'
 
 type Data = Awaited<ReturnType<typeof import('@/app/actions/finance').getDashboardData>>
@@ -49,12 +50,36 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
   const [voidingReceiptId, setVoidingReceiptId] = useState('')
   const [cancellingInvoiceId, setCancellingInvoiceId] = useState('')
   const [businessEdit, setBusinessEdit] = useState<{ name: string; email: string; phone: string; address: string; city: string; country: string; currency: string; receiptPrefix: string; invoicePrefix: string } | null>(null)
+  const [businesses, setBusinesses] = useState<Data['businesses'][number][]>([])
+  const [businessesLoading, setBusinessesLoading] = useState(false)
+  const [businessSwitcherOpen, setBusinessSwitcherOpen] = useState(false)
+  const [businessMembers, setBusinessMembers] = useState<any[]>([])
+  const [membersLoading, setMembersLoading] = useState(false)
+  const [inviteFormOpen, setInviteFormOpen] = useState(false)
+  const [inviteForm, setInviteForm] = useState({ email: '', role: 'cashier' as BusinessRole })
   const visibleInvoices = useMemo(() => data.invoices.filter((item) => `${item.number} ${item.customer} ${item.status}`.toLowerCase().includes(query.toLowerCase()) && (invoiceStatusFilter === 'all' || item.status === invoiceStatusFilter)), [data.invoices, query, invoiceStatusFilter])
   const visibleCustomers = useMemo(() => data.customers.filter((item) => `${item.name} ${item.email || ''} ${item.phone || ''}`.toLowerCase().includes(query.toLowerCase())), [data.customers, query])
   const visibleReceipts = useMemo(() => {
     const filtered = filterReceipts(data.receipts, query)
     return sortReceipts(filtered, receiptSort)
   }, [data.receipts, query, receiptSort])
+
+  useEffect(() => {
+    let mounted = true
+    async function loadBusinesses() {
+      setBusinessesLoading(true)
+      try {
+        const rows = await listBusinesses()
+        if (mounted) setBusinesses(rows)
+      } catch {
+        if (mounted) setBusinesses([])
+      } finally {
+        if (mounted) setBusinessesLoading(false)
+      }
+    }
+    loadBusinesses()
+    return () => { mounted = false }
+  }, [])
 
   function openPayment(invoiceId = '') {
     setSelectedInvoiceId(invoiceId)
@@ -201,7 +226,41 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
   return <div className="app-shell">
     <aside className={`app-sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
       <a className="brand-lockup" href="/" aria-label="JITHUB-TEQ dashboard"><span className="brand-mark">J</span><span>JITHUB<span className="brand-dash">-</span>TEQ</span></a>
-      <div className="workspace-switch"><span className="workspace-emblem">J</span><span className="workspace-label"><strong>{data.business?.name || `${user.name ? `${user.name.split(' ')[0]}'s workspace` : 'My workspace'}`}</strong><small>{data.business?.city ? `${data.business.city}, ${data.business.country}` : 'Business account'}</small></span><ChevronDown size={15}/></div>
+      <div className="workspace-switch">
+        <span className="workspace-emblem">J</span>
+        <span className="workspace-label">
+          <strong>{data.business?.name || `${user.name ? `${user.name.split(' ')[0]}'s workspace` : 'My workspace'}`}</strong>
+          <small>{data.business?.city ? `${data.business.city}, ${data.business.country}` : 'Business account'}</small>
+        </span>
+        {businesses.length > 1 ? (
+          <button className="workspace-switcher" onClick={() => setBusinessSwitcherOpen(true)} aria-label="Switch business">
+            <ChevronDown size={14}/>
+          </button>
+        ) : (
+          <ChevronDown size={15}/>
+        )}
+      </div>
+      {businessSwitcherOpen && businesses.length > 1 && (
+        <div className="business-switcher-menu">
+          <span className="switcher-menu-header">Switch business</span>
+          {businesses.map((b) => (
+            <button
+              key={b.id}
+              className={`switcher-menu-item ${data.business?.id === b.id ? 'switcher-menu-item-active' : ''}`}
+              onClick={() => {
+                setActiveBusiness(b.id).then(() => {
+                  router.refresh()
+                  setBusinessSwitcherOpen(false)
+                })
+              }}
+            >
+              <span>{b.name}</span>
+              <span className="switcher-menu-role">{b.role}</span>
+              {data.business?.id === b.id && <span className="switcher-menu-active">Active</span>}
+            </button>
+          ))}
+        </div>
+      )}
       <nav className="side-navigation" aria-label="Main navigation">{['WORKSPACE', 'MANAGE', 'ADMINISTRATION'].map((group) => <div className="nav-group" key={group}><span className="nav-group-label">{group}</span>{navigation.filter((item) => item.group === group).map(({ label, icon: Icon }) => <button key={label} className={`nav-item ${section === label ? 'nav-item-active' : ''}`} aria-current={section === label ? 'page' : undefined} onClick={() => { setSection(label); setQuery(''); setSidebarOpen(false) }}><Icon size={17} strokeWidth={1.8}/><span>{label}</span>{label === 'Invoices' && data.invoices.length > 0 && <small className="nav-count">{data.invoices.length}</small>}</button>)}</div>)}</nav>
       <div className="sidebar-bottom"><div className="help-card"><span className="help-icon"><CircleHelp size={16}/></span><div><strong>Need a hand?</strong><p>We&apos;re here to help you get started.</p><button onClick={() => setToast('Support resources will be available in your workspace shortly.')}>Visit help centre <ArrowRight size={12}/></button></div></div><div className="profile-row"><span className="profile-avatar">{user.name?.split(' ').map((part) => part[0]).join('').slice(0, 2).toUpperCase() || 'JT'}</span><span className="profile-copy"><strong>{user.name || 'Account owner'}</strong><small>{user.email}</small></span><button className="icon-button profile-more" aria-label="Sign out" onClick={async () => { await authClient.signOut(); router.push('/sign-in'); router.refresh() }}><LogOut size={16}/></button></div></div>
     </aside>

@@ -174,8 +174,23 @@ export async function getDashboardData() {
   const catalogue = await db.select({ id: catalogueItems.id, name: catalogueItems.name, description: catalogueItems.description, unitPrice: catalogueItems.unitPrice, status: catalogueItems.status }).from(catalogueItems).where(eq(catalogueItems.businessId, businessId)).orderBy(desc(catalogueItems.createdAt)).limit(500)
   const auditTrail = await db.select({ id: auditLogs.id, action: auditLogs.action, entityType: auditLogs.entityType, entityId: auditLogs.entityId, details: auditLogs.details, createdAt: auditLogs.createdAt }).from(auditLogs).where(eq(auditLogs.businessId, businessId)).orderBy(desc(auditLogs.createdAt)).limit(100)
   const [business] = await db.select({ id: businesses.id, name: businesses.name, legalName: businesses.legalName, email: businesses.email, phone: businesses.phone, address: businesses.address, currency: businesses.currency, city: businesses.city, country: businesses.country, receiptPrefix: businesses.receiptPrefix, invoicePrefix: businesses.invoicePrefix, logoUrl: businesses.logoUrl }).from(businesses).where(eq(businesses.id, businessId)).limit(1)
+  const allBusinesses = await db
+    .select({
+      id: businesses.id,
+      name: businesses.name,
+      currency: businesses.currency,
+      city: businesses.city,
+      country: businesses.country,
+      status: businesses.status,
+      logoUrl: businesses.logoUrl,
+      role: businessMemberships.role,
+    })
+    .from(businessMemberships)
+    .innerJoin(businesses, eq(businesses.id, businessMemberships.businessId))
+    .where(eq(businessMemberships.userId, userId))
+    .orderBy(desc(businessMemberships.createdAt))
   const refundsList = await db.select({ id: refunds.id, amount: refunds.amount, reason: refunds.reason, method: refunds.method, reference: refunds.reference, status: refunds.status, createdAt: refunds.createdAt, requestedBy: refunds.requestedBy, approvedBy: refunds.approvedBy }).from(refunds).where(eq(refunds.businessId, businessId)).orderBy(desc(refunds.createdAt)).limit(50)
-  return { customerCount: customersCount.count, summary, trend, invoices: recentInvoices, customers: recentCustomers, receipts: recentReceipts, expenses: recentExpenses, catalogue, auditTrail, businessId, business, refunds: refundsList }
+  return { customerCount: customersCount.count, summary, trend, invoices: recentInvoices, customers: recentCustomers, receipts: recentReceipts, expenses: recentExpenses, catalogue, auditTrail, businessId, business, businesses: allBusinesses, refunds: refundsList }
 }
 
 export async function getFinancialReport(days: '30' | '90' | '365' | 'all') {
