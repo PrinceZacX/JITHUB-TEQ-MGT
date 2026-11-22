@@ -1,14 +1,15 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import { authClient } from '@/lib/auth-client'
 import { listBusinessMembers, inviteMember, updateMembershipRole, suspendMembership, removeMembership } from '@/app/actions/finance'
 import { Plus } from 'lucide-react'
 import { type BusinessRole } from '@/lib/permissions'
 
-export default async function BusinessMembersPage({ searchParams }: { searchParams: Promise<{ id?: string }> }) {
-  const { id: businessId } = await searchParams
+export default function BusinessMembersPage() {
+  const params = useParams<{ id: string }>()
+  const businessId = params?.id
   const router = useRouter()
   const [members, setMembers] = useState<any[]>([])
   const [membersLoading, setMembersLoading] = useState(false)

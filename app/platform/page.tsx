@@ -128,7 +128,7 @@ function PlatformDashboard({
                     </td>
                     <td className="py-3">
                       <a
-                        href={`/business/${b.id}`}
+                        href={`/business/members/${b.id}`}
                         className="button-secondary text-sm"
                       >
                         Open Workspace

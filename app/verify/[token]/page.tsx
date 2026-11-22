@@ -5,11 +5,11 @@ import { verifyReceipt } from '@/app/actions/finance'
 export const dynamic = 'force-dynamic'
 
 export default async function VerifyPage({
-  searchParams,
+  params,
 }: {
-  searchParams: Promise<{ token?: string }>
+  params: Promise<{ token: string }>
 }) {
-  const { token } = await searchParams
+  const { token } = await params
   const result = await verifyReceipt({ token: token || '' })
 
   if (!result || !result.valid) {

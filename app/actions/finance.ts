@@ -81,6 +81,8 @@ async function requireBusiness(businessId?: string) {
 
   // Platform owner: can access platform administration without a business.
   // With a businessId, they explicitly select a business to operate in.
+  // Otherwise, auto-resolve from their active membership (if any) so the
+  // workspace dashboard works out of the box.
   const userRow = await getUserContext(userId)
   if (userRow.platformOwner) {
     if (!userRow.emailVerified) throw new Error('Email verification is required for platform access.')
@@ -94,6 +96,24 @@ async function requireBusiness(businessId?: string) {
       if (business.status !== 'active') throw new Error('Business is not active.')
       return {
         userId, businessId,
+        role: 'platform_owner', isPlatformOwner: true,
+      }
+    }
+    // Auto-resolve from active membership
+    const [membership] = await db
+      .select({ businessId: businessMemberships.businessId })
+      .from(businessMemberships)
+      .innerJoin(businesses, eq(businesses.id, businessMemberships.businessId))
+      .where(and(
+        eq(businessMemberships.userId, userId),
+        eq(businessMemberships.status, 'active'),
+        eq(businesses.status, 'active'),
+        sql`${businessMemberships.deletedAt} IS NULL`,
+      ))
+      .limit(1)
+    if (membership) {
+      return {
+        userId, businessId: membership.businessId,
         role: 'platform_owner', isPlatformOwner: true,
       }
     }

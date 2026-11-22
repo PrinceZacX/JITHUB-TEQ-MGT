@@ -56,11 +56,11 @@ test('page.tsx redirects unauthenticated users to sign-in', () => {
   assert.match(page, /redirect\('\/sign-in'\)/)
 })
 
-test('page.tsx routes platform owners to the platform dashboard', () => {
+test('page.tsx allows platform owners to access the workspace dashboard directly', () => {
   const page = fs.readFileSync(new URL('../app/page.tsx', import.meta.url), 'utf8')
-  assert.match(page, /platformOwner/)
-  assert.match(page, /redirect\('\/platform'\)/)
-  assert.doesNotMatch(page, /PlatformPage/)
+  // Platform owners are no longer force-redirected away from the dashboard;
+  // they can reach the platform admin UI at /platform on demand.
+  assert.doesNotMatch(page, /redirect\('\/platform'\)/)
 })
 
 test('platform owner business-scoped actions require businessId', () => {
