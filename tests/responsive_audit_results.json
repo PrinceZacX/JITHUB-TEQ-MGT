@@ -70,10 +70,14 @@
       "route": "/stock-movements",
       "http_status": 200,
       "title": "JITHUB-TEQ | Receipting & Invoicing",
-      "body_preview": "Stock Movements\nRefresh\n\nNo stock movements recorded yet.",
-      "console_errors": [],
-      "viewport_issues": [],
-      "pass": true
+      "body_preview": "Stock Movements\nRefresh\nPlease sign in to continue.\nRetry\n\nNo stock movements recorded yet.",
+      "console_errors": [
+        "[error] Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "viewport_issues": [
+        "Console errors: ['[error] Failed to load resource: the server responded with a status of 401 (Unauthorized)']"
+      ],
+      "pass": false
     },
     "desktop:/suppliers": {
       "viewport": "desktop",
@@ -279,7 +283,7 @@
       "body_preview": "Beyond Technology, We Build Trust.\nUGANDA \u00b7 UGX\nJ\nJITHUB-TEQ\nYOUR BUSINESS, IN BALANCE\nWelcome back\n\nSign in to manage your financial operations.\n\nEmail address\nPassword\nRemember me\nForgot password?\nS",
       "console_errors": [],
       "viewport_issues": [
-        "Touch targets < 44px: [{'tag': 'button', 'class': 'reveal-password', 'width': 30, 'height': 30}, {'tag': 'input', 'class': '', 'width': 1, 'height': 1}]"
+        "Touch targets < 44px: [{'tag': 'input', 'class': '', 'width': 1, 'height': 1}]"
       ],
       "pass": false
     },
@@ -291,7 +295,7 @@
       "body_preview": "Beyond Technology, We Build Trust.\nUGANDA \u00b7 UGX\nJ\nJITHUB-TEQ\nYOUR BUSINESS, IN BALANCE\nWelcome back\n\nSign in to manage your financial operations.\n\nEmail address\nPassword\nRemember me\nForgot password?\nS",
       "console_errors": [],
       "viewport_issues": [
-        "Touch targets < 44px: [{'tag': 'button', 'class': 'reveal-password', 'width': 30, 'height': 30}, {'tag': 'input', 'class': '', 'width': 1, 'height': 1}]"
+        "Touch targets < 44px: [{'tag': 'input', 'class': '', 'width': 1, 'height': 1}]"
       ],
       "pass": false
     },
@@ -313,7 +317,7 @@
       "body_preview": "Beyond Technology, We Build Trust.\nUGANDA \u00b7 UGX\nJ\nJITHUB-TEQ\nYOUR BUSINESS, IN BALANCE\nWelcome back\n\nSign in to manage your financial operations.\n\nEmail address\nPassword\nRemember me\nForgot password?\nS",
       "console_errors": [],
       "viewport_issues": [
-        "Touch targets < 44px: [{'tag': 'button', 'class': 'reveal-password', 'width': 30, 'height': 30}, {'tag': 'input', 'class': '', 'width': 1, 'height': 1}]"
+        "Touch targets < 44px: [{'tag': 'input', 'class': '', 'width': 1, 'height': 1}]"
       ],
       "pass": false
     },
@@ -329,7 +333,7 @@
       ],
       "viewport_issues": [
         "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']",
-        "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 411.203125, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 411.203125, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 411.203125, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 411.203125, 'viewport': 375}]"
+        "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 600, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 600, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 600, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 600, 'viewport': 375}]"
       ],
       "pass": false
     },
@@ -345,7 +349,7 @@
       ],
       "viewport_issues": [
         "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']",
-        "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 438.203125, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 438.203125, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 438.203125, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 438.203125, 'viewport': 375}]"
+        "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 600, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 600, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 600, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 600, 'viewport': 375}]"
       ],
       "pass": false
     },
@@ -376,7 +380,7 @@
       ],
       "viewport_issues": [
         "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']",
-        "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 450.328125, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 450.328125, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 450.328125, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 450.328125, 'viewport': 375}]"
+        "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 600, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 600, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 600, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 600, 'viewport': 375}]"
       ],
       "pass": false
     },
@@ -392,7 +396,7 @@
       ],
       "viewport_issues": [
         "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']",
-        "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 427.953125, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 427.953125, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 427.953125, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 427.953125, 'viewport': 375}]"
+        "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 600, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 600, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 600, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 600, 'viewport': 375}]"
       ],
       "pass": false
     },
@@ -428,6 +432,11 @@
       "viewport": "desktop",
       "route": "/purchase-orders",
       "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+    },
+    {
+      "viewport": "desktop",
+      "route": "/stock-movements",
+      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 401 (Unauthorized)']"
     },
     {
       "viewport": "desktop",
@@ -477,17 +486,17 @@
     {
       "viewport": "mobile",
       "route": "/",
-      "issue": "Touch targets < 44px: [{'tag': 'button', 'class': 'reveal-password', 'width': 30, 'height': 30}, {'tag': 'input', 'class': '', 'width': 1, 'height': 1}]"
+      "issue": "Touch targets < 44px: [{'tag': 'input', 'class': '', 'width': 1, 'height': 1}]"
     },
     {
       "viewport": "mobile",
       "route": "/sign-in",
-      "issue": "Touch targets < 44px: [{'tag': 'button', 'class': 'reveal-password', 'width': 30, 'height': 30}, {'tag': 'input', 'class': '', 'width': 1, 'height': 1}]"
+      "issue": "Touch targets < 44px: [{'tag': 'input', 'class': '', 'width': 1, 'height': 1}]"
     },
     {
       "viewport": "mobile",
       "route": "/platform",
-      "issue": "Touch targets < 44px: [{'tag': 'button', 'class': 'reveal-password', 'width': 30, 'height': 30}, {'tag': 'input', 'class': '', 'width': 1, 'height': 1}]"
+      "issue": "Touch targets < 44px: [{'tag': 'input', 'class': '', 'width': 1, 'height': 1}]"
     },
     {
       "viewport": "mobile",
@@ -497,7 +506,7 @@
     {
       "viewport": "mobile",
       "route": "/goods-receipts",
-      "issue": "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 411.203125, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 411.203125, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 411.203125, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 411.203125, 'viewport': 375}]"
+      "issue": "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 600, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 600, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 600, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 600, 'viewport': 375}]"
     },
     {
       "viewport": "mobile",
@@ -507,7 +516,7 @@
     {
       "viewport": "mobile",
       "route": "/purchase-orders",
-      "issue": "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 438.203125, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 438.203125, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 438.203125, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 438.203125, 'viewport': 375}]"
+      "issue": "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 600, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 600, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 600, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 600, 'viewport': 375}]"
     },
     {
       "viewport": "mobile",
@@ -522,7 +531,7 @@
     {
       "viewport": "mobile",
       "route": "/suppliers",
-      "issue": "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 450.328125, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 450.328125, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 450.328125, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 450.328125, 'viewport': 375}]"
+      "issue": "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 600, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 600, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 600, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 600, 'viewport': 375}]"
     },
     {
       "viewport": "mobile",
@@ -532,7 +541,7 @@
     {
       "viewport": "mobile",
       "route": "/tax-rates",
-      "issue": "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 427.953125, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 427.953125, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 427.953125, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 427.953125, 'viewport': 375}]"
+      "issue": "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 600, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 600, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 600, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 600, 'viewport': 375}]"
     },
     {
       "viewport": "mobile",
@@ -549,7 +558,7 @@
   "horizontal_scroll": [],
   "touch_target_issues": [],
   "summary": {
-    "pass": 14,
-    "fail": 19
+    "pass": 13,
+    "fail": 20
   }
 }
