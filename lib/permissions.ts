@@ -24,6 +24,15 @@ export type BusinessPermission =
   | 'audit.read'
   | 'tax.manage'
 
+export type PlatformPermission =
+  | 'platform.manage_users'
+  | 'platform.manage_roles'
+  | 'platform.manage_businesses'
+  | 'platform.view_audit'
+  | 'platform.manage_settings'
+
+export type PlatformRole = 'platform_owner'
+
 type RolePermissions = Record<BusinessRole, BusinessPermission[]>
 
 const rolePermissions: RolePermissions = {
@@ -77,6 +86,26 @@ export function roleHasPermission(role: BusinessRole, permission: BusinessPermis
 export function requirePermission(role: BusinessRole, permission: BusinessPermission): void {
   if (!roleHasPermission(role, permission)) {
     throw new Error(`This role (${role}) is not permitted to ${permission}.`)
+  }
+}
+
+export const platformRolePermissions: Record<PlatformRole, PlatformPermission[]> = {
+  platform_owner: [
+    'platform.manage_users',
+    'platform.manage_roles',
+    'platform.manage_businesses',
+    'platform.view_audit',
+    'platform.manage_settings',
+  ],
+}
+
+export function platformHasPermission(role: PlatformRole, permission: PlatformPermission): boolean {
+  return platformRolePermissions[role]?.includes(permission) ?? false
+}
+
+export function requirePlatformPermission(role: PlatformRole, permission: PlatformPermission): void {
+  if (!platformHasPermission(role, permission)) {
+    throw new Error(`Platform role (${role}) is not permitted to ${permission}.`)
   }
 }
 

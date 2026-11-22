@@ -14,16 +14,37 @@ import { and, desc, eq, gte, lte, sql } from 'drizzle-orm'
 import { cookies, headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { randomUUID, randomBytes, createHash } from 'node:crypto'
-import { requirePermission, defaultRole, type BusinessRole } from '@/lib/permissions'
+import {
+  requirePermission, defaultRole, type BusinessRole,
+  platformHasPermission, requirePlatformPermission, type PlatformPermission,
+} from '@/lib/permissions'
 import { loadEnv } from '@/lib/env'
 import { sendInvoiceEmail, sendReceiptEmail } from '@/lib/email'
 
 const moneyPattern = /^\d{1,12}(\.\d{1,2})?$/
 
-async function requireUser() {
+async function requireUser(): Promise<string> {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user) throw new Error('Please sign in to continue.')
   return session.user.id
+}
+
+async function getUserContext(userId: string) {
+  const [userRow] = await db
+    .select({ id: user.id, email: user.email, platformOwner: user.platformOwner, emailVerified: user.emailVerified })
+    .from(user)
+    .where(eq(user.id, userId))
+    .limit(1)
+  if (!userRow) throw new Error('User not found.')
+  return userRow
+}
+
+async function requirePlatformOwner() {
+  const userId = await requireUser()
+  const userRow = await getUserContext(userId)
+  if (!userRow.platformOwner) throw new Error('Platform owner access required.')
+  if (!userRow.emailVerified) throw new Error('Email verification is required for platform access.')
+  return { userId, email: userRow.email, isPlatformOwner: true }
 }
 
 function money(value: string) {
@@ -58,13 +79,32 @@ async function requireBusiness(businessId?: string) {
   loadEnv()
   const userId = await requireUser()
 
+  if (!businessId) throw new Error('A business context is required.')
+
+  // Platform owner can access any business they explicitly select.
+  const userRow = await getUserContext(userId)
+  if (userRow.platformOwner) {
+    if (!userRow.emailVerified) throw new Error('Email verification is required for platform access.')
+    const [business] = await db
+      .select({ id: businesses.id, status: businesses.status })
+      .from(businesses)
+      .where(eq(businesses.id, businessId))
+      .limit(1)
+    if (!business) throw new Error('Business not found.')
+    if (business.status !== 'active') throw new Error('Business is not active.')
+    return {
+      userId, businessId,
+      role: 'platform_owner', isPlatformOwner: true,
+    }
+  }
+
   const whereClauses = [
     eq(businessMemberships.userId, userId),
     eq(businesses.status, 'active'),
     eq(businessMemberships.status, 'active'),
     sql`${businessMemberships.deletedAt} IS NULL`,
+    eq(businessMemberships.businessId, businessId),
   ]
-  if (businessId) whereClauses.push(eq(businessMemberships.businessId, businessId))
 
   const [membership] = await db
     .select({
@@ -85,14 +125,27 @@ async function requireBusiness(businessId?: string) {
 
 async function requireBusinessPermission(permission: string, businessId?: string) {
   const context = await requireBusiness(businessId)
-  requirePermission(context.role, permission as any)
+  if (context.role === 'platform_owner') {
+    requirePlatformPermission('platform_owner', permission as PlatformPermission)
+    return context
+  }
+  requirePermission(context.role as BusinessRole, permission as any)
   return context
 }
 
-async function insertAudit(tx: any, context: { userId: string; businessId: string }, input: {
+async function insertAudit(tx: any, context: { userId: string; businessId: string | null }, input: {
   action: string; entityType: string; entityId: string; details?: Record<string, unknown> }) {
   await tx.insert(auditLogs).values({
     id: randomUUID(), businessId: context.businessId, userId: context.userId,
+    action: input.action, entityType: input.entityType, entityId: input.entityId,
+    details: input.details ?? {},
+  })
+}
+
+async function insertPlatformAudit(tx: any, context: { userId: string }, input: {
+  action: string; entityType: string; entityId: string; details?: Record<string, unknown> }) {
+  await tx.insert(auditLogs).values({
+    id: randomUUID(), businessId: null, userId: context.userId,
     action: input.action, entityType: input.entityType, entityId: input.entityId,
     details: input.details ?? {},
   })
