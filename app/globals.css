@@ -325,6 +325,9 @@ body { font-size: 14px; line-height: 1.55; }
   .data-table thead th, .data-table tbody td { padding-right: 8px; padding-left: 8px; }
   .subtle-select { font-size: 10px; }
   .modal-card { padding: 20px 16px calc(16px + env(safe-area-inset-bottom)); }
+  /* Table horizontal scroll on mobile */
+  .invoice-table-wrap, .data-panel .invoice-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .data-table { min-width: 600px; }
 }
 
 /* Loading and error states */

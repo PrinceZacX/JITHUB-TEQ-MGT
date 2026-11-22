@@ -65,15 +65,26 @@ export function AuthScreen({ authAvailable }: { authAvailable: boolean }) {
       <div className="auth-card">
         <div className="auth-mobile-brand"><span className="brand-mark">J</span><strong>JITHUB-TEQ</strong></div>
         <div className="auth-heading"><span className="eyebrow">YOUR BUSINESS, IN BALANCE</span><h2>{mode === 'sign-in' ? 'Welcome back' : 'Create your workspace'}</h2><p>{mode === 'sign-in' ? 'Sign in to manage your financial operations.' : 'Get started with your business account.'}</p></div>
-        {!authAvailable && <p className="auth-config-warning" role="alert">Sign-in is paused until a secure session key is configured. Replace <strong>BETTER_AUTH_SECRET</strong> in project Vars with a random value at least 32 characters long.</p>}
+        {!authAvailable && <p className="auth-config-warning" role="alert">Sign-in is paused until a secure session key is configured. Replace <code>BETTER_AUTH_SECRET</code> in project Vars with a random value at least 32 characters long.</p>}
         <form ref={formRef} onSubmit={handleSubmit} className="auth-form">
           {mode === 'sign-up' && <label>Full name<input name="name" autoComplete="name" placeholder="Grace Nambasa" required minLength={2}/></label>}
           <label>Email address<span className="input-icon"><Mail size={17}/><input name="email" type="email" autoComplete="email" placeholder="name@business.com" required/></span></label>
-          <label>Password<span className="input-icon"><LockKeyhole size={17}/><input name="password" type={showPassword ? 'text' : 'password'} autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'} placeholder="At least 8 characters" minLength={8} required/><button className="reveal-password" type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'}>{showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}</button></span></label>
-          {mode === 'sign-in' && <div className="auth-options"><label className="remember-option"><input type="checkbox" name="remember"/><span><Check size={11}/></span>Remember me</label><button type="button" className="text-button" onClick={handleForgotPassword} disabled={pending || !authAvailable}>Forgot password?</button></div>}
+          <label>Password<span className="input-icon"><LockKeyhole size={17}/><input name="password" type={showPassword ? 'text' : 'password'} autoComplete={mode === 'sign-in' ? 'current-password' : 'new-password'} placeholder="At least 8 characters" minLength={8} required/><button className="reveal-password" type="button" onClick={() => setShowPassword(!showPassword)} aria-label={showPassword ? 'Hide password' : 'Show password'} style={{minWidth: 44, minHeight: 44, display: 'grid', placeItems: 'center'}}>{showPassword ? <EyeOff size={17}/> : <Eye size={17}/>}</button></span></label>
+          {mode === 'sign-in' && (
+  <div className="auth-options">
+    <label className="remember-option">
+      <input type="checkbox" name="remember"/>
+      <span style={{width: 20, height: 20, display: 'grid', placeItems: 'center'}}><Check size={11}/></span>
+      Remember me
+    </label>
+    <button type="button" className="text-button" onClick={handleForgotPassword} disabled={pending || !authAvailable}>
+      Forgot password?
+    </button>
+  </div>
+)}
           {error && <p className="form-error" role="alert">{error}</p>}
           {resetMessage && <p className="auth-config-warning" role="status">{resetMessage}</p>}
-          <button className="primary-button auth-submit" disabled={pending || !authAvailable}>{pending ? 'Please wait…' : mode === 'sign-in' ? 'Sign in' : 'Create account'}<ArrowRight size={17}/></button>
+          <button className="primary-button auth-submit" disabled={pending || !authAvailable}>{pending ? 'Please wait...' : mode === 'sign-in' ? 'Sign in' : 'Create account'}<ArrowRight size={17}/></button>
         </form>
         <p className="auth-switch">{mode === 'sign-in' ? 'New to JITHUB-TEQ?' : 'Already have an account?'} <button className="text-button" disabled={!authAvailable} onClick={() => {setMode(mode === 'sign-in' ? 'sign-up' : 'sign-in'); setError('')}}>{mode === 'sign-in' ? 'Create account' : 'Sign in'}</button></p>
         <div className="auth-security"><ShieldCheck size={14}/>Your data is protected with encrypted sessions</div>

@@ -1,0 +1,555 @@
+{
+  "routes": {
+    "desktop:/": {
+      "viewport": "desktop",
+      "route": "/",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "J\nJITHUB-TEQ\nFINANCE, WITH CLARITY\nMake every\ntransaction\ncount.\n\nOne clear view of your invoices, payments and the people behind them.\n\nSecure, private business workspace\nBeyond Technology, We Build ",
+      "console_errors": [],
+      "viewport_issues": [],
+      "pass": true
+    },
+    "desktop:/sign-in": {
+      "viewport": "desktop",
+      "route": "/sign-in",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "J\nJITHUB-TEQ\nFINANCE, WITH CLARITY\nMake every\ntransaction\ncount.\n\nOne clear view of your invoices, payments and the people behind them.\n\nSecure, private business workspace\nBeyond Technology, We Build ",
+      "console_errors": [],
+      "viewport_issues": [],
+      "pass": true
+    },
+    "desktop:/reset-password": {
+      "viewport": "desktop",
+      "route": "/reset-password",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "J\nJITHUB-TEQ\nACCOUNT SECURITY\nProtect your\nbusiness\naccess.\n\nChoose a strong password to secure your financial workspace.\n\nSecure, private business workspace\nBeyond Technology, We Build Trust.\nUGANDA ",
+      "console_errors": [],
+      "viewport_issues": [],
+      "pass": true
+    },
+    "desktop:/platform": {
+      "viewport": "desktop",
+      "route": "/platform",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "J\nJITHUB-TEQ\nFINANCE, WITH CLARITY\nMake every\ntransaction\ncount.\n\nOne clear view of your invoices, payments and the people behind them.\n\nSecure, private business workspace\nBeyond Technology, We Build ",
+      "console_errors": [],
+      "viewport_issues": [],
+      "pass": true
+    },
+    "desktop:/goods-receipts": {
+      "viewport": "desktop",
+      "route": "/goods-receipts",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Goods Receipts\nCreate Receipt\nReceipt #\tPO #\tSupplier\tWarehouse\tStatus\tTotal\tActions",
+      "console_errors": [],
+      "viewport_issues": [],
+      "pass": true
+    },
+    "desktop:/purchase-orders": {
+      "viewport": "desktop",
+      "route": "/purchase-orders",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Purchase Orders\nCreate Order\nOrder #\tSupplier\tWarehouse\tStatus\tOrder Date\tTotal\tActions",
+      "console_errors": [
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "viewport_issues": [
+        "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+      ],
+      "pass": false
+    },
+    "desktop:/stock-movements": {
+      "viewport": "desktop",
+      "route": "/stock-movements",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Stock Movements\nRefresh\n\nNo stock movements recorded yet.",
+      "console_errors": [],
+      "viewport_issues": [],
+      "pass": true
+    },
+    "desktop:/suppliers": {
+      "viewport": "desktop",
+      "route": "/suppliers",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Supplier Management\nAdd Supplier\nName\tEmail\tPhone\tCity\tCategory\tCredit Limit\tStatus\tActions",
+      "console_errors": [
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "viewport_issues": [
+        "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+      ],
+      "pass": false
+    },
+    "desktop:/tax-rates": {
+      "viewport": "desktop",
+      "route": "/tax-rates",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Tax Rates\nAdd Tax Rate\nName\tRate\tType\tStatus\tEffective From\tEffective To\tActions",
+      "console_errors": [
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "viewport_issues": [
+        "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+      ],
+      "pass": false
+    },
+    "desktop:/verify/test-token-123": {
+      "viewport": "desktop",
+      "route": "/verify/test-token-123",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Invalid receipt\nReceipt Verification\n\nWe could not find a valid receipt matching this verification link.\n\nThe link may be expired, tampered with, or the receipt may not exist.",
+      "console_errors": [],
+      "viewport_issues": [],
+      "pass": true
+    },
+    "desktop:/business/members/test-id-123": {
+      "viewport": "desktop",
+      "route": "/business/members/test-id-123",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "BUSINESS MEMBERSHIP\nBusiness Members\nInvite member\nBack to dashboard\n-\n\nNo members found.",
+      "console_errors": [
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "viewport_issues": [
+        "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+      ],
+      "pass": false
+    },
+    "tablet:/": {
+      "viewport": "tablet",
+      "route": "/",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "J\nJITHUB-TEQ\nFINANCE, WITH CLARITY\nMake every\ntransaction\ncount.\n\nOne clear view of your invoices, payments and the people behind them.\n\nSecure, private business workspace\nBeyond Technology, We Build ",
+      "console_errors": [],
+      "viewport_issues": [],
+      "pass": true
+    },
+    "tablet:/sign-in": {
+      "viewport": "tablet",
+      "route": "/sign-in",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "J\nJITHUB-TEQ\nFINANCE, WITH CLARITY\nMake every\ntransaction\ncount.\n\nOne clear view of your invoices, payments and the people behind them.\n\nSecure, private business workspace\nBeyond Technology, We Build ",
+      "console_errors": [],
+      "viewport_issues": [],
+      "pass": true
+    },
+    "tablet:/reset-password": {
+      "viewport": "tablet",
+      "route": "/reset-password",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "J\nJITHUB-TEQ\nACCOUNT SECURITY\nProtect your\nbusiness\naccess.\n\nChoose a strong password to secure your financial workspace.\n\nSecure, private business workspace\nBeyond Technology, We Build Trust.\nUGANDA ",
+      "console_errors": [],
+      "viewport_issues": [],
+      "pass": true
+    },
+    "tablet:/platform": {
+      "viewport": "tablet",
+      "route": "/platform",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "J\nJITHUB-TEQ\nFINANCE, WITH CLARITY\nMake every\ntransaction\ncount.\n\nOne clear view of your invoices, payments and the people behind them.\n\nSecure, private business workspace\nBeyond Technology, We Build ",
+      "console_errors": [],
+      "viewport_issues": [],
+      "pass": true
+    },
+    "tablet:/goods-receipts": {
+      "viewport": "tablet",
+      "route": "/goods-receipts",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Goods Receipts\nCreate Receipt\nReceipt #\tPO #\tSupplier\tWarehouse\tStatus\tTotal\tActions",
+      "console_errors": [
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "viewport_issues": [
+        "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+      ],
+      "pass": false
+    },
+    "tablet:/purchase-orders": {
+      "viewport": "tablet",
+      "route": "/purchase-orders",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Purchase Orders\nCreate Order\nOrder #\tSupplier\tWarehouse\tStatus\tOrder Date\tTotal\tActions",
+      "console_errors": [
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "viewport_issues": [
+        "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+      ],
+      "pass": false
+    },
+    "tablet:/stock-movements": {
+      "viewport": "tablet",
+      "route": "/stock-movements",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Stock Movements\nRefresh\nPlease sign in to continue.\nRetry\n\nNo stock movements recorded yet.",
+      "console_errors": [
+        "[error] Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "viewport_issues": [
+        "Console errors: ['[error] Failed to load resource: the server responded with a status of 401 (Unauthorized)']"
+      ],
+      "pass": false
+    },
+    "tablet:/suppliers": {
+      "viewport": "tablet",
+      "route": "/suppliers",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Supplier Management\nAdd Supplier\nName\tEmail\tPhone\tCity\tCategory\tCredit Limit\tStatus\tActions",
+      "console_errors": [
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "viewport_issues": [
+        "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+      ],
+      "pass": false
+    },
+    "tablet:/tax-rates": {
+      "viewport": "tablet",
+      "route": "/tax-rates",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Tax Rates\nAdd Tax Rate\nName\tRate\tType\tStatus\tEffective From\tEffective To\tActions",
+      "console_errors": [
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "viewport_issues": [
+        "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+      ],
+      "pass": false
+    },
+    "tablet:/verify/test-token-123": {
+      "viewport": "tablet",
+      "route": "/verify/test-token-123",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Invalid receipt\nReceipt Verification\n\nWe could not find a valid receipt matching this verification link.\n\nThe link may be expired, tampered with, or the receipt may not exist.",
+      "console_errors": [],
+      "viewport_issues": [],
+      "pass": true
+    },
+    "tablet:/business/members/test-id-123": {
+      "viewport": "tablet",
+      "route": "/business/members/test-id-123",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "BUSINESS MEMBERSHIP\nBusiness Members\nInvite member\nBack to dashboard\n-\n\nNo members found.",
+      "console_errors": [
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "viewport_issues": [
+        "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+      ],
+      "pass": false
+    },
+    "mobile:/": {
+      "viewport": "mobile",
+      "route": "/",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Beyond Technology, We Build Trust.\nUGANDA \u00b7 UGX\nJ\nJITHUB-TEQ\nYOUR BUSINESS, IN BALANCE\nWelcome back\n\nSign in to manage your financial operations.\n\nEmail address\nPassword\nRemember me\nForgot password?\nS",
+      "console_errors": [],
+      "viewport_issues": [
+        "Touch targets < 44px: [{'tag': 'button', 'class': 'reveal-password', 'width': 30, 'height': 30}, {'tag': 'input', 'class': '', 'width': 1, 'height': 1}]"
+      ],
+      "pass": false
+    },
+    "mobile:/sign-in": {
+      "viewport": "mobile",
+      "route": "/sign-in",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Beyond Technology, We Build Trust.\nUGANDA \u00b7 UGX\nJ\nJITHUB-TEQ\nYOUR BUSINESS, IN BALANCE\nWelcome back\n\nSign in to manage your financial operations.\n\nEmail address\nPassword\nRemember me\nForgot password?\nS",
+      "console_errors": [],
+      "viewport_issues": [
+        "Touch targets < 44px: [{'tag': 'button', 'class': 'reveal-password', 'width': 30, 'height': 30}, {'tag': 'input', 'class': '', 'width': 1, 'height': 1}]"
+      ],
+      "pass": false
+    },
+    "mobile:/reset-password": {
+      "viewport": "mobile",
+      "route": "/reset-password",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Beyond Technology, We Build Trust.\nUGANDA \u00b7 UGX\nPASSWORD RECOVERY\nChoose a new password\n\nUse at least 8 characters for your new password.\n\nNew password\nUpdate password\n\nReturn to sign in\n\nYour data is",
+      "console_errors": [],
+      "viewport_issues": [],
+      "pass": true
+    },
+    "mobile:/platform": {
+      "viewport": "mobile",
+      "route": "/platform",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Beyond Technology, We Build Trust.\nUGANDA \u00b7 UGX\nJ\nJITHUB-TEQ\nYOUR BUSINESS, IN BALANCE\nWelcome back\n\nSign in to manage your financial operations.\n\nEmail address\nPassword\nRemember me\nForgot password?\nS",
+      "console_errors": [],
+      "viewport_issues": [
+        "Touch targets < 44px: [{'tag': 'button', 'class': 'reveal-password', 'width': 30, 'height': 30}, {'tag': 'input', 'class': '', 'width': 1, 'height': 1}]"
+      ],
+      "pass": false
+    },
+    "mobile:/goods-receipts": {
+      "viewport": "mobile",
+      "route": "/goods-receipts",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Goods Receipts\nCreate Receipt\nReceipt #\tPO #\tSupplier\tWarehouse\tStatus\tTotal\tActions",
+      "console_errors": [
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "viewport_issues": [
+        "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']",
+        "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 411.203125, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 411.203125, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 411.203125, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 411.203125, 'viewport': 375}]"
+      ],
+      "pass": false
+    },
+    "mobile:/purchase-orders": {
+      "viewport": "mobile",
+      "route": "/purchase-orders",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Purchase Orders\nCreate Order\nOrder #\tSupplier\tWarehouse\tStatus\tOrder Date\tTotal\tActions",
+      "console_errors": [
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "viewport_issues": [
+        "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']",
+        "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 438.203125, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 438.203125, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 438.203125, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 438.203125, 'viewport': 375}]"
+      ],
+      "pass": false
+    },
+    "mobile:/stock-movements": {
+      "viewport": "mobile",
+      "route": "/stock-movements",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Stock Movements\nRefresh\nPlease sign in to continue.\nRetry\n\nNo stock movements recorded yet.",
+      "console_errors": [
+        "[error] Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+      ],
+      "viewport_issues": [
+        "Console errors: ['[error] Failed to load resource: the server responded with a status of 401 (Unauthorized)']"
+      ],
+      "pass": false
+    },
+    "mobile:/suppliers": {
+      "viewport": "mobile",
+      "route": "/suppliers",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Supplier Management\nAdd Supplier\nName\tEmail\tPhone\tCity\tCategory\tCredit Limit\tStatus\tActions",
+      "console_errors": [
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "viewport_issues": [
+        "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']",
+        "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 450.328125, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 450.328125, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 450.328125, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 450.328125, 'viewport': 375}]"
+      ],
+      "pass": false
+    },
+    "mobile:/tax-rates": {
+      "viewport": "mobile",
+      "route": "/tax-rates",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Tax Rates\nAdd Tax Rate\nName\tRate\tType\tStatus\tEffective From\tEffective To\tActions",
+      "console_errors": [
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "viewport_issues": [
+        "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']",
+        "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 427.953125, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 427.953125, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 427.953125, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 427.953125, 'viewport': 375}]"
+      ],
+      "pass": false
+    },
+    "mobile:/verify/test-token-123": {
+      "viewport": "mobile",
+      "route": "/verify/test-token-123",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "Invalid receipt\nReceipt Verification\n\nWe could not find a valid receipt matching this verification link.\n\nThe link may be expired, tampered with, or the receipt may not exist.",
+      "console_errors": [],
+      "viewport_issues": [],
+      "pass": true
+    },
+    "mobile:/business/members/test-id-123": {
+      "viewport": "mobile",
+      "route": "/business/members/test-id-123",
+      "http_status": 200,
+      "title": "JITHUB-TEQ | Receipting & Invoicing",
+      "body_preview": "BUSINESS MEMBERSHIP\nBusiness Members\nInvite member\nBack to dashboard\n-\n\nNo members found.",
+      "console_errors": [
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "viewport_issues": [
+        "Horizontal scroll detected: body=392px > viewport=375px",
+        "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+      ],
+      "pass": false
+    }
+  },
+  "viewport_issues": [
+    {
+      "viewport": "desktop",
+      "route": "/purchase-orders",
+      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+    },
+    {
+      "viewport": "desktop",
+      "route": "/suppliers",
+      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+    },
+    {
+      "viewport": "desktop",
+      "route": "/tax-rates",
+      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+    },
+    {
+      "viewport": "desktop",
+      "route": "/business/members/test-id-123",
+      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+    },
+    {
+      "viewport": "tablet",
+      "route": "/goods-receipts",
+      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+    },
+    {
+      "viewport": "tablet",
+      "route": "/purchase-orders",
+      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+    },
+    {
+      "viewport": "tablet",
+      "route": "/stock-movements",
+      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 401 (Unauthorized)']"
+    },
+    {
+      "viewport": "tablet",
+      "route": "/suppliers",
+      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+    },
+    {
+      "viewport": "tablet",
+      "route": "/tax-rates",
+      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+    },
+    {
+      "viewport": "tablet",
+      "route": "/business/members/test-id-123",
+      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+    },
+    {
+      "viewport": "mobile",
+      "route": "/",
+      "issue": "Touch targets < 44px: [{'tag': 'button', 'class': 'reveal-password', 'width': 30, 'height': 30}, {'tag': 'input', 'class': '', 'width': 1, 'height': 1}]"
+    },
+    {
+      "viewport": "mobile",
+      "route": "/sign-in",
+      "issue": "Touch targets < 44px: [{'tag': 'button', 'class': 'reveal-password', 'width': 30, 'height': 30}, {'tag': 'input', 'class': '', 'width': 1, 'height': 1}]"
+    },
+    {
+      "viewport": "mobile",
+      "route": "/platform",
+      "issue": "Touch targets < 44px: [{'tag': 'button', 'class': 'reveal-password', 'width': 30, 'height': 30}, {'tag': 'input', 'class': '', 'width': 1, 'height': 1}]"
+    },
+    {
+      "viewport": "mobile",
+      "route": "/goods-receipts",
+      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+    },
+    {
+      "viewport": "mobile",
+      "route": "/goods-receipts",
+      "issue": "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 411.203125, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 411.203125, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 411.203125, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 411.203125, 'viewport': 375}]"
+    },
+    {
+      "viewport": "mobile",
+      "route": "/purchase-orders",
+      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+    },
+    {
+      "viewport": "mobile",
+      "route": "/purchase-orders",
+      "issue": "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 438.203125, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 438.203125, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 438.203125, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 438.203125, 'viewport': 375}]"
+    },
+    {
+      "viewport": "mobile",
+      "route": "/stock-movements",
+      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 401 (Unauthorized)']"
+    },
+    {
+      "viewport": "mobile",
+      "route": "/suppliers",
+      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+    },
+    {
+      "viewport": "mobile",
+      "route": "/suppliers",
+      "issue": "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 450.328125, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 450.328125, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 450.328125, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 450.328125, 'viewport': 375}]"
+    },
+    {
+      "viewport": "mobile",
+      "route": "/tax-rates",
+      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+    },
+    {
+      "viewport": "mobile",
+      "route": "/tax-rates",
+      "issue": "Overflow elements: [{'tag': 'table', 'class': 'data-table', 'width': 427.953125, 'viewport': 375}, {'tag': 'thead', 'class': '', 'width': 427.953125, 'viewport': 375}, {'tag': 'tr', 'class': '', 'width': 427.953125, 'viewport': 375}, {'tag': 'tbody', 'class': '', 'width': 427.953125, 'viewport': 375}]"
+    },
+    {
+      "viewport": "mobile",
+      "route": "/business/members/test-id-123",
+      "issue": "Horizontal scroll detected: body=392px > viewport=375px"
+    },
+    {
+      "viewport": "mobile",
+      "route": "/business/members/test-id-123",
+      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+    }
+  ],
+  "console_errors": [],
+  "horizontal_scroll": [],
+  "touch_target_issues": [],
+  "summary": {
+    "pass": 14,
+    "fail": 19
+  }
+}
