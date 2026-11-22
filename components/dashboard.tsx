@@ -7,6 +7,7 @@ import { createCustomer, createInvoice, getFinancialReport, issueDraftInvoice, r
 import { filterReceipts, formatReceiptDate, sortReceipts, type ReceiptSort } from '@/lib/receipt-ui'
 import { type BusinessRole } from '@/lib/permissions'
 import { Activity, ArrowDownLeft, ArrowRight, ArrowUpRight, Bell, BookOpenCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronDown, CircleHelp, ClipboardList, CreditCard, Download, FileClock, FilePlus2, FileText, LayoutDashboard, LogOut, Menu, MoreHorizontal, Package, Plus, ReceiptText, Search, Settings2, ShieldCheck, Users, WalletCards, X } from 'lucide-react'
+import { FunctionGrid, type FunctionItem } from './function-selection'
 
 type Data = Awaited<ReturnType<typeof import('@/app/actions/finance').getDashboardData>>
 type Section = 'Dashboard' | 'Invoices' | 'Payments' | 'Receipts' | 'Refunds' | 'Customers' | 'Suppliers' | 'Purchase Orders' | 'Goods Receipts' | 'Stock Movements' | 'Products & services' | 'Expenses' | 'Reports' | 'Notifications' | 'User management' | 'Audit logs' | 'Settings'
@@ -223,6 +224,23 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
 
   const sectionDescription: Record<Section, string> = { Dashboard: 'A clear view of your business finances.', Invoices: 'Create, issue and follow up on customer invoices.', Payments: 'Record incoming funds against outstanding invoices.', Receipts: 'Payment receipts are created automatically when you record funds.', Refunds: 'Review and approve customer refund requests.', Customers: 'Keep customer details and account history in one place.', Suppliers: 'Manage business suppliers and purchase terms.', 'Purchase Orders': 'Create and track purchase orders to suppliers.', 'Goods Receipts': 'Record goods received from suppliers.', 'Stock Movements': 'Track inventory movements across warehouses.', 'Products & services': 'Your business catalogue, ready for the next invoice.', Expenses: 'Track outgoing business payments separately from customer receipts.', Reports: 'Financial reporting grounded in your recorded transactions.', Notifications: 'Important updates about your financial workspace.', 'User management': 'Manage the people who can access your business.', 'Audit logs': 'A traceable record of financial activity.', Settings: 'Configure the way your business uses JITHUB-TEQ.' }
 
+  // Function selection cards for Dashboard view
+  const [selectedFunction, setSelectedFunction] = useState<string | null>(null)
+
+  const FUNCTIONS: FunctionItem[] = [
+    { id: 'invoices', label: 'Invoices', description: 'Create, issue and track customer invoices', icon: <FileText size={20} />, keyboardHint: '⌘I' },
+    { id: 'payments', label: 'Payments', description: 'Record and reconcile incoming payments', icon: <CreditCard size={20} />, keyboardHint: '⌘P' },
+    { id: 'customers', label: 'Customers', description: 'Manage customer directory and accounts', icon: <Users size={20} />, keyboardHint: '⌘U' },
+    { id: 'receipts', label: 'Receipts', description: 'View and manage payment receipts', icon: <ReceiptText size={20} /> },
+    { id: 'purchase-orders', label: 'Purchase Orders', description: 'Create and track supplier orders', icon: <ClipboardList size={20} />, badge: 'beta' },
+    { id: 'goods-receipts', label: 'Goods Receipts', description: 'Record goods received from suppliers', icon: <Package size={20} /> },
+    { id: 'stock-movements', label: 'Stock Movements', description: 'Track inventory across warehouses', icon: <WalletCards size={20} /> },
+    { id: 'suppliers', label: 'Suppliers', description: 'Manage supplier relationships and terms', icon: <Building2 size={20} /> },
+    { id: 'reports', label: 'Reports', description: 'Financial reporting and analytics', icon: <Activity size={20} />, keyboardHint: '⌘R' },
+    { id: 'expenses', label: 'Expenses', description: 'Track outgoing business payments', icon: <WalletCards size={20} /> },
+    { id: 'settings', label: 'Settings', description: 'Configure your business workspace', icon: <Settings2 size={20} />, keyboardHint: '⌘,' },
+  ]
+
   return <div className="app-shell">
     <aside className={`app-sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}>
       <a className="brand-lockup" href="/" aria-label="JITHUB-TEQ dashboard"><span className="brand-mark">J</span><span>JITHUB<span className="brand-dash">-</span>TEQ</span></a>
@@ -270,6 +288,17 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
       <div className="page-content">
         <div className="page-heading"><div><div className="page-kicker"><Building2 size={13}/> {data.business?.name || 'JITHUB-TEQ LTD'} <span>·</span> {data.business?.currency || 'UGX'}</div><h1>{section === 'Dashboard' ? 'Good morning' : section}</h1><p>{section === 'Dashboard' ? 'Here’s what’s happening with your business today.' : sectionDescription[section]}</p></div><div className="heading-actions">{section === 'Dashboard' && <button className="button-secondary" onClick={() => setToast('Your latest financial figures are up to date.')}><CalendarDays size={15}/> This month <ChevronDown size={14}/></button>}{(section === 'Dashboard' || section === 'Invoices') && <button className="primary-button" onClick={() => setModal('invoice')}><Plus size={16}/> New invoice</button>}</div></div>
         {section === 'Dashboard' && <>
+          <section aria-labelledby="functions-heading" className="mb-8">
+            <header className="mb-6">
+              <h2 id="functions-heading" className="text-2xl font-semibold text-jt-text">Choose a workspace</h2>
+              <p className="mt-1 text-jt-muted">Select a module to start working. Your last selection is remembered.</p>
+            </header>
+            <FunctionGrid
+              items={FUNCTIONS}
+              selectedId={selectedFunction}
+              onSelect={setSelectedFunction}
+            />
+          </section>
           <section className="metric-grid" aria-label="Financial overview">
             <Metric label="Total invoiced" value={money(data.summary?.invoiced ?? 0)} icon={FileText} note={`${data.invoices.length} invoices recorded`} tone="teal"/>
             <Metric label="Payments received" value={money(data.summary?.received ?? 0)} icon={ArrowDownLeft} note="Across all recorded payments" tone="green"/>
