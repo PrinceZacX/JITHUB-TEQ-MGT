@@ -3,3 +3,10 @@ pmOnFail: ignore
 minimumReleaseAgeExclude:
   - '@next/*'
   - next
+
+ignoreScripts: false
+
+enableScripts: true
+
+allowBuilds:
+  esbuild: true
