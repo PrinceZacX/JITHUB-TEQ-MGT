@@ -44,13 +44,7 @@ async function getPlatformData() {
 export default async function PlatformPage() {
   const { session, data } = await getPlatformData()
 
-  return (
-    <html lang="en">
-      <body className="antialiased">
-        <PlatformDashboard user={{ name: session.user.name, email: session.user.email }} data={data} />
-      </body>
-    </html>
-  )
+  return <PlatformDashboard user={{ name: session.user.name, email: session.user.email }} data={data} />
 }
 
 function PlatformDashboard({
@@ -74,7 +68,7 @@ function PlatformDashboard({
           <p className="text-muted-foreground">JITHUB-TEQ Platform Owner Workspace</p>
         </div>
         <div className="flex gap-2">
-          <button className="button-secondary" onClick={() => {}}>Sign Out</button>
+          <a href="/sign-in" className="button-secondary">Sign Out</a>
         </div>
       </div>
 
@@ -133,16 +127,12 @@ function PlatformDashboard({
                       </span>
                     </td>
                     <td className="py-3">
-                      <button
+                      <a
+                        href={`/business/${b.id}`}
                         className="button-secondary text-sm"
-                        onClick={() => {
-                          // Navigate to business workspace - this requires business selection
-                          // For now, show the business selection is handled by the business dashboard
-                          window.location.href = `/business/${b.id}`
-                        }}
                       >
                         Open Workspace
-                      </button>
+                      </a>
                     </td>
                   </tr>
                 ))}
