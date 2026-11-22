@@ -56,10 +56,11 @@ test('page.tsx redirects unauthenticated users to sign-in', () => {
   assert.match(page, /redirect\('\/sign-in'\)/)
 })
 
-test('page.tsx routes platform owners to PlatformPage', () => {
+test('page.tsx routes platform owners to the platform dashboard', () => {
   const page = fs.readFileSync(new URL('../app/page.tsx', import.meta.url), 'utf8')
   assert.match(page, /platformOwner/)
-  assert.match(page, /PlatformPage/)
+  assert.match(page, /redirect\('\/platform'\)/)
+  assert.doesNotMatch(page, /PlatformPage/)
 })
 
 test('platform owner business-scoped actions require businessId', () => {
