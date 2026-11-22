@@ -534,7 +534,6 @@ export async function verifyReceipt(input: { token: string }) {
     status: receipts.status,
     issuedAt: receipts.issuedAt,
     voidedAt: receipts.voidedAt,
-    businessId: receipts.businessId,
     amount: payments.amount,
     method: payments.method,
     reference: payments.reference,
