@@ -20,7 +20,7 @@ import {
 import { and, desc, eq, gte, sql } from 'drizzle-orm'
 import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
-import { randomUUID } from 'node:crypto'
+import { randomUUID, randomBytes, createHash } from 'node:crypto'
 import { requirePermission, defaultRole } from '@/lib/permissions'
 import { loadEnv } from '@/lib/env'
 
@@ -266,9 +266,10 @@ export async function recordPayment(input: { invoiceId: string; amount: string; 
       if (duplicate) throw new Error('This payment reference has already been recorded.')
     }
     const nextPaid = money(invoice.amountPaid) + amount
+    const verificationToken = createHash('sha256').update(randomBytes(32).toString('hex') + receiptNumber).digest('hex')
     await tx.insert(payments).values({ id: paymentId, businessId: context.businessId, userId: context.userId, customerId: invoice.customerId, reference, idempotencyKey, method: input.method.toLowerCase().replace(' ', '_'), paidAt: paidDate, amount: (amount / 100).toFixed(2) })
     await tx.insert(paymentAllocations).values({ id: randomUUID(), businessId: context.businessId, paymentId, invoiceId: invoice.id, amount: (amount / 100).toFixed(2) })
-    await tx.insert(receipts).values({ id: randomUUID(), businessId: context.businessId, userId: context.userId, paymentId, number: receiptNumber })
+    await tx.insert(receipts).values({ id: randomUUID(), businessId: context.businessId, userId: context.userId, paymentId, number: receiptNumber, verificationToken })
     await tx.update(invoices).set({ amountPaid: (nextPaid / 100).toFixed(2), status: nextPaid >= money(invoice.total) ? 'paid' : 'partially_paid' }).where(and(eq(invoices.id, invoice.id), eq(invoices.businessId, context.businessId)))
     await insertAudit(tx, context, { action: 'payment.recorded', entityType: 'payment', entityId: paymentId, details: { invoiceId: invoice.id, receiptNumber, amount: (amount / 100).toFixed(2) } })
   })
@@ -413,4 +414,44 @@ export async function cancelInvoice(input: { invoiceId: string }) {
     await insertAudit(tx, context, { action: 'invoice.cancelled', entityType: 'invoice', entityId: input.invoiceId })
   })
   revalidatePath('/')
+}
+
+export async function verifyReceipt(input: { token: string }) {
+  const [receipt] = await db.select({
+    id: receipts.id,
+    number: receipts.number,
+    status: receipts.status,
+    issuedAt: receipts.issuedAt,
+    voidedAt: receipts.voidedAt,
+    businessId: receipts.businessId,
+    amount: payments.amount,
+    method: payments.method,
+    reference: payments.reference,
+    paidAt: payments.paidAt,
+    customerName: customers.name,
+    businessName: businesses.name,
+  })
+    .from(receipts)
+    .innerJoin(payments, eq(receipts.paymentId, payments.id))
+    .innerJoin(customers, eq(payments.customerId, customers.id))
+    .innerJoin(businesses, eq(receipts.businessId, businesses.id))
+    .where(eq(receipts.verificationToken, input.token))
+    .limit(1)
+
+  if (!receipt) return { valid: false }
+
+  return {
+    valid: true,
+    number: receipt.number,
+    status: receipt.status,
+    issuedAt: receipt.issuedAt,
+    voidedAt: receipt.voidedAt,
+    amount: receipt.amount,
+    currency: 'UGX',
+    method: receipt.method,
+    reference: receipt.reference,
+    paidAt: receipt.paidAt,
+    customerName: receipt.customerName,
+    businessName: receipt.businessName,
+  }
 }

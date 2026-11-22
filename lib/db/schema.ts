@@ -286,6 +286,7 @@ export const receipts = pgTable('receipts', {
   status: text('status').notNull().default('issued'),
   voidedAt: timestamp('voided_at', { withTimezone: true }),
   voidedBy: text('voided_by'),
+  verificationToken: text('verification_token').unique(),
   issuedAt: timestamp('issued_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   check('receipts_status_valid', sql`${table.status} IN ('issued','voided')`),
