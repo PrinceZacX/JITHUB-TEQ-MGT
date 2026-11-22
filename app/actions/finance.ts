@@ -15,8 +15,7 @@ import { cookies, headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { randomUUID, randomBytes, createHash } from 'node:crypto'
 import {
-  requirePermission, defaultRole, type BusinessRole,
-  platformHasPermission, requirePlatformPermission, type PlatformPermission,
+  requirePermission, defaultRole, type BusinessRole, type BusinessPermission,
 } from '@/lib/permissions'
 import { loadEnv } from '@/lib/env'
 import { sendInvoiceEmail, sendReceiptEmail } from '@/lib/email'
@@ -162,7 +161,9 @@ async function requireBusinessPermission(permission: string, businessId?: string
     if (!context.businessId) {
       throw new Error('Please select a business before performing business-scoped operations.')
     }
-    requirePlatformPermission('platform_owner', permission as PlatformPermission)
+    // Platform owners operating in a business context have full business-level
+    // access (equivalent to 'owner') for that business.
+    requirePermission('owner', permission as BusinessPermission)
     return { userId: context.userId, businessId: context.businessId!, role: 'platform_owner', isPlatformOwner: true }
   }
   requirePermission(context.role as BusinessRole, permission as any)

@@ -30,8 +30,8 @@ test('requirePlatformOwner function exists', () => {
   assert.match(finance, /async function requirePlatformOwner\(\)/)
 })
 
-test('requirePlatformPermission function exists', () => {
-  assert.match(finance, /requirePlatformPermission/)
+test('platform owner business access uses owner-level business permissions', () => {
+  assert.match(finance, /requirePermission\('owner', permission as BusinessPermission\)/)
 })
 
 test('platform owner can access platform dashboard without business membership', () => {
