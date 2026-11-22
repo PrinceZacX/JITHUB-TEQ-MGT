@@ -982,7 +982,7 @@ export async function reactivateSupplier(input: { id: string }) {
 
 export async function createPurchaseOrder(input: {
   supplierId: string; warehouseId: string; expectedDate?: string;
-  notes?: string;
+  notes?: string; lines?: { itemId: string; description: string; quantity: string; unitPrice: string; taxRate?: string }[];
 }) {
   const context = await requireBusinessPermission('purchase_order.create')
   const id = randomUUID()
@@ -996,6 +996,33 @@ export async function createPurchaseOrder(input: {
       notes: input.notes?.trim() || null,
       createdBy: context.userId,
     })
+    if (input.lines && input.lines.length > 0) {
+      let subtotalCents = 0
+      for (const line of input.lines) {
+        const quantityMilli = scaledDecimal(line.quantity, 3, 'Quantity')
+        const quantity = Number(quantityMilli) / 1000
+        const unitCents = money(line.unitPrice)
+        const taxRateBasisPoints = line.taxRate ? scaledDecimal(line.taxRate, 4, 'Tax rate') : 0n
+        const taxRate = Number(taxRateBasisPoints) / 100
+        const lineSubtotalCents = Number((BigInt(unitCents) * quantityMilli + 500n) / 1000n)
+        const lineTaxCents = Number((BigInt(lineSubtotalCents) * taxRateBasisPoints + 500_000n) / 1_000_000n)
+        const lineTotalCents = lineSubtotalCents + lineTaxCents
+        subtotalCents += lineTotalCents
+        await tx.insert(purchaseOrderLines).values({
+          id: randomUUID(), businessId: context.businessId, purchaseOrderId: id,
+          itemId: line.itemId, description: line.description,
+          quantityOrdered: (Number(quantityMilli) / 1000).toFixed(3),
+          quantityReceived: '0',
+          unitPrice: (unitCents / 100).toFixed(2),
+          taxRate: taxRate.toFixed(4),
+          lineTotal: (lineTotalCents / 100).toFixed(2),
+        })
+      }
+      await tx.update(purchaseOrders).set({
+        subtotal: (subtotalCents / 100).toFixed(2),
+        total: (subtotalCents / 100).toFixed(2),
+      }).where(eq(purchaseOrders.id, id))
+    }
     await insertAudit(tx, context, { action: 'purchase_order.created', entityType: 'purchase_order', entityId: id, details: { number } })
   })
   revalidatePath('/')
@@ -1166,4 +1193,245 @@ export async function verifyReceipt(input: { token: string }) {
     reference: receipt.reference, paidAt: receipt.paidAt,
     customerName: receipt.customerName, businessName: receipt.businessName,
   }
+}
+
+/* ------------------------------------------------------------------ */
+/* Warehouses                                                         */
+/* ------------------------------------------------------------------ */
+
+export async function createWarehouse(input: {
+  name: string; code: string; address?: string; city?: string;
+  country?: string; isDefault?: boolean;
+}) {
+  const context = await requireBusinessPermission('business.settings')
+  const name = input.name.trim()
+  const code = input.code.trim()
+  if (name.length < 2 || name.length > 160) throw new Error('Warehouse name must be between 2 and 160 characters.')
+  if (code.length < 1 || code.length > 20) throw new Error('Warehouse code must be between 1 and 20 characters.')
+  const id = randomUUID()
+  await db.transaction(async (tx) => {
+    if (input.isDefault) {
+      await tx.update(warehouses).set({ isDefault: false }).where(eq(warehouses.businessId, context.businessId))
+    }
+    await tx.insert(warehouses).values({
+      id, businessId: context.businessId, name, code,
+      address: input.address?.trim() || null,
+      city: input.city?.trim() || null,
+      country: input.country?.trim() || 'Uganda',
+      isDefault: input.isDefault || false,
+      status: 'active',
+    })
+    await insertAudit(tx, context, { action: 'warehouse.created', entityType: 'warehouse', entityId: id })
+  })
+  revalidatePath('/')
+  return { id }
+}
+
+export async function listWarehouses() {
+  const context = await requireBusinessPermission('business.settings')
+  const rows = await db
+    .select({
+      id: warehouses.id, name: warehouses.name, code: warehouses.code,
+      address: warehouses.address, city: warehouses.city,
+      country: warehouses.country, isDefault: warehouses.isDefault,
+      status: warehouses.status, createdAt: warehouses.createdAt,
+    })
+    .from(warehouses)
+    .where(eq(warehouses.businessId, context.businessId))
+    .orderBy(desc(warehouses.createdAt))
+  return rows
+}
+
+/* ------------------------------------------------------------------ */
+/* Items                                                              */
+/* ------------------------------------------------------------------ */
+
+export async function createItem(input: {
+  sku: string; barcode?: string; name: string; description?: string;
+  category?: string; unitOfMeasure?: string; unitPrice?: string;
+  costPrice?: string; taxRateId?: string; reorderLevel?: string;
+  reorderQuantity?: string;
+}) {
+  const context = await requireBusinessPermission('catalogue.manage')
+  const sku = input.sku.trim()
+  const name = input.name.trim()
+  if (sku.length < 1 || sku.length > 80) throw new Error('SKU must be between 1 and 80 characters.')
+  if (name.length < 2 || name.length > 160) throw new Error('Item name must be between 2 and 160 characters.')
+  const id = randomUUID()
+  await db.transaction(async (tx) => {
+    await tx.insert(items).values({
+      id, businessId: context.businessId, sku, barcode: input.barcode?.trim() || null,
+      name, description: input.description?.trim() || null,
+      category: input.category?.trim() || null,
+      unitOfMeasure: input.unitOfMeasure || 'unit',
+      unitPrice: input.unitPrice ? (money(input.unitPrice) / 100).toFixed(2) : '0.00',
+      costPrice: input.costPrice ? (money(input.costPrice) / 100).toFixed(2) : '0.00',
+      taxRateId: input.taxRateId || null,
+      reorderLevel: input.reorderLevel ? input.reorderLevel : '0',
+      reorderQuantity: input.reorderQuantity ? input.reorderQuantity : '0',
+      status: 'active',
+    })
+    await insertAudit(tx, context, { action: 'item.created', entityType: 'item', entityId: id })
+  })
+  revalidatePath('/')
+  return { id }
+}
+
+export async function listItems() {
+  const context = await requireBusinessPermission('catalogue.manage')
+  const rows = await db
+    .select({
+      id: items.id, sku: items.sku, barcode: items.barcode,
+      name: items.name, description: items.description,
+      category: items.category, unitOfMeasure: items.unitOfMeasure,
+      unitPrice: items.unitPrice, costPrice: items.costPrice,
+      taxRateId: items.taxRateId, status: items.status,
+      createdAt: items.createdAt,
+    })
+    .from(items)
+    .where(eq(items.businessId, context.businessId))
+    .orderBy(desc(items.createdAt))
+  return rows
+}
+
+/* ------------------------------------------------------------------ */
+/* Goods Receipts                                                     */
+/* ------------------------------------------------------------------ */
+
+export async function createGoodsReceipt(input: {
+  purchaseOrderId: string; supplierId: string; warehouseId: string;
+  receivedDate?: string; notes?: string;
+}) {
+  const context = await requireBusinessPermission('goods_receipt.receive')
+  const id = randomUUID()
+  const number = await allocateDocumentNumber(db as any, context.businessId, 'purchase_order')
+  await db.transaction(async (tx) => {
+    await tx.insert(goodsReceipts).values({
+      id, businessId: context.businessId, purchaseOrderId: input.purchaseOrderId,
+      supplierId: input.supplierId, warehouseId: input.warehouseId, number,
+      receivedDate: input.receivedDate || new Date().toISOString().slice(0, 10),
+      status: 'draft',
+      notes: input.notes?.trim() || null,
+      receivedBy: context.userId,
+    })
+    await insertAudit(tx, context, { action: 'goods_receipt.created', entityType: 'goods_receipt', entityId: id, details: { number } })
+  })
+  revalidatePath('/')
+  return { id, number }
+}
+
+export async function listGoodsReceipts() {
+  const context = await requireBusinessPermission('goods_receipt.receive')
+  const rows = await db
+    .select({
+      id: goodsReceipts.id, number: goodsReceipts.number,
+      purchaseOrderId: goodsReceipts.purchaseOrderId,
+      supplierId: goodsReceipts.supplierId, warehouseId: goodsReceipts.warehouseId,
+      status: goodsReceipts.status, receivedDate: goodsReceipts.receivedDate,
+      total: goodsReceipts.total, createdAt: goodsReceipts.createdAt,
+    })
+    .from(goodsReceipts)
+    .where(eq(goodsReceipts.businessId, context.businessId))
+    .orderBy(desc(goodsReceipts.createdAt))
+  return rows
+}
+
+export async function receiveGoodsReceipt(input: { goodsReceiptId: string }) {
+  const context = await requireBusinessPermission('goods_receipt.receive')
+  await db.transaction(async (tx) => {
+    const [gr] = await tx.select({ id: goodsReceipts.id, status: goodsReceipts.status, businessId: goodsReceipts.businessId }).from(goodsReceipts).where(and(eq(goodsReceipts.id, input.goodsReceiptId), eq(goodsReceipts.businessId, context.businessId))).limit(1).for('update')
+    if (!gr) throw new Error('Goods receipt not found.')
+    if (gr.status !== 'draft') throw new Error('Only draft goods receipts can be received.')
+    await tx.update(goodsReceipts).set({ status: 'completed', updatedAt: new Date() }).where(eq(goodsReceipts.id, input.goodsReceiptId))
+    await insertAudit(tx, context, { action: 'goods_receipt.completed', entityType: 'goods_receipt', entityId: input.goodsReceiptId })
+  })
+  revalidatePath('/')
+  return { success: true }
+}
+
+/* ------------------------------------------------------------------ */
+/* Stock Movements                                                    */
+/* ------------------------------------------------------------------ */
+
+export async function listStockMovements() {
+  const context = await requireBusinessPermission('stock.adjust')
+  const rows = await db
+    .select({
+      id: stockMovements.id, itemId: stockMovements.itemId,
+      warehouseId: stockMovements.warehouseId,
+      movementType: stockMovements.movementType,
+      quantity: stockMovements.quantity, unitCost: stockMovements.unitCost,
+      referenceType: stockMovements.referenceType,
+      referenceId: stockMovements.referenceId,
+      referenceNumber: stockMovements.referenceNumber,
+      notes: stockMovements.notes, createdAt: stockMovements.createdAt,
+    })
+    .from(stockMovements)
+    .where(eq(stockMovements.businessId, context.businessId))
+    .orderBy(desc(stockMovements.createdAt))
+  return rows
+}
+
+/* ------------------------------------------------------------------ */
+/* Stock Levels                                                       */
+/* ------------------------------------------------------------------ */
+
+export async function listStockLevels() {
+  const context = await requireBusinessPermission('stock.adjust')
+  const rows = await db
+    .select({
+      id: stockLevels.id, itemId: stockLevels.itemId,
+      warehouseId: stockLevels.warehouseId,
+      quantityOnHand: stockLevels.quantityOnHand,
+      quantityReserved: stockLevels.quantityReserved,
+      quantityAvailable: stockLevels.quantityAvailable,
+      lastMovementAt: stockLevels.lastMovementAt,
+    })
+    .from(stockLevels)
+    .where(eq(stockLevels.businessId, context.businessId))
+    .orderBy(desc(stockLevels.updatedAt))
+  return rows
+}
+
+/* ------------------------------------------------------------------ */
+/* Purchase Returns                                                     */
+/* ------------------------------------------------------------------ */
+
+export async function createPurchaseReturn(input: {
+  purchaseOrderId: string; supplierId: string; warehouseId: string;
+  returnDate?: string; reason?: string; notes?: string;
+}) {
+  const context = await requireBusinessPermission('purchase_order.approve')
+  const id = randomUUID()
+  const number = await allocateDocumentNumber(db as any, context.businessId, 'purchase_order')
+  await db.transaction(async (tx) => {
+    await tx.insert(purchaseReturns).values({
+      id, businessId: context.businessId, purchaseOrderId: input.purchaseOrderId,
+      supplierId: input.supplierId, warehouseId: input.warehouseId, number,
+      returnDate: input.returnDate || new Date().toISOString().slice(0, 10),
+      status: 'draft',
+      reason: input.reason?.trim() || null,
+      notes: input.notes?.trim() || null,
+      createdBy: context.userId,
+    })
+    await insertAudit(tx, context, { action: 'purchase_return.created', entityType: 'purchase_return', entityId: id, details: { number } })
+  })
+  revalidatePath('/')
+  return { id, number }
+}
+
+export async function listPurchaseReturns() {
+  const context = await requireBusinessPermission('purchase_order.approve')
+  const rows = await db
+    .select({
+      id: purchaseReturns.id, number: purchaseReturns.number,
+      purchaseOrderId: purchaseReturns.purchaseOrderId,
+      supplierId: purchaseReturns.supplierId, warehouseId: purchaseReturns.warehouseId,
+      status: purchaseReturns.status, returnDate: purchaseReturns.returnDate,
+      total: purchaseReturns.total, createdAt: purchaseReturns.createdAt,
+    })
+    .from(purchaseReturns)
+    .where(eq(purchaseReturns.businessId, context.businessId))
+    .orderBy(desc(purchaseReturns.createdAt))
+  return rows
 }

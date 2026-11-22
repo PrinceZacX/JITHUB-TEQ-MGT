@@ -42,6 +42,13 @@ export default function PurchaseOrdersPage() {
         warehouseId: form.warehouseId,
         expectedDate: form.expectedDate || undefined,
         notes: form.notes || undefined,
+        lines: lineItems.map((item) => ({
+          itemId: item.itemId,
+          description: item.itemName,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          taxRate: item.taxRate || '0',
+        })),
       })
       setOpenForm(false)
       setForm({ supplierId: '', warehouseId: '', expectedDate: '', notes: '' })
