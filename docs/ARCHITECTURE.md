@@ -43,10 +43,10 @@
 - Check constraints for positive amounts, valid statuses, non-negative totals
 
 ## Server Actions (app/actions/finance.ts)
-All server actions enforce business context via `requireBusiness()` and permission checks via `requireBusinessPermission()`:
+All server actions enforce business context via `requireBusiness()` and permission checks via `requireBusinessPermission(permission, businessId?)`:
 
 - getDashboardData() - Dashboard metrics and recent records
-- getFinancialReport(days) - Financial reporting by period
+- getFinancialReport(period) - Financial reporting by period
 - createCustomer() / updateCustomer() - Customer CRUD
 - createInvoice() / issueDraftInvoice() - Invoice creation and issuance
 - recordPayment() - Payment recording with receipt generation
@@ -56,14 +56,19 @@ All server actions enforce business context via `requireBusiness()` and permissi
 - voidReceipt() - Receipt voiding
 - cancelInvoice() - Invoice cancellation
 - updateBusiness() - Business profile settings
+- createBusiness() / listBusinesses() / setActiveBusiness() - Business management
+- createSupplier() / listSuppliers() / updateSupplier() / suspendSupplier() / reactivateSupplier() - Supplier management
+- createPurchaseOrder() / listPurchaseOrders() / approvePurchaseOrder() - Purchase orders
+- createTaxRate() / listTaxRates() / updateTaxRate() - Tax configuration
 - verifyReceipt() - Public receipt verification (no auth required)
+- Membership: listBusinessMembers() / inviteMember() / updateMembershipRole() / suspendMembership() / removeMembership() - Soft-delete memberships
 
 ## API Routes
 - app/api/auth/[...all]/route.ts - Better Auth authentication
-- app/api/documents/invoice/[id]/route.ts - A4 invoice PDF download
-- app/api/documents/receipt/[id]/route.ts - A4 receipt PDF download
-- app/api/documents/receipt/thermal/[id]/route.ts - 58mm/80mm thermal receipt text
-- app/api/upload/logo/route.ts - Secure logo upload with validation
+- app/api/documents/invoice/[id]/route.ts - A4 invoice PDF download (calls loadEnv())
+- app/api/documents/receipt/[id]/route.ts - A4 receipt PDF download (calls loadEnv())
+- app/api/documents/receipt/thermal/[id]/route.ts - 58mm/80mm thermal receipt text (calls loadEnv())
+- app/api/upload/logo/route.ts - Secure logo upload (no SVG, fixed WebP, audit logged)
 
 ## Public Pages
 - app/verify/[token]/page.tsx - Public receipt verification (limited info only)
@@ -75,21 +80,26 @@ All server actions enforce business context via `requireBusiness()` and permissi
 - BETTER_AUTH_SECRET - Session signing key (min 32 chars)
 - BETTER_AUTH_URL - Auth base URL
 - SMTP_HOST, SMTP_PORT, SMTP_FROM, SMTP_USER, SMTP_PASSWORD, SMTP_SECURE - Email delivery (optional)
+- DATABASE_URL_TEST - Test database for integration tests (not configured)
 
 ## Key Design Decisions
+
 1. **Business isolation**: All financial tables have businessId; all queries scope by businessId; composite FKs prevent cross-business relationships at the database level
 2. **Immutable financial records**: Refunds and voids create new records rather than modifying existing ones
 3. **Idempotency**: Payment and refund submission support idempotency keys to prevent duplicate execution
 4. **Integer-cent money**: All monetary calculations use integer cents with BigInt arithmetic to avoid floating-point errors
 5. **Lazy environment validation**: DATABASE_URL validated at request time, not build time, to allow builds without production credentials
+6. **Soft-delete memberships**: Removing a membership sets status='removed' and deleted_at instead of hard-deleting, preserving all historical financial records
+7. **Exact business authorization**: Membership operations validate that the caller belongs to the exact target businessId from the client request
 
 ## Known Limitations
-- No business switcher UI (uses first membership automatically)
-- No business creation UI
-- No membership management UI
+
+- Persistent logo storage: Local filesystem not persistent on Vercel serverless; object storage credentials not provided
+- Real database integration tests: DATABASE_URL_TEST not configured
+- Browser-based E2E tests: No Playwright infrastructure
 - QR code token stored but not rendered as image on receipts
-- No tax configuration
-- No supplier/inventory/purchasing modules
+- No tax configuration UI (tax rates server actions exist)
 - No email delivery history
 - No notification system
-- CI workflow references drizzle-kit which was removed
+- CI workflow references drizzle-kit which is now installed
+

@@ -8,10 +8,10 @@
 - **Production Environment:** Connected to production DATABASE_URL (isolated)
 
 ## Staging Deployment Status
-- **Deployment URL:** https://jithub-teq-57hys5jjh-prince-zacs-projects.vercel.app
-- **Alias:** https://jithub-teq-mgt-git-feat-jithub-teq-9ab199-prince-zacs-projects.vercel.app
-- **Status:** READY
+- **Deployment URL:** https://jithub-teq-2gdu85t03-prince-zacs-projects.vercel.app
 - **Branch:** feat/jithub-teq-completion
+- **Commit:** 0b092d0
+- **Status:** READY (22s build)
 
 ## Acceptance Criteria
 
@@ -55,13 +55,13 @@
 - [ ] Financial actions auditable (audit_logs table)
 
 ### Quality Acceptance
-- [ ] TypeScript checks pass (tsc --noEmit exit 0)
+- [x] TypeScript checks pass (tsc --noEmit exit 0)
+- [x] Unit tests pass (133 tests: 123 static + 10 real unit)
+- [x] Production build passes (pnpm build)
 - [ ] ESLint passes
-- [ ] Unit tests pass (123 tests)
 - [ ] Integration tests pass
 - [ ] Security tests pass
 - [ ] End-to-end tests pass
-- [ ] Production build passes (pnpm build)
 
 ### Deployment Acceptance
 - [ ] Preview uses staging (DATABASE_URL split per environment)
@@ -71,14 +71,14 @@
 
 ## Staging Acceptance Sign-off
 - Owner acceptance testing: PENDING
-- Staging migration verified: PENDING
+- Staging migration verified: PASSED (Migration 0004, 0005 applied to staging branch)
 - Financial reconciliation on staging: PENDING
 - PDF output verified: PENDING
 - Printing previews verified: PENDING
 
 ## Next Steps for Production Readiness
-1. Owner reviews staging deployment
-2. Owner approves production migration
-3. Production migration applied (0001_multi_business.sql, 0002_receipt_verification.sql)
-4. Production deployment approved
+1. Owner reviews staging deployment at https://jithub-teq-2gdu85t03-prince-zacs-projects.vercel.app
+2. Owner approves production migration (0001_multi_business.sql, 0002_receipt_verification.sql, 0003_wholesale_distribution.sql, 0004_data_retention.sql, 0005_fix_partial_unique_index.sql)
+3. Production migration applied (requires explicit owner approval)
+4. Production deployment approved (requires explicit owner approval)
 5. Production environment variables configured
