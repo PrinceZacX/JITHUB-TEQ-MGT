@@ -46,9 +46,14 @@
       "http_status": 200,
       "title": "JITHUB-TEQ | Receipting & Invoicing",
       "body_preview": "Goods Receipts\nCreate Receipt\nReceipt #\tPO #\tSupplier\tWarehouse\tStatus\tTotal\tActions",
-      "console_errors": [],
-      "viewport_issues": [],
-      "pass": true
+      "console_errors": [
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)",
+        "[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+      ],
+      "viewport_issues": [
+        "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
+      ],
+      "pass": false
     },
     "desktop:/purchase-orders": {
       "viewport": "desktop",
@@ -70,14 +75,10 @@
       "route": "/stock-movements",
       "http_status": 200,
       "title": "JITHUB-TEQ | Receipting & Invoicing",
-      "body_preview": "Stock Movements\nRefresh\nPlease sign in to continue.\nRetry\n\nNo stock movements recorded yet.",
-      "console_errors": [
-        "[error] Failed to load resource: the server responded with a status of 401 (Unauthorized)"
-      ],
-      "viewport_issues": [
-        "Console errors: ['[error] Failed to load resource: the server responded with a status of 401 (Unauthorized)']"
-      ],
-      "pass": false
+      "body_preview": "Stock Movements\nRefresh\n\nNo stock movements recorded yet.",
+      "console_errors": [],
+      "viewport_issues": [],
+      "pass": true
     },
     "desktop:/suppliers": {
       "viewport": "desktop",
@@ -430,13 +431,13 @@
   "viewport_issues": [
     {
       "viewport": "desktop",
-      "route": "/purchase-orders",
+      "route": "/goods-receipts",
       "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
     },
     {
       "viewport": "desktop",
-      "route": "/stock-movements",
-      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 401 (Unauthorized)']"
+      "route": "/purchase-orders",
+      "issue": "Console errors: ['[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)', '[error] Failed to load resource: the server responded with a status of 500 (Internal Server Error)']"
     },
     {
       "viewport": "desktop",

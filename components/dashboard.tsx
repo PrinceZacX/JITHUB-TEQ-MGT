@@ -8,9 +8,14 @@ import { filterReceipts, formatReceiptDate, sortReceipts, type ReceiptSort } fro
 import { type BusinessRole } from '@/lib/permissions'
 import { Activity, ArrowDownLeft, ArrowRight, ArrowUpRight, Bell, BookOpenCheck, BriefcaseBusiness, Building2, CalendarDays, Check, ChevronDown, CircleHelp, ClipboardList, CreditCard, Download, FileClock, FilePlus2, FileText, LayoutDashboard, LogOut, Menu, MoreHorizontal, Package, Plus, ReceiptText, Search, Settings2, ShieldCheck, Users, WalletCards, X } from 'lucide-react'
 import { FunctionGrid, type FunctionItem } from './function-selection'
+import { UnifiedNavigation } from './navigation/UnifiedNavigation'
+import { SearchOverlay } from './navigation/SearchOverlay'
+import { ToastProvider, useToast } from './ui/Notifications'
+import { SmartEmptyState } from './ui/SmartEmptyState'
+import { LiveResultCount } from './ui/LiveResultCount'
 
 type Data = Awaited<ReturnType<typeof import('@/app/actions/finance').getDashboardData>>
-type Section = 'Dashboard' | 'Invoices' | 'Payments' | 'Receipts' | 'Refunds' | 'Customers' | 'Suppliers' | 'Purchase Orders' | 'Goods Receipts' | 'Stock Movements' | 'Products & services' | 'Expenses' | 'Reports' | 'Notifications' | 'User management' | 'Audit logs' | 'Settings'
+export type Section = 'Dashboard' | 'Invoices' | 'Payments' | 'Receipts' | 'Refunds' | 'Customers' | 'Suppliers' | 'Purchase Orders' | 'Goods Receipts' | 'Stock Movements' | 'Products & services' | 'Expenses' | 'Reports' | 'Notifications' | 'User management' | 'Audit logs' | 'Settings'
 type CatalogueItem = Data['catalogue'][number]
 const navigation: { label: Section; icon: typeof LayoutDashboard; group: string }[] = [
   { label: 'Dashboard', icon: LayoutDashboard, group: 'WORKSPACE' }, { label: 'Invoices', icon: FileText, group: 'WORKSPACE' }, { label: 'Payments', icon: CreditCard, group: 'WORKSPACE' }, { label: 'Refunds', icon: FileClock, group: 'WORKSPACE' }, { label: 'Receipts', icon: ReceiptText, group: 'WORKSPACE' }, { label: 'Customers', icon: Users, group: 'WORKSPACE' }, { label: 'Suppliers', icon: Building2, group: 'WORKSPACE' }, { label: 'Purchase Orders', icon: ClipboardList, group: 'WORKSPACE' }, { label: 'Goods Receipts', icon: Package, group: 'WORKSPACE' }, { label: 'Stock Movements', icon: WalletCards, group: 'WORKSPACE' }, { label: 'Products & services', icon: Package, group: 'MANAGE' }, { label: 'Expenses', icon: WalletCards, group: 'MANAGE' }, { label: 'Reports', icon: Activity, group: 'MANAGE' }, { label: 'Notifications', icon: Bell, group: 'ADMINISTRATION' }, { label: 'User management', icon: ShieldCheck, group: 'ADMINISTRATION' }, { label: 'Audit logs', icon: FileClock, group: 'ADMINISTRATION' }, { label: 'Settings', icon: Settings2, group: 'ADMINISTRATION' },
