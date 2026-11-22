@@ -22,6 +22,7 @@ import { headers } from 'next/headers'
 import { revalidatePath } from 'next/cache'
 import { randomUUID } from 'node:crypto'
 import { requirePermission, defaultRole } from '@/lib/permissions'
+import { loadEnv } from '@/lib/env'
 
 const moneyPattern = /^\d{1,12}(\.\d{1,2})?$/
 
@@ -59,6 +60,7 @@ function scaledDecimal(value: unknown, scale: number, label: string) {
  * Future work: let the user switch between businesses.
  */
 async function requireBusiness() {
+  loadEnv()
   const userId = await requireUser()
   const [membership] = await db
     .select({
