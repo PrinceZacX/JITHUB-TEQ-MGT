@@ -147,8 +147,9 @@ export async function getDashboardData() {
   const recentExpenses = await db.select({ id: expenses.id, category: expenses.category, payee: expenses.payee, description: expenses.description, method: expenses.method, paidAt: expenses.paidAt, amount: expenses.amount }).from(expenses).where(eq(expenses.businessId, businessId)).orderBy(desc(expenses.paidAt)).limit(100)
   const catalogue = await db.select({ id: catalogueItems.id, name: catalogueItems.name, description: catalogueItems.description, unitPrice: catalogueItems.unitPrice, status: catalogueItems.status }).from(catalogueItems).where(eq(catalogueItems.businessId, businessId)).orderBy(desc(catalogueItems.createdAt)).limit(500)
   const auditTrail = await db.select({ id: auditLogs.id, action: auditLogs.action, entityType: auditLogs.entityType, entityId: auditLogs.entityId, details: auditLogs.details, createdAt: auditLogs.createdAt }).from(auditLogs).where(eq(auditLogs.businessId, businessId)).orderBy(desc(auditLogs.createdAt)).limit(100)
-  const [business] = await db.select({ id: businesses.id, name: businesses.name, currency: businesses.currency, city: businesses.city, country: businesses.country, receiptPrefix: businesses.receiptPrefix, invoicePrefix: businesses.invoicePrefix }).from(businesses).where(eq(businesses.id, businessId)).limit(1)
-  return { customerCount: customersCount.count, summary, trend, invoices: recentInvoices, customers: recentCustomers, receipts: recentReceipts, expenses: recentExpenses, catalogue, auditTrail, businessId, business }
+  const [business] = await db.select({ id: businesses.id, name: businesses.name, legalName: businesses.legalName, email: businesses.email, phone: businesses.phone, address: businesses.address, currency: businesses.currency, city: businesses.city, country: businesses.country, receiptPrefix: businesses.receiptPrefix, invoicePrefix: businesses.invoicePrefix }).from(businesses).where(eq(businesses.id, businessId)).limit(1)
+  const refundsList = await db.select({ id: refunds.id, amount: refunds.amount, reason: refunds.reason, method: refunds.method, reference: refunds.reference, status: refunds.status, createdAt: refunds.createdAt, requestedBy: refunds.requestedBy, approvedBy: refunds.approvedBy }).from(refunds).where(eq(refunds.businessId, businessId)).orderBy(desc(refunds.createdAt)).limit(50)
+  return { customerCount: customersCount.count, summary, trend, invoices: recentInvoices, customers: recentCustomers, receipts: recentReceipts, expenses: recentExpenses, catalogue, auditTrail, businessId, business, refunds: refundsList }
 }
 
 export async function getFinancialReport(days: '30' | '90' | '365' | 'all') {
@@ -415,6 +416,58 @@ export async function cancelInvoice(input: { invoiceId: string }) {
     await insertAudit(tx, context, { action: 'invoice.cancelled', entityType: 'invoice', entityId: input.invoiceId })
   })
   revalidatePath('/')
+}
+
+export async function updateBusiness(input: {
+  name?: string; legalName?: string; registrationNumber?: string;
+  taxIdentificationNumber?: string; email?: string; phone?: string;
+  address?: string; city?: string; country?: string; currency?: string;
+  timezone?: string; website?: string; receiptPrefix?: string;
+  invoicePrefix?: string; footerText?: string;
+  paymentInstructions?: string; taxDisplaySettings?: Record<string, unknown>;
+}) {
+  const context = await requireBusinessPermission('business.settings')
+  const updates: Record<string, unknown> = {}
+  if (input.name !== undefined) {
+    const name = input.name.trim()
+    if (name.length < 2 || name.length > 160) throw new Error('Business name must be between 2 and 160 characters.')
+    updates.name = name
+  }
+  if (input.legalName !== undefined) updates.legalName = input.legalName.trim() || null
+  if (input.registrationNumber !== undefined) updates.registrationNumber = input.registrationNumber.trim() || null
+  if (input.taxIdentificationNumber !== undefined) updates.taxIdentificationNumber = input.taxIdentificationNumber.trim() || null
+  if (input.email !== undefined) {
+    const email = input.email.trim()
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw new Error('Enter a valid email address.')
+    updates.email = email || null
+  }
+  if (input.phone !== undefined) updates.phone = input.phone.trim() || null
+  if (input.address !== undefined) updates.address = input.address.trim() || null
+  if (input.city !== undefined) updates.city = input.city.trim() || null
+  if (input.country !== undefined) updates.country = input.country.trim() || 'Uganda'
+  if (input.currency !== undefined) updates.currency = input.currency.trim() || 'UGX'
+  if (input.timezone !== undefined) updates.timezone = input.timezone.trim() || 'Africa/Kampala'
+  if (input.website !== undefined) updates.website = input.website.trim() || null
+  if (input.receiptPrefix !== undefined) {
+    const prefix = input.receiptPrefix.trim()
+    if (prefix.length < 1 || prefix.length > 10) throw new Error('Receipt prefix must be 1-10 characters.')
+    updates.receiptPrefix = prefix
+  }
+  if (input.invoicePrefix !== undefined) {
+    const prefix = input.invoicePrefix.trim()
+    if (prefix.length < 1 || prefix.length > 10) throw new Error('Invoice prefix must be 1-10 characters.')
+    updates.invoicePrefix = prefix
+  }
+  if (input.footerText !== undefined) updates.footerText = input.footerText.trim() || null
+  if (input.paymentInstructions !== undefined) updates.paymentInstructions = input.paymentInstructions.trim() || null
+  if (input.taxDisplaySettings !== undefined) updates.taxDisplaySettings = input.taxDisplaySettings
+
+  await db.transaction(async (tx) => {
+    await tx.update(businesses).set(updates).where(eq(businesses.id, context.businessId))
+    await insertAudit(tx, context, { action: 'business.updated', entityType: 'business', entityId: context.businessId, details: updates })
+  })
+  revalidatePath('/')
+  return { id: context.businessId }
 }
 
 export async function verifyReceipt(input: { token: string }) {
