@@ -36,6 +36,10 @@ export const auth = betterAuth({
     },
   },
   trustedOrigins: [
+    ...(process.env.BETTER_AUTH_URL ? [process.env.BETTER_AUTH_URL] : []),
+    ...(process.env.VERCEL_URL ? [origin(process.env.VERCEL_URL)!] : []),
+    ...(process.env.VERCEL_PROJECT_PRODUCTION_URL ? [origin(process.env.VERCEL_PROJECT_PRODUCTION_URL)!] : []),
+    'https://jithub-teq-mgt.vercel.app',
     ...(process.env.NODE_ENV === 'development' ? [
       'http://localhost:3000',
       ...(process.env.V0_RUNTIME_URL ? [process.env.V0_RUNTIME_URL] : []),
@@ -43,10 +47,6 @@ export const auth = betterAuth({
       ...(process.env.V0_BUILD_URL ? [process.env.V0_BUILD_URL] : []),
       ...(process.env.V0_SANDBOX_URL ? [process.env.V0_SANDBOX_URL] : []),
       previewOrigin,
-    ] : []),
-    ...(process.env.NODE_ENV === 'production' ? [
-      ...(process.env.VERCEL_URL ? [origin(process.env.VERCEL_URL)!] : []),
-      ...(process.env.VERCEL_PROJECT_PRODUCTION_URL ? [origin(process.env.VERCEL_PROJECT_PRODUCTION_URL)!] : []),
     ] : []),
   ],
   session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24 },
