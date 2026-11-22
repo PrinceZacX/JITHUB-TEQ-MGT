@@ -845,6 +845,65 @@ export async function getDashboardData() {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* Platform Dashboard Data (no business context required)             */
+/* ------------------------------------------------------------------ */
+
+export async function getPlatformDashboardData(): Promise<{
+  businesses: { id: string; name: string; city: string | null; country: string; currency: string; status: string; createdAt: Date }[]
+  auditTrail: { id: string; action: string; entityType: string; entityId: string; createdAt: Date }[]
+  summary: { totalBusinesses: number; totalUsers: number; totalInvoiced: number; totalReceived: number; totalOutstanding: number }
+}> {
+  const context = await requirePlatformOwner()
+  const { userId } = context
+
+  // All registered businesses (for business selection)
+  const allBusinesses = await db
+    .select({
+      id: businesses.id, name: businesses.name, city: businesses.city,
+      country: businesses.country, currency: businesses.currency,
+      status: businesses.status, createdAt: businesses.createdAt,
+    })
+    .from(businesses)
+    .orderBy(desc(businesses.createdAt))
+
+  // Platform-level audit trail (all audit logs across all businesses)
+  const allAuditTrail = await db
+    .select({ id: auditLogs.id, action: auditLogs.action, entityType: auditLogs.entityType, entityId: auditLogs.entityId, createdAt: auditLogs.createdAt })
+    .from(auditLogs)
+    .orderBy(desc(auditLogs.createdAt))
+    .limit(100)
+
+  // Platform-level aggregates
+  const totalInvoiced = await db
+    .select({ total: sql<number>`coalesce(sum(${invoices.total}), 0)` })
+    .from(invoices)
+  const totalReceived = await db
+    .select({ total: sql<number>`coalesce(sum(${payments.amount}), 0)` })
+    .from(payments)
+  const totalUsers = await db
+    .select({ total: sql<number>`count(*)` })
+    .from(user)
+
+  const grandTotalInvoiced = Number(totalInvoiced[0]?.total ?? 0)
+  const grandTotalReceived = Number(totalReceived[0]?.total ?? 0)
+
+  return {
+    businesses: allBusinesses.map(b => ({
+      id: b.id, name: b.name, city: b.city, country: b.country,
+      currency: b.currency, status: b.status, createdAt: b.createdAt,
+    })),
+    auditTrail: allAuditTrail,
+    summary: {
+      totalBusinesses: allBusinesses.length,
+      totalUsers: Number(totalUsers[0]?.total ?? 0),
+      totalInvoiced: grandTotalInvoiced,
+      totalReceived: grandTotalReceived,
+      totalOutstanding: Math.max(0, grandTotalInvoiced - grandTotalReceived),
+    },
+  }
+}
+
 export async function getFinancialReport(period: '30' | '90' | '365' | 'all'): Promise<{
   invoiced: number
   received: number
