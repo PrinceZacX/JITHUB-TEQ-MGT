@@ -117,3 +117,29 @@ export async function sendSecurityNotification(input: { to: string; subject: str
     html: `<p>${escapeHtml(message).replace(/\n/g, '<br/>')}</p>`,
   })
 }
+
+export async function sendInvoiceEmail(input: { to: string; invoiceNumber: string; amount: string; currency: string; dueDate: string; pdfUrl: string }) {
+  const url = escapeHtml(input.pdfUrl)
+  return sendEmail({
+    kind: 'invoice',
+    to: input.to,
+    subject: `Invoice ${input.invoiceNumber} from JITHUB-TEQ`,
+    text: `Your invoice ${input.invoiceNumber} for ${formatMoney(input.amount, input.currency)} is due on ${input.dueDate}. Download the PDF: ${input.pdfUrl}`,
+    html: `<p>Your invoice <strong>${input.invoiceNumber}</strong> for <strong>${formatMoney(input.amount, input.currency)}</strong> is due on ${input.dueDate}.</p><p><a href="${url}">Download invoice PDF</a></p>`,
+  })
+}
+
+export async function sendReceiptEmail(input: { to: string; receiptNumber: string; amount: string; currency: string; paidAt: string; pdfUrl: string }) {
+  const url = escapeHtml(input.pdfUrl)
+  return sendEmail({
+    kind: 'receipt',
+    to: input.to,
+    subject: `Receipt ${input.receiptNumber} from JITHUB-TEQ`,
+    text: `Your receipt ${input.receiptNumber} for ${formatMoney(input.amount, input.currency)} was received on ${input.paidAt}. Download the PDF: ${input.pdfUrl}`,
+    html: `<p>Your receipt <strong>${input.receiptNumber}</strong> for <strong>${formatMoney(input.amount, input.currency)}</strong> was received on ${input.paidAt}.</p><p><a href="${url}">Download receipt PDF</a></p>`,
+  })
+}
+
+function formatMoney(value: string, currency: string): string {
+  return `${currency} ${Number(value || 0).toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
+}

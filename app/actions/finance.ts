@@ -23,6 +23,7 @@ import { revalidatePath } from 'next/cache'
 import { randomUUID, randomBytes, createHash } from 'node:crypto'
 import { requirePermission, defaultRole } from '@/lib/permissions'
 import { loadEnv } from '@/lib/env'
+import { sendInvoiceEmail, sendReceiptEmail } from '@/lib/email'
 
 const moneyPattern = /^\d{1,12}(\.\d{1,2})?$/
 
@@ -52,6 +53,12 @@ function scaledDecimal(value: unknown, scale: number, label: string) {
   const scaled = Math.round(Number(value) * multiplier)
   if (Math.abs(Number(value) * multiplier - scaled) > 1e-6) throw new Error(`${label} exceeds ${scale} decimal places.`)
   return BigInt(scaled)
+}
+
+function safeDate(value: Date | string | null): string {
+  if (!value) return ''
+  const d = typeof value === 'string' ? new Date(value) : value
+  return d.toISOString().slice(0, 10)
 }
 
 /**
@@ -233,12 +240,40 @@ export async function createInvoice(input: { customerId: string; description: st
 
 export async function issueDraftInvoice(id: string) {
   const context = await requireBusinessPermission('invoice.issue')
+  let customerId = ''
+  let currency = ''
+  let total = ''
+  let dueDate = ''
+  let number = ''
   await db.transaction(async (tx) => {
-    const [invoice] = await tx.select({ id: invoices.id, status: invoices.status, number: invoices.number, businessId: invoices.businessId }).from(invoices).where(and(eq(invoices.id, id), eq(invoices.businessId, context.businessId))).limit(1).for('update')
+    const [invoice] = await tx.select({ id: invoices.id, status: invoices.status, number: invoices.number, businessId: invoices.businessId, customerId: invoices.customerId, currency: invoices.currency, total: invoices.total, dueDate: invoices.dueDate }).from(invoices).where(and(eq(invoices.id, id), eq(invoices.businessId, context.businessId))).limit(1).for('update')
     if (!invoice || invoice.status !== 'draft') throw new Error('Only a draft invoice in your business can be issued.')
+    customerId = invoice.customerId
+    currency = invoice.currency
+    total = invoice.total
+    dueDate = invoice.dueDate
+    number = invoice.number
     await tx.update(invoices).set({ status: 'issued', issueDate: new Date().toISOString().slice(0, 10) }).where(and(eq(invoices.id, id), eq(invoices.businessId, context.businessId), eq(invoices.status, 'draft')))
-    await insertAudit(tx, context, { action: 'invoice.issued', entityType: 'invoice', entityId: id, details: { number: invoice.number } })
+    await insertAudit(tx, context, { action: 'invoice.issued', entityType: 'invoice', entityId: id, details: { number } })
   })
+
+  // Send invoice email if customer has an email address
+  try {
+    const [customer] = await db.select({ email: customers.email, name: customers.name }).from(customers).where(eq(customers.id, customerId)).limit(1)
+    if (customer?.email) {
+      await sendInvoiceEmail({
+        to: customer.email,
+        invoiceNumber: number,
+        amount: total,
+        currency,
+        dueDate: safeDate(dueDate),
+        pdfUrl: `${process.env.BETTER_AUTH_URL ?? process.env.VERCEL_PROJECT_PRODUCTION_URL ?? ''}/api/documents/invoice/${id}`,
+      })
+    }
+  } catch {
+    // Email delivery failure must not fail the invoice issuance
+  }
+
   revalidatePath('/')
 }
 
@@ -254,12 +289,14 @@ export async function recordPayment(input: { invoiceId: string; amount: string; 
   const idempotencyKey = input.idempotencyKey || null
   const paymentId = randomUUID()
   const receiptNumber = await allocateDocumentNumber(db as any, context.businessId, 'receipt')
+  let customerId = ''
+  let currency = ''
   await db.transaction(async (tx) => {
     if (idempotencyKey) {
       const [existing] = await tx.select({ id: payments.id, amount: payments.amount }).from(payments).where(and(eq(payments.businessId, context.businessId), eq(payments.idempotencyKey, idempotencyKey))).limit(1)
       if (existing) throw new Error('A payment with this request key has already been recorded.')
     }
-    const [invoice] = await tx.select({ id: invoices.id, status: invoices.status, total: invoices.total, amountPaid: invoices.amountPaid, customerId: invoices.customerId, businessId: invoices.businessId }).from(invoices).where(and(eq(invoices.id, input.invoiceId), eq(invoices.businessId, context.businessId))).limit(1).for('update')
+    const [invoice] = await tx.select({ id: invoices.id, status: invoices.status, total: invoices.total, amountPaid: invoices.amountPaid, customerId: invoices.customerId, currency: invoices.currency, businessId: invoices.businessId }).from(invoices).where(and(eq(invoices.id, input.invoiceId), eq(invoices.businessId, context.businessId))).limit(1).for('update')
     if (!invoice || invoice.status === 'draft' || invoice.status === 'cancelled') throw new Error('The selected invoice cannot receive a payment.')
     const remaining = money(invoice.total) - money(invoice.amountPaid)
     if (amount > remaining) throw new Error('Payment exceeds the outstanding balance.')
@@ -269,6 +306,8 @@ export async function recordPayment(input: { invoiceId: string; amount: string; 
     }
     const nextPaid = money(invoice.amountPaid) + amount
     const verificationToken = createHash('sha256').update(randomBytes(32).toString('hex') + receiptNumber).digest('hex')
+    customerId = invoice.customerId
+    currency = invoice.currency
     await tx.insert(payments).values({ id: paymentId, businessId: context.businessId, userId: context.userId, customerId: invoice.customerId, reference, idempotencyKey, method: input.method.toLowerCase().replace(' ', '_'), paidAt: paidDate, amount: (amount / 100).toFixed(2) })
     await tx.insert(paymentAllocations).values({ id: randomUUID(), businessId: context.businessId, paymentId, invoiceId: invoice.id, amount: (amount / 100).toFixed(2) })
     await tx.insert(receipts).values({ id: randomUUID(), businessId: context.businessId, userId: context.userId, paymentId, number: receiptNumber, verificationToken })
@@ -276,6 +315,24 @@ export async function recordPayment(input: { invoiceId: string; amount: string; 
     await insertAudit(tx, context, { action: 'payment.recorded', entityType: 'payment', entityId: paymentId, details: { invoiceId: invoice.id, receiptNumber, amount: (amount / 100).toFixed(2) } })
   })
   revalidatePath('/')
+
+  // Send receipt email if customer has an email address
+  try {
+    const [customer] = await db.select({ email: customers.email, name: customers.name }).from(customers).where(eq(customers.id, customerId)).limit(1)
+    if (customer?.email) {
+      await sendReceiptEmail({
+        to: customer.email,
+        receiptNumber,
+        amount: (amount / 100).toFixed(2),
+        currency,
+        paidAt: paidDate,
+        pdfUrl: `${process.env.BETTER_AUTH_URL ?? process.env.VERCEL_PROJECT_PRODUCTION_URL ?? ''}/api/documents/receipt/${paymentId}`,
+      })
+    }
+  } catch {
+    // Email delivery failure must not fail the payment recording
+  }
+
   return { receiptNumber }
 }
 
