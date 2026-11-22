@@ -1,0 +1,4 @@
+{
+  "installCommand": "pnpm install --enable-scripts",
+  "buildCommand": "pnpm build"
+}
