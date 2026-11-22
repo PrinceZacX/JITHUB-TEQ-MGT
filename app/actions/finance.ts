@@ -79,32 +79,40 @@ async function requireBusiness(businessId?: string) {
   loadEnv()
   const userId = await requireUser()
 
-  if (!businessId) throw new Error('A business context is required.')
-
-  // Platform owner can access any business they explicitly select.
+  // Platform owner: can access platform administration without a business.
+  // With a businessId, they explicitly select a business to operate in.
   const userRow = await getUserContext(userId)
   if (userRow.platformOwner) {
     if (!userRow.emailVerified) throw new Error('Email verification is required for platform access.')
-    const [business] = await db
-      .select({ id: businesses.id, status: businesses.status })
-      .from(businesses)
-      .where(eq(businesses.id, businessId))
-      .limit(1)
-    if (!business) throw new Error('Business not found.')
-    if (business.status !== 'active') throw new Error('Business is not active.')
+    if (businessId) {
+      const [business] = await db
+        .select({ id: businesses.id, status: businesses.status })
+        .from(businesses)
+        .where(eq(businesses.id, businessId))
+        .limit(1)
+      if (!business) throw new Error('Business not found.')
+      if (business.status !== 'active') throw new Error('Business is not active.')
+      return {
+        userId, businessId,
+        role: 'platform_owner', isPlatformOwner: true,
+      }
+    }
     return {
-      userId, businessId,
+      userId, businessId: null,
       role: 'platform_owner', isPlatformOwner: true,
     }
   }
 
+  // Non-platform-owner users require a business context.
+  // When no businessId is provided, resolve from their active membership.
+  const targetBusinessId = businessId || null
   const whereClauses = [
     eq(businessMemberships.userId, userId),
     eq(businesses.status, 'active'),
     eq(businessMemberships.status, 'active'),
     sql`${businessMemberships.deletedAt} IS NULL`,
-    eq(businessMemberships.businessId, businessId),
   ]
+  if (targetBusinessId) whereClauses.push(eq(businessMemberships.businessId, targetBusinessId))
 
   const [membership] = await db
     .select({
@@ -116,21 +124,29 @@ async function requireBusiness(businessId?: string) {
     .innerJoin(businesses, eq(businesses.id, businessMemberships.businessId))
     .where(and(...whereClauses))
     .limit(1)
-  if (!membership) throw new Error('You are not a member of an active business.')
+  if (!membership) {
+    if (targetBusinessId) throw new Error('You are not a member of this business.')
+    throw new Error('You are not a member of an active business.')
+  }
   return {
     userId, businessId: membership.businessId,
     role: membership.role as 'owner' | 'administrator' | 'finance_manager' | 'accountant' | 'sales_officer' | 'cashier' | 'viewer',
   }
 }
 
-async function requireBusinessPermission(permission: string, businessId?: string) {
+async function requireBusinessPermission(permission: string, businessId?: string): Promise<{
+  userId: string; businessId: string; role: BusinessRole | 'platform_owner'; isPlatformOwner: boolean
+}> {
   const context = await requireBusiness(businessId)
   if (context.role === 'platform_owner') {
+    if (!context.businessId) {
+      throw new Error('Please select a business before performing business-scoped operations.')
+    }
     requirePlatformPermission('platform_owner', permission as PlatformPermission)
-    return context
+    return { userId: context.userId, businessId: context.businessId!, role: 'platform_owner', isPlatformOwner: true }
   }
   requirePermission(context.role as BusinessRole, permission as any)
-  return context
+  return { userId: context.userId, businessId: context.businessId!, role: context.role as BusinessRole, isPlatformOwner: false }
 }
 
 async function insertAudit(tx: any, context: { userId: string; businessId: string | null }, input: {
