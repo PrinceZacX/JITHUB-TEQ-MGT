@@ -1,0 +1,662 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JITHUB-TEQ — Finance & Operations</title>
+
+  <!--
+    FOUR-SCREEN RECONSTRUCTION
+    Source: the attached 2x4 contact sheet of JITHUB-TEQ screenshots.
+    Figma reference (not fetched, per earlier instruction):
+    https://www.figma.com/design/mb4ezUBhRmoP5TjIsaG2QD/JITHUB-TEQ-%7C-Finance---Business-Management?node-id=1-15&m=dev
+
+    Screens included: 1 Customer profile, 2 Cashbook & expenses,
+    3 Products & services, 4 Bank & mobile accounts.
+
+    FIDELITY NOTES
+    - Tokens marked [OBSERVED] were read from the screenshots.
+    - Tokens marked [INFERRED] are sensible defaults where OCR was partial.
+    - The stat-tile figures and the credit-limit value were not legible in
+      the source; those specific numbers are marked in the markup.
+    - No backend, no persistence, no Figma fetch.
+  -->
+
+  <style>
+    :root {
+      /* [OBSERVED] */
+      --canvas: #F4F7FA;
+      --nav-bg: #10243A;
+      --nav-active: #18344F;
+      --teal: #12B8A6;
+      --surface: #FFFFFF;
+      --border: #E3EAF0;
+      --text: #172B4D;
+      --muted: #718098;
+      --pill-green-bg: #E7F6EF;
+      --pill-amber-bg: #FFF4DD;
+
+      /* [INFERRED] */
+      --pill-green-text: #1B7F5A;
+      --pill-amber-text: #8A5A00;
+      --pill-neutral-bg: #EEF2F6;
+      --pill-neutral-text: #5B6B7F;
+      --teal-dark: #0B6E63;
+      --teal-on-dark: #5FE3D3;
+      --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+      --rail-width: 240px;
+      --sidebar-width: 248px;
+      --radius: 12px;
+      --shadow: 0 1px 2px rgb(16 36 58 / 5%);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    html { scroll-behavior: smooth; }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+    body {
+      margin: 0;
+      background: var(--canvas);
+      color: var(--text);
+      font: 14px/1.5 var(--font);
+    }
+
+    :where(a, button, input, [tabindex="-1"]):focus-visible {
+      outline: 3px solid var(--teal-dark);
+      outline-offset: 2px;
+    }
+
+    .sidebar :where(a, button):focus-visible { outline-color: var(--teal-on-dark); }
+
+    .visually-hidden:where(:not(:focus-within, :active)) {
+      position: absolute !important;
+      clip-path: inset(50%) !important;
+      overflow: hidden !important;
+      width: 1px !important;
+      height: 1px !important;
+      margin: -1px !important;
+      padding: 0 !important;
+      border: 0 !important;
+      white-space: nowrap !important;
+    }
+
+    .skip-link:focus-visible {
+      position: fixed;
+      inset-block-start: 8px;
+      inset-inline-start: 8px;
+      z-index: 50;
+      padding: 8px 12px;
+      background: var(--surface);
+      border-radius: 8px;
+    }
+
+    /* ---------------- Shell ---------------- */
+    .app { display: flex; align-items: stretch; min-block-size: 100vh; }
+
+    .rail {
+      flex: 0 0 var(--rail-width);
+      background: var(--canvas);
+      border-inline-end: 1px solid var(--border);
+    }
+
+    .sidebar {
+      position: sticky;
+      inset-block-start: 0;
+      flex: 0 0 var(--sidebar-width);
+      block-size: 100vh;
+      overflow: auto;
+      padding: 24px 16px;
+      background: var(--nav-bg);
+      color: #D8E4EF;
+    }
+
+    .brand {
+      padding: 4px 8px 22px;
+      margin-block-end: 20px;
+      border-block-end: 1px solid rgb(255 255 255 / 9%);
+    }
+    .brand__name { font-size: 17px; font-weight: 700; letter-spacing: .02em; color: #fff; }
+    .brand__sub { display: block; margin-block-start: 3px; font-size: 10px; letter-spacing: .12em; color: #9FB3C8; }
+
+    .nav-groups { display: grid; }
+    .nav-group { margin-block-end: 22px; }
+    .nav-group__title {
+      margin: 0 10px 8px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: #7890A8;
+    }
+    .nav-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+    .nav-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      color: inherit;
+      text-decoration: none;
+      font-size: 13px;
+    }
+    .nav-link:hover { background: rgb(255 255 255 / 6%); color: #fff; }
+    .nav-link[aria-current] {
+      background: var(--nav-active);
+      color: #fff;
+      box-shadow: inset 3px 0 0 var(--teal);
+    }
+    .nav-link--muted { opacity: .72; cursor: default; }
+    .nav-link__dot { inline-size: 6px; block-size: 6px; border-radius: 50%; background: currentColor; opacity: .5; }
+
+    .workspace { flex: 1 1 auto; min-inline-size: 0; }
+
+    .topbar {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      min-block-size: 64px;
+      padding: 12px 28px;
+      background: var(--surface);
+      border-block-end: 1px solid var(--border);
+    }
+    .crumb { font-size: 13px; color: var(--muted); }
+    .crumb strong { color: var(--text); font-weight: 600; }
+    .topbar__spacer { flex: 1 1 auto; }
+    .search {
+      inline-size: min(260px, 30vw);
+      padding: 8px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--canvas);
+      font: inherit;
+      color: var(--text);
+    }
+    .date { font-size: 13px; color: var(--muted); white-space: nowrap; }
+    .account { display: flex; align-items: center; gap: 8px; font-size: 13px; white-space: nowrap; }
+    .avatar {
+      display: inline-grid;
+      place-items: center;
+      inline-size: 32px;
+      block-size: 32px;
+      border-radius: 50%;
+      background: var(--teal);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .avatar--lg { inline-size: 56px; block-size: 56px; font-size: 18px; flex: none; }
+
+    main { max-inline-size: 1560px; margin: 0 auto; padding: 28px; }
+
+    /* Screen switching via :target; first screen is the no-JS default. */
+    .screen { display: none; }
+    #screen-1 { display: block; }
+    .screen:target { display: block; }
+    body:has(.screen:target) #screen-1:not(:target) { display: none; }
+
+    .screen-nav { display: flex; flex-wrap: wrap; gap: 8px; margin-block-end: 24px; }
+    .screen-nav a {
+      padding: 7px 12px;
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      background: var(--surface);
+      color: var(--muted);
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .screen-nav a:hover { border-color: var(--teal); color: var(--teal-dark); }
+
+    .screen__head {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-end;
+      justify-content: space-between;
+      gap: 16px;
+      margin-block-end: 24px;
+    }
+    .screen__title { margin: 0; font-size: 26px; line-height: 1.2; letter-spacing: -.01em; }
+    .screen__sub { margin: 6px 0 0; color: var(--muted); }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      min-block-size: 38px;
+      padding: 8px 14px;
+      border-radius: 8px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+    .btn--ghost { background: var(--surface); border: 1px solid var(--border); color: var(--text); }
+    .btn--primary { background: var(--teal); border: 1px solid var(--teal); color: #fff; }
+    .btn--primary:hover { background: var(--teal-dark); border-color: var(--teal-dark); }
+
+    /* ---------------- Cards, stats, data ---------------- */
+    .card {
+      margin-block-end: 20px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+    }
+    .card__head { padding: 18px 20px; border-block-end: 1px solid var(--border); }
+    .card__title { margin: 0; font-size: 16px; }
+    .card__sub { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+    .card__body { padding: 20px; }
+
+    .stats { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-block-end: 20px; }
+    .stat { padding: 16px 20px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
+    .stat__label { font-size: 12px; color: var(--muted); }
+    .stat__value { margin-block-start: 4px; font-size: 22px; font-weight: 700; }
+
+    .identity { display: flex; flex-wrap: wrap; gap: 18px; align-items: flex-start; }
+    .identity__main { flex: 1 1 320px; }
+    .identity__name { margin: 0; font-size: 20px; font-weight: 700; }
+    .identity__id { margin: 4px 0 0; font-size: 13px; color: var(--muted); }
+    .identity .pill { margin-block-start: 8px; }
+
+    .dl { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px 24px; margin: 0; }
+    .dl dt { font-size: 12px; color: var(--muted); }
+    .dl dd { margin: 4px 0 0; font-weight: 500; }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .pill--green { background: var(--pill-green-bg); color: var(--pill-green-text); }
+    .pill--amber { background: var(--pill-amber-bg); color: var(--pill-amber-text); }
+    .pill--neutral { background: var(--pill-neutral-bg); color: var(--pill-neutral-text); }
+
+    .table-wrapper { overflow: auto; max-inline-size: 100%; container-type: inline-size; }
+    .data-table { inline-size: 100%; min-inline-size: 620px; border-collapse: separate; border-spacing: 0; }
+    .data-table th, .data-table td {
+      padding: 14px 16px;
+      border-block-end: 1px solid var(--border);
+      text-align: start;
+      white-space: nowrap;
+    }
+    .data-table thead th {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 2;
+      background: var(--surface);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .05em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .data-table tbody th { position: sticky; inset-inline-start: 0; z-index: 1; background: var(--surface); font-weight: 600; }
+    .data-table tbody tr:last-child > * { border-block-end: 0; }
+    .amount { font-variant-numeric: tabular-nums; font-weight: 600; }
+
+    /* Adapt to the table's own width, not the viewport. */
+    @container (width < 640px) {
+      .data-table { min-inline-size: 0; }
+      .data-table, .data-table thead, .data-table tbody, .data-table tr, .data-table th, .data-table td { display: block; }
+      .data-table thead { display: none; }
+      .data-table tbody tr {
+        display: grid;
+        gap: 4px;
+        padding: 16px;
+        border-block-start: 1px solid var(--border);
+      }
+      .data-table tbody th { position: static; background: transparent; padding: 0 0 4px; font-size: 15px; }
+      .data-table td {
+        position: static;
+        display: grid;
+        grid-template-columns: 120px 1fr;
+        gap: 8px;
+        padding: 2px 0;
+        border: 0;
+        white-space: normal;
+      }
+      .data-table td::before { content: attr(data-label) ": "; font-weight: 600; color: var(--muted); }
+    }
+
+    @media (max-width: 1200px) {
+      .rail { display: none; }
+      .sidebar { flex-basis: 216px; }
+    }
+
+    @media (max-width: 820px) {
+      .app { flex-wrap: wrap; }
+      .sidebar { position: static; flex-basis: 100%; block-size: auto; padding: 16px; }
+      .brand { padding-block-end: 12px; margin-block-end: 12px; }
+      .nav-groups { display: flex; gap: 24px; overflow: auto; }
+      .nav-group { flex: 0 0 auto; margin: 0; }
+      .topbar { position: static; flex-wrap: wrap; padding: 12px 16px; }
+      .search { inline-size: 100%; }
+      main { padding: 18px; }
+      .stats { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+
+<body>
+  <a class="skip-link visually-hidden" href="#content">Skip to content</a>
+
+  <div class="app">
+    <div class="rail" aria-hidden="true"></div>
+
+    <aside class="sidebar" aria-labelledby="brand-name">
+      <div class="brand">
+        <span class="brand__name" id="brand-name">JITHUB-TEQ</span>
+        <span class="brand__sub">FINANCE &amp; OPERATIONS</span>
+      </div>
+
+      <nav aria-label="Workspace">
+        <div class="nav-groups">
+          <div class="nav-group">
+            <p class="nav-group__title">Money &amp; accounts</p>
+            <ul class="nav-list">
+              <li><span class="nav-link nav-link--muted"><span class="nav-link__dot" aria-hidden="true"></span>Payments &amp; collections</span></li>
+              <li><span class="nav-link nav-link--muted"><span class="nav-link__dot" aria-hidden="true"></span>Customer ledgers</span></li>
+              <li><a class="nav-link" href="#screen-2" data-screen="screen-2"><span class="nav-link__dot" aria-hidden="true"></span>Cashbook &amp; expenses</a></li>
+              <li><a class="nav-link" href="#screen-4" data-screen="screen-4"><span class="nav-link__dot" aria-hidden="true"></span>Bank / Mobile accounts</a></li>
+            </ul>
+          </div>
+
+          <div class="nav-group">
+            <p class="nav-group__title">Operations</p>
+            <ul class="nav-list">
+              <li><span class="nav-link nav-link--muted"><span class="nav-link__dot" aria-hidden="true"></span>Customer LPOs</span></li>
+              <li><a class="nav-link" href="#screen-1" data-screen="screen-1" aria-current="location"><span class="nav-link__dot" aria-hidden="true"></span>Customers</a></li>
+              <li><a class="nav-link" href="#screen-3" data-screen="screen-3"><span class="nav-link__dot" aria-hidden="true"></span>Products &amp; services</a></li>
+            </ul>
+          </div>
+
+          <div class="nav-group">
+            <p class="nav-group__title">Insights &amp; admin</p>
+            <ul class="nav-list">
+              <li><span class="nav-link nav-link--muted"><span class="nav-link__dot" aria-hidden="true"></span>Reports</span></li>
+              <li><span class="nav-link nav-link--muted"><span class="nav-link__dot" aria-hidden="true"></span>Users &amp; roles</span></li>
+              <li><span class="nav-link nav-link--muted"><span class="nav-link__dot" aria-hidden="true"></span>Settings</span></li>
+            </ul>
+          </div>
+
+          <div class="nav-group">
+            <p class="nav-group__title">Demo workspace</p>
+            <ul class="nav-list">
+              <li><span class="nav-link nav-link--muted"><span class="nav-link__dot" aria-hidden="true"></span>Sample data</span></li>
+              <li><span class="nav-link nav-link--muted"><span class="nav-link__dot" aria-hidden="true"></span>Isaac Asire</span></li>
+            </ul>
+          </div>
+        </div>
+      </nav>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <p class="crumb">Workspace / <strong data-crumb="screen-1">Customer profile</strong><strong data-crumb="screen-2" hidden>Cashbook &amp; expenses</strong><strong data-crumb="screen-3" hidden>Products &amp; services</strong><strong data-crumb="screen-4" hidden>Bank &amp; mobile accounts</strong></p>
+        <span class="topbar__spacer"></span>
+        <label class="visually-hidden" for="global-search">Search anything</label>
+        <input class="search" id="global-search" type="search" placeholder="Search anything">
+        <time class="date" datetime="2026-11-19">19 Nov 2026</time>
+        <span class="account"><span class="avatar" aria-hidden="true">IA</span>Isaac Asire</span>
+      </header>
+
+      <main id="content" tabindex="-1">
+        <h1 class="visually-hidden">JITHUB-TEQ finance and operations workspace</h1>
+
+        <nav class="screen-nav" aria-label="Preview screens">
+          <a href="#screen-1">1 · Customer profile</a>
+          <a href="#screen-2">2 · Cashbook</a>
+          <a href="#screen-3">3 · Products</a>
+          <a href="#screen-4">4 · Bank &amp; mobile</a>
+        </nav>
+
+        <!-- ============ SCREEN 1: CUSTOMER PROFILE ============ -->
+        <section class="screen" id="screen-1" aria-labelledby="screen-1-title">
+          <div class="screen__head">
+            <div>
+              <h2 class="screen__title" id="screen-1-title">Customer profile</h2>
+              <p class="screen__sub">A unified view of contacts, commercial documents and account balances.</p>
+            </div>
+            <div class="actions">
+              <button class="btn btn--ghost" type="button">Export</button>
+              <button class="btn btn--primary" type="button"><span aria-hidden="true">+</span> Create new</button>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><div class="stat__label">Outstanding balance</div><div class="stat__value">UGX 1.5M</div></div>
+            <!-- The two stat-tile figures were not legible in the source image. -->
+            <div class="stat"><div class="stat__label">Open documents</div><div class="stat__value">3</div></div>
+          </div>
+
+          <section class="card" aria-labelledby="identity-title">
+            <div class="card__head"><h3 class="card__title" id="identity-title">Customer identity</h3></div>
+            <div class="card__body">
+              <div class="identity">
+                <span class="avatar avatar--lg" aria-hidden="true">KCH</span>
+                <div class="identity__main">
+                  <h4 class="identity__name">Kampala Creative Hub</h4>
+                  <p class="identity__id">CUST-00042 · Business customer</p>
+                  <span class="pill pill--green">Active customer</span>
+                </div>
+                <dl class="dl">
+                  <div><dt>Location</dt><dd>Kampala, Uganda</dd></div>
+                  <div><dt>Email</dt><dd>billing@kampalacreative.ug</dd></div>
+                  <div><dt>Phone</dt><dd>+256 700 123 456</dd></div>
+                </dl>
+              </div>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="cust-info-title">
+            <div class="card__head">
+              <h3 class="card__title" id="cust-info-title">Customer information</h3>
+              <p class="card__sub">Billing and account settings</p>
+            </div>
+            <div class="card__body">
+              <dl class="dl">
+                <div><dt>Billing address</dt><dd>Plot 14, Kampala Road, Kampala</dd></div>
+                <div><dt>Tax identification number</dt><dd>1012345678</dd></div>
+                <div><dt>Default currency</dt><dd>UGX</dd></div>
+                <!-- Credit-limit value was truncated by OCR in the source image. -->
+                <div><dt>Credit limit</dt><dd>UGX 10,000,000</dd></div>
+                <div><dt>Account owner</dt><dd>Finance Desk</dd></div>
+                <div><dt>Created</dt><dd>04 Feb 2026</dd></div>
+              </dl>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="recent-docs-title">
+            <div class="card__head">
+              <h3 class="card__title" id="recent-docs-title">Recent documents</h3>
+              <p class="card__sub">Open linked quotations, invoices and receipts</p>
+            </div>
+            <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="recent-docs-title">
+              <table class="data-table">
+                <caption class="visually-hidden">Recent documents for Kampala Creative Hub</caption>
+                <thead><tr><th scope="col">Document</th><th scope="col">Description</th><th scope="col">Date</th><th scope="col">Amount</th><th scope="col">Status</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">INV-2026-0148</th><td data-label="Description">Management dashboard milestone</td><td data-label="Date">19 Nov 2026</td><td class="amount" data-label="Amount">UGX 3.0M</td><td data-label="Status"><span class="pill pill--amber">Part-paid</span></td></tr>
+                  <tr><th scope="row">RCT-2026-0088</th><td data-label="Description">Bank transfer payment</td><td data-label="Date">16 Nov 2026</td><td class="amount" data-label="Amount">UGX 1.5M</td><td data-label="Status"><span class="pill pill--green">Verified</span></td></tr>
+                  <tr><th scope="row">QT-2026-0179</th><td data-label="Description">Website redesign proposal</td><td data-label="Date">17 Nov 2026</td><td class="amount" data-label="Amount">UGX 3.8M</td><td data-label="Status"><span class="pill pill--neutral">Viewed</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <!-- ============ SCREEN 2: CASHBOOK & EXPENSES ============ -->
+        <section class="screen" id="screen-2" aria-labelledby="screen-2-title">
+          <div class="screen__head">
+            <div>
+              <h2 class="screen__title" id="screen-2-title">Cashbook &amp; expenses</h2>
+              <p class="screen__sub">Track operating expenses and movements across business accounts.</p>
+            </div>
+            <div class="actions">
+              <button class="btn btn--ghost" type="button">Export</button>
+              <button class="btn btn--primary" type="button"><span aria-hidden="true">+</span> Create new</button>
+            </div>
+          </div>
+
+          <div class="actions" style="margin-block-end:20px">
+            <button class="btn btn--ghost" type="button"><span aria-hidden="true">+</span> Record expense</button>
+            <button class="btn btn--ghost" type="button"><span aria-hidden="true">+</span> Cash deposit</button>
+            <button class="btn btn--ghost" type="button"><span aria-hidden="true">+</span> Cash withdrawal</button>
+            <button class="btn btn--ghost" type="button">Transfer between accounts</button>
+          </div>
+
+          <section class="card" aria-labelledby="cashbook-title">
+            <div class="card__head">
+              <h3 class="card__title" id="cashbook-title">Cashbook register</h3>
+              <p class="card__sub">All incoming and outgoing cashbook transactions</p>
+            </div>
+            <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="cashbook-title">
+              <table class="data-table">
+                <caption class="visually-hidden">Cashbook transactions</caption>
+                <thead><tr><th scope="col">Reference</th><th scope="col">Description</th><th scope="col">Date</th><th scope="col">Amount</th><th scope="col">Status</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">CB-2026-0312</th><td data-label="Description">Office internet &amp; utilities</td><td data-label="Date">19 Nov 2026</td><td class="amount" data-label="Amount">UGX 450K</td><td data-label="Status"><span class="pill pill--green">Posted</span></td></tr>
+                  <tr><th scope="row">CB-2026-0311</th><td data-label="Description">MTN collection settlement</td><td data-label="Date">18 Nov 2026</td><td class="amount" data-label="Amount">UGX 2.5M</td><td data-label="Status"><span class="pill pill--green">Reconciled</span></td></tr>
+                  <tr><th scope="row">CB-2026-0310</th><td data-label="Description">Printer supplies</td><td data-label="Date">17 Nov 2026</td><td class="amount" data-label="Amount">UGX 280K</td><td data-label="Status"><span class="pill pill--green">Posted</span></td></tr>
+                  <tr><th scope="row">CB-2026-0309</th><td data-label="Description">Office rent</td><td data-label="Date">15 Nov 2026</td><td class="amount" data-label="Amount">UGX 1.8M</td><td data-label="Status"><span class="pill pill--green">Posted</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <!-- ============ SCREEN 3: PRODUCTS & SERVICES ============ -->
+        <section class="screen" id="screen-3" aria-labelledby="screen-3-title">
+          <div class="screen__head">
+            <div>
+              <h2 class="screen__title" id="screen-3-title">Products &amp; services</h2>
+              <p class="screen__sub">Manage reusable service items, pricing and tax defaults.</p>
+            </div>
+            <div class="actions">
+              <button class="btn btn--ghost" type="button">Export</button>
+              <button class="btn btn--primary" type="button"><span aria-hidden="true">+</span> Create new</button>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><div class="stat__label">Active items</div><div class="stat__value">8</div></div>
+            <!-- The two stat-tile figures were not legible in the source image. -->
+            <div class="stat"><div class="stat__label">Catalogue average</div><div class="stat__value">UGX 5.4M</div></div>
+          </div>
+
+          <section class="card" aria-labelledby="catalogue-title">
+            <div class="card__head">
+              <h3 class="card__title" id="catalogue-title">Service catalogue</h3>
+              <p class="card__sub">Default prices populate quotation and invoice line items</p>
+            </div>
+            <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="catalogue-title">
+              <table class="data-table">
+                <caption class="visually-hidden">Service catalogue</caption>
+                <thead><tr><th scope="col">Code</th><th scope="col">Service</th><th scope="col">Billing unit</th><th scope="col">Default price</th><th scope="col">Status</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">WEB-001</th><td data-label="Service">Business website development</td><td data-label="Billing unit">Per project</td><td class="amount" data-label="Default price">UGX 2,000,000</td><td data-label="Status"><span class="pill pill--green">Active</span></td></tr>
+                  <tr><th scope="row">CMS-002</th><td data-label="Service">CMS website package</td><td data-label="Billing unit">Per project</td><td class="amount" data-label="Default price">UGX 3,000,000</td><td data-label="Status"><span class="pill pill--green">Active</span></td></tr>
+                  <tr><th scope="row">ERP-003</th><td data-label="Service">ERP implementation</td><td data-label="Billing unit">Per project</td><td class="amount" data-label="Default price">UGX 20,000,000</td><td data-label="Status"><span class="pill pill--green">Active</span></td></tr>
+                  <tr><th scope="row">DASH-004</th><td data-label="Service">Management dashboard</td><td data-label="Billing unit">Per project</td><td class="amount" data-label="Default price">UGX 5,000,000</td><td data-label="Status"><span class="pill pill--green">Active</span></td></tr>
+                  <tr><th scope="row">APP-005</th><td data-label="Service">Mobile application</td><td data-label="Billing unit">Per project</td><td class="amount" data-label="Default price">UGX 12,000,000</td><td data-label="Status"><span class="pill pill--green">Active</span></td></tr>
+                  <tr><th scope="row">HOST-006</th><td data-label="Service">Managed hosting</td><td data-label="Billing unit">Per year</td><td class="amount" data-label="Default price">UGX 600,000</td><td data-label="Status"><span class="pill pill--green">Active</span></td></tr>
+                  <tr><th scope="row">SUP-007</th><td data-label="Service">Software maintenance</td><td data-label="Billing unit">Per month</td><td class="amount" data-label="Default price">UGX 300,000</td><td data-label="Status"><span class="pill pill--green">Active</span></td></tr>
+                  <tr><th scope="row">API-008</th><td data-label="Service">API integration</td><td data-label="Billing unit">Per integration</td><td class="amount" data-label="Default price">UGX 1,000,000</td><td data-label="Status"><span class="pill pill--green">Active</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+
+        <!-- ============ SCREEN 4: BANK & MOBILE ACCOUNTS ============ -->
+        <section class="screen" id="screen-4" aria-labelledby="screen-4-title">
+          <div class="screen__head">
+            <div>
+              <h2 class="screen__title" id="screen-4-title">Bank &amp; mobile accounts</h2>
+              <p class="screen__sub">Configure receiving accounts and review payment verification.</p>
+            </div>
+            <div class="actions">
+              <button class="btn btn--ghost" type="button">Export</button>
+              <button class="btn btn--primary" type="button"><span aria-hidden="true">+</span> Create new</button>
+            </div>
+          </div>
+
+          <div class="stats">
+            <div class="stat"><div class="stat__label">Receiving accounts</div><div class="stat__value">4</div></div>
+            <div class="stat"><div class="stat__label">Pending verification</div><div class="stat__value">2</div></div>
+          </div>
+
+          <section class="card" aria-labelledby="accounts-title">
+            <div class="card__head">
+              <h3 class="card__title" id="accounts-title">Receiving account directory</h3>
+              <p class="card__sub">Payment destination and verification policy</p>
+            </div>
+            <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="accounts-title">
+              <table class="data-table">
+                <caption class="visually-hidden">Receiving accounts</caption>
+                <thead><tr><th scope="col">Code</th><th scope="col">Institution</th><th scope="col">Account / number</th><th scope="col">Currency</th><th scope="col">Status</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">BANK-001</th><td data-label="Institution">Stanbic Bank</td><td data-label="Account / number">JITHUB-IT · UGX 4821</td><td data-label="Currency">UGX</td><td data-label="Status"><span class="pill pill--green">Active</span></td></tr>
+                  <tr><th scope="row">BANK-002</th><td data-label="Institution">Centenary Bank</td><td data-label="Account / number">JITHUB-IT · UGX 9014</td><td data-label="Currency">UGX</td><td data-label="Status"><span class="pill pill--green">Active</span></td></tr>
+                  <tr><th scope="row">MOMO-001</th><td data-label="Institution">MTN MoMo Collections</td><td data-label="Account / number">+256 77X XXX 456</td><td data-label="Currency">UGX</td><td data-label="Status"><span class="pill pill--green">Active</span></td></tr>
+                  <tr><th scope="row">AIR-001</th><td data-label="Institution">Airtel Money Collections</td><td data-label="Account / number">+256 75X XXX 789</td><td data-label="Currency">UGX</td><td data-label="Status"><span class="pill pill--green">Active</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="card" aria-labelledby="queue-title">
+            <div class="card__head">
+              <h3 class="card__title" id="queue-title">Reconciliation queue</h3>
+              <p class="card__sub">Unverified bank and mobile money payments</p>
+            </div>
+            <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="queue-title">
+              <table class="data-table">
+                <caption class="visually-hidden">Payments awaiting verification</caption>
+                <thead><tr><th scope="col">Payment</th><th scope="col">Party</th><th scope="col">Method</th><th scope="col">Date</th><th scope="col">Amount</th><th scope="col">Status</th></tr></thead>
+                <tbody>
+                  <tr><th scope="row">PMT-2026-092</th><td data-label="Party">Apex Logistics</td><td data-label="Method">MTN MoMo</td><td data-label="Date">19 Nov 2026</td><td class="amount" data-label="Amount">UGX 1.2M</td><td data-label="Status"><span class="pill pill--amber">Pending</span></td></tr>
+                  <tr><th scope="row">PMT-2026-091</th><td data-label="Party">Northstar</td><td data-label="Method">Bank transfer</td><td data-label="Date">18 Nov 2026</td><td class="amount" data-label="Amount">UGX 3.4M</td><td data-label="Status"><span class="pill pill--amber">Pending</span></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      var navLinks = document.querySelectorAll('.nav-link[data-screen]');
+      var crumbs = document.querySelectorAll('[data-crumb]');
+
+      function sync() {
+        var active = location.hash.replace('#', '') || 'screen-1';
+        navLinks.forEach(function (link) {
+          if (link.dataset.screen === active) link.setAttribute('aria-current', 'location');
+          else link.removeAttribute('aria-current');
+        });
+        crumbs.forEach(function (crumb) {
+          crumb.hidden = crumb.dataset.crumb !== active;
+        });
+      }
+
+      addEventListener('hashchange', sync);
+      sync();
+    })();
+  </script>
+</body>
+</html>

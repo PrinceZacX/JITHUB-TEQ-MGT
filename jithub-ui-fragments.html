@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>JITHUB UI — Fragment Reconstruction</title>
+
+  <!--
+    SOURCE OF TRUTH
+    Figma: https://www.figma.com/design/mb4ezUBhRmoP5TjIsaG2QD/JITHUB-TEQ-%7C-Finance---Business-Management?node-id=1-15&m=dev
+
+    This file reconstructs ONLY the component fragments available in the
+    conversation summary. Values labelled [FRAGMENT] came from that paste.
+    Values labelled [ASSUMED] are my defaults and should be replaced from
+    the Figma file before this is treated as pixel-accurate.
+
+    [FRAGMENT] Sidebar Navigation Item
+      width 220px; height 100px; padding 11px 12px 11px 13px;
+      gap 12px; border-radius 8px; icon #12B8A6; text #FFFFFF
+
+    [FRAGMENT] Data Table Row
+      width 900px; height 100px; padding 13px 14px; gap 12px
+
+    [FRAGMENT] Viewer card
+      width 240px; height 35px; background #F4F7FA; border-radius 7px;
+      text #172B4D (primary) and #718096 (secondary)
+  -->
+
+  <style>
+    :root {
+      /* Token values taken directly from the fragments. */
+      --nav-item-width: 220px;
+      --nav-item-height: 100px;
+      --accent: #12B8A6;
+      --nav-text: #FFFFFF;
+      --table-row-width: 900px;
+      --table-row-height: 100px;
+      --viewer-bg: #F4F7FA;
+      --viewer-text: #172B4D;
+      --viewer-text-muted: #718096;
+
+      /* Assumed supporting values — verify against Figma. */
+      --nav-surface: #101F31;
+      --page-bg: #F7F9FC;
+      --surface: #FFFFFF;
+      --border: #E3E9F0;
+      --text: #172B4D;
+      --focus-on-dark: #5FE3D3;
+      --focus-on-light: #0B6E63;
+      --font: system-ui, -apple-system, "Segoe UI", sans-serif;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--page-bg);
+      color: var(--text);
+      font-family: var(--font);
+      line-height: 1.5;
+    }
+
+    /* Keeps content available to keyboard users without permanent chrome. */
+    .visually-hidden:where(:not(:focus-within, :active)) {
+      position: absolute !important;
+      clip-path: inset(50%) !important;
+      overflow: hidden !important;
+      width: 1px !important;
+      height: 1px !important;
+      margin: -1px !important;
+      padding: 0 !important;
+      border: 0 !important;
+      white-space: nowrap !important;
+    }
+
+    .skip-link:focus-visible {
+      position: fixed;
+      inset-block-start: 0.5rem;
+      inset-inline-start: 0.5rem;
+      z-index: 10;
+      padding: 0.5rem 0.75rem;
+      background: var(--surface);
+      border-radius: 6px;
+    }
+
+    :where(a, button, [tabindex="0"], [tabindex="-1"]):focus-visible {
+      outline: 3px solid var(--focus-on-light);
+      outline-offset: 3px;
+    }
+
+    .layout {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: flex-start;
+      gap: 24px;
+      padding: 24px;
+    }
+
+    .preview-label {
+      margin: 0 0 8px;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      color: #5B6B7F; /* [ASSUMED] */
+    }
+
+    /* ------------------------------------------------------------------
+       1. Sidebar Navigation Item — [FRAGMENT] dimensions and colours
+       ------------------------------------------------------------------ */
+    .sidebar {
+      background: var(--nav-surface);
+      padding: 12px;
+      border-radius: 12px; /* [ASSUMED] */
+    }
+
+    .nav-list {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 8px; /* [ASSUMED] */
+    }
+
+    .jithub-nav-item {
+      box-sizing: border-box; /* keeps the [FRAGMENT] width/height inclusive of padding */
+      inline-size: var(--nav-item-width);
+      block-size: var(--nav-item-height);
+      padding: 11px 12px 11px 13px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-radius: 8px;
+      color: var(--nav-text);
+      text-decoration: none;
+      background: transparent;
+    }
+
+    .jithub-nav-item__icon {
+      flex: none;
+      inline-size: 24px; /* [ASSUMED] */
+      block-size: 24px; /* [ASSUMED] */
+      color: var(--accent);
+    }
+
+    .jithub-nav-item__label {
+      font-size: 14px; /* [ASSUMED] */
+      font-weight: 500; /* [ASSUMED] */
+    }
+
+    /* Current page: [ASSUMED] treatment; aria-current is the semantic hook. */
+    .jithub-nav-item[aria-current="page"] {
+      background: rgb(18 184 166 / 16%);
+      border-inline-start: 3px solid var(--accent);
+      padding-inline-start: 10px; /* 13px - 3px keeps content position stable */
+    }
+
+    .sidebar .jithub-nav-item:focus-visible {
+      outline-color: var(--focus-on-dark);
+    }
+
+    @media (forced-colors: active) {
+      .jithub-nav-item[aria-current="page"] {
+        border-inline-start-color: Highlight;
+      }
+    }
+
+    /* ------------------------------------------------------------------
+       2. Data Table Row — [FRAGMENT] dimensions and spacing
+       A native table is used so the row keeps real row/column semantics.
+       `<tr>` padding is ignored by table layout, so the 13px/14px padding
+       and 12px gap are expressed on the cells instead (6px + 6px = 12px).
+       ------------------------------------------------------------------ */
+    .table-wrapper {
+      overflow: auto;
+      max-inline-size: 100%;
+      max-block-size: min(500px, 80vh);
+      container-type: inline-size;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px; /* [ASSUMED] */
+    }
+
+    .jithub-table {
+      inline-size: var(--table-row-width);
+      max-inline-size: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+
+    .jithub-table caption {
+      text-align: start;
+      padding: 12px 14px; /* [ASSUMED] */
+      font-weight: 600; /* [ASSUMED] */
+    }
+
+    .jithub-table thead {
+      position: sticky;
+      inset-block-start: 0;
+      z-index: 1;
+      background: var(--surface);
+    }
+
+    .jithub-table thead th {
+      padding: 10px 6px; /* [ASSUMED] */
+      border-block-end: 1px solid var(--border);
+      text-align: start;
+      font-size: 12px; /* [ASSUMED] */
+      color: #5B6B7F; /* [ASSUMED] */
+      white-space: nowrap;
+    }
+
+    .jithub-table thead th:first-child { padding-inline-start: 14px; }
+    .jithub-table thead th:last-child { padding-inline-end: 14px; }
+
+    .jithub-table tbody th {
+      position: sticky;
+      inset-inline-start: 0;
+      z-index: 0;
+      background: var(--surface);
+    }
+
+    .jithub-table tbody tr > * {
+      box-sizing: border-box;
+      block-size: var(--table-row-height);
+      padding-block: 13px;
+      padding-inline: 6px;
+      border-block-end: 1px solid var(--border);
+      text-align: start;
+      white-space: nowrap;
+    }
+
+    .jithub-table tbody tr > :first-child { padding-inline-start: 14px; }
+    .jithub-table tbody tr > :last-child { padding-inline-end: 14px; }
+
+    /* Adapt to the table's own width, not the viewport. */
+    @container (width < 600px) {
+      .jithub-table,
+      .jithub-table thead,
+      .jithub-table tbody,
+      .jithub-table tr,
+      .jithub-table th,
+      .jithub-table td {
+        display: block;
+      }
+
+      .jithub-table thead { display: none; }
+
+      .jithub-table tbody tr {
+        margin-block-end: 1rem;
+        border-block-start: 1px solid var(--border);
+      }
+
+      .jithub-table tbody tr > * {
+        block-size: auto;
+        white-space: normal;
+      }
+
+      .jithub-table tbody th {
+        position: static;
+        font-weight: 600;
+      }
+
+      .jithub-table {
+        --label-2: "Role";
+        --label-3: "Status";
+      }
+
+      .jithub-table td:nth-child(2)::before { content: var(--label-2) ": "; }
+      .jithub-table td:nth-child(3)::before { content: var(--label-3) ": "; }
+    }
+
+    /* ------------------------------------------------------------------
+       3. Viewer card — [FRAGMENT] dimensions and colours
+       ------------------------------------------------------------------ */
+    .jithub-viewer-card {
+      box-sizing: border-box;
+      inline-size: 240px;
+      block-size: 35px;
+      background: var(--viewer-bg);
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      gap: 8px; /* [ASSUMED] */
+      padding-inline: 10px; /* [ASSUMED] */
+      font-size: 12px; /* [ASSUMED] */
+      overflow: hidden;
+    }
+
+    .jithub-viewer-card__primary {
+      color: var(--viewer-text);
+      font-weight: 600; /* [ASSUMED] */
+    }
+
+    .jithub-viewer-card__meta {
+      color: var(--viewer-text-muted);
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+
+<body>
+  <a class="skip-link visually-hidden" href="#main">Skip to content</a>
+
+  <div class="layout">
+    <aside class="sidebar" aria-labelledby="nav-heading">
+      <h2 class="preview-label" id="nav-heading">Sidebar navigation item</h2>
+      <nav aria-label="Primary">
+        <ul class="nav-list">
+          <li>
+            <a class="jithub-nav-item" href="#main" aria-current="page">
+              <svg class="jithub-nav-item__icon" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path d="M4 11h6V4H4v7Zm0 9h6v-7H4v7Zm10 0h6v-9h-6v9Zm0-16v7h6V4h-6Z"/>
+              </svg>
+              <span class="jithub-nav-item__label">Dashboard</span>
+            </a>
+          </li>
+          <li>
+            <a class="jithub-nav-item" href="#documents">
+              <svg class="jithub-nav-item__icon" viewBox="0 0 24 24" fill="none"
+                   stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                <path d="M6 3h8l4 4v14H6V3Zm8 0v4h4"/>
+              </svg>
+              <span class="jithub-nav-item__label">Documents</span>
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </aside>
+
+    <main id="main" tabindex="-1">
+      <h1 class="visually-hidden">JITHUB UI fragment preview</h1>
+
+      <section aria-labelledby="table-heading">
+        <h2 class="preview-label" id="table-heading">Data table row</h2>
+        <div class="table-wrapper" tabindex="0" role="region" aria-labelledby="documents-caption">
+          <table class="jithub-table">
+            <caption id="documents-caption">Documents</caption>
+            <thead>
+              <tr>
+                <th scope="col">Document</th>
+                <th scope="col">Role</th>
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Q3 management report</th>
+                <td>Viewer</td>
+                <td>In review</td>
+              </tr>
+              <tr>
+                <th scope="row">Board minutes</th>
+                <td>Editor</td>
+                <td>Approved</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section aria-labelledby="viewer-heading">
+        <h2 class="preview-label" id="viewer-heading">Viewer card</h2>
+        <div class="jithub-viewer-card">
+          <span class="jithub-viewer-card__primary">Viewer</span>
+          <span class="jithub-viewer-card__meta">Document access</span>
+        </div>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

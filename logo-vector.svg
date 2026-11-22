@@ -1,0 +1,81 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256">
+  <defs>
+    <!-- Brand colors -->
+    <linearGradient id="grad-teal" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2dd4bf"/>
+      <stop offset="100%" stop-color="#0f766e"/>
+    </linearGradient>
+    <linearGradient id="grad-deep" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#14b8a6"/>
+      <stop offset="100%" stop-color="#0d4f56"/>
+    </linearGradient>
+    <linearGradient id="grad-copper" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#ea580c"/>
+      <stop offset="100%" stop-color="#c2410c"/>
+    </linearGradient>
+    <linearGradient id="grad-metallic" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#cbd5e1"/>
+      <stop offset="50%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#cbd5e1"/>
+    </linearGradient>
+    <linearGradient id="grad-metallic-dim" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#94a3b8"/>
+      <stop offset="100%" stop-color="#64748b"/>
+    </linearGradient>
+    <filter id="soft-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6"/>
+      <feOffset dx="0" dy="4" result="offsetblur"/>
+      <feComponentTransfer>
+        <feFuncA type="linear" slope="0.35"/>
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- ============ SYMBOL MARK ============ -->
+  <g filter="url(#soft-shadow)">
+
+    <!-- Q-ring (outer circular band) -->
+    <path d="M 76 94 Q 76 130 94 142 Q 112 154 140 142 Q 168 130 168 94 Q 168 58 140 46 Q 112 34 84 46 Q 58 58 58 94" fill="url(#grad-deep)"/>
+    <path d="M 76 94 Q 76 130 94 142 Q 112 154 140 142 Q 168 130 168 94 Q 168 58 140 46 Q 112 34 84 46 Q 58 58 58 94" fill="none" stroke="url(#grad-teal)" stroke-width="24" stroke-linejoin="round"/>
+
+    <!-- Q tail -->
+    <path d="M 140 142 Q 160 152 192 148 Q 216 144 224 140 Q 228 136 224 130 Q 192 136 164 142 Q 150 144 140 142" fill="url(#grad-deep)"/>
+    <path d="M 140 142 Q 160 152 192 148 Q 216 144 224 140 Q 228 136 224 130 Q 192 136 164 142 Q 150 144 140 142" fill="none" stroke="url(#grad-teal)" stroke-width="20" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Vertical stem / T -->
+    <path d="M 106 40 Q 106 120 106 160 Q 106 176 122 160 Q 138 144 138 100 Q 138 56 122 40 Q 106 40 106 40" fill="url(#grad-teal)"/>
+    <path d="M 106 40 Q 106 120 106 160 Q 106 176 122 160 Q 138 144 138 100 Q 138 56 122 40 Q 106 40 106 40" fill="none" stroke="#14b8a6" stroke-width="18" stroke-linejoin="round"/>
+
+    <!-- T crossbar -->
+    <path d="M 72 90 Q 90 90 106 90 Q 122 90 140 90 Q 158 90 158 106 Q 158 122 140 122 Q 122 122 106 122 Q 90 122 72 122 Q 72 106 72 90 Z" fill="url(#grad-teal)"/>
+
+    <!-- J curve on left -->
+    <path d="M 58 138 Q 58 152 74 160 Q 90 168 106 160 Q 106 144 94 140 Q 76 136 58 138 Z" fill="url(#grad-deep)"/>
+    <path d="M 82 134 Q 70 134 58 138 Q 58 152 74 160 Q 90 168 106 160 Q 114 160 114 148 Q 114 136 106 134 Q 94 134 82 134 Z" fill="none" stroke="url(#grad-teal)" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Copper accent sliver inside -->
+    <path d="M 100 102 Q 106 94 112 102 Q 112 140 106 140 Q 100 140 100 102 Z" fill="url(#grad-copper)"/>
+
+    <!-- Top crown cap -->
+    <path d="M 80 70 Q 80 62 90 60 Q 100 58 106 62 Q 106 68 100 70 Q 90 70 80 70 Z" fill="url(#grad-teal)"/>
+
+  </g>
+
+  <!-- ============ WORDMARK ============ -->
+  <g transform="translate(0, 30)">
+    <text x="128" y="36" font-family="Georgia, serif" font-size="30" font-weight="700" letter-spacing="6" fill="url(#grad-metallic)" text-anchor="middle" filter="url(#soft-shadow)">JITHUB-TEQ</text>
+  </g>
+
+  <!-- ============ TAGLINE ============ -->
+  <g transform="translate(0, 52)">
+    <text x="128" y="16" font-family="Georgia, serif" font-size="11" font-weight="400" letter-spacing="3" fill="url(#grad-metallic-dim)" text-anchor="middle" filter="url(#soft-shadow)">BEYOND TECHNOLOGY &bull; WE BUILD TRUST</text>
+  </g>
+
+  <!-- Divider line -->
+  <path d="M 100 70 Q 128 70 156 70" fill="none" stroke="#64748b" stroke-width="1" stroke-opacity="0.5"/>
+
+</svg>
