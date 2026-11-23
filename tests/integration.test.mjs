@@ -166,12 +166,12 @@ test('updateBusiness audits changes', () => {
 /* Integration: Logo upload validation                                */
 /* ------------------------------------------------------------------ */
 
-test('logo upload validates file size', () => {
-  assert.match(logoRoute, /if \(file\.size > MAX_FILE_SIZE\) throw new Error\('Logo must be 2 MB or smaller\.'\)/)
+test('logo upload validates file size with a client-safe response', () => {
+  assert.match(logoRoute, /if \(file\.size > MAX_FILE_SIZE\) return NextResponse\.json\(\{ error: 'Logo must be 2 MB or smaller\.' \}, \{ status: 400 \}\)/)
 })
 
-test('logo upload validates MIME type', () => {
-  assert.match(logoRoute, /if \(!ALLOWED_MIME_TYPES\.includes\(file\.type\)\) throw new Error\('Unsupported file type\./)
+test('logo upload validates MIME type with a client-safe response', () => {
+  assert.match(logoRoute, /if \(!ALLOWED_MIME_TYPES\.includes\(file\.type\)\) return NextResponse\.json\(\{ error: 'Unsupported file type\./)
 })
 
 test('logo upload validates actual image format via magic bytes', () => {
@@ -181,5 +181,5 @@ test('logo upload validates actual image format via magic bytes', () => {
 })
 
 test('logo upload requires business.settings permission', () => {
-  assert.match(logoRoute, /requirePermission\(membership\.role as any, 'business\.settings'\)/)
+  assert.match(logoRoute, /requirePermission\(membership\.role as Parameters<typeof requirePermission>\[0\], 'business\.settings'\)/)
 })

@@ -17,6 +17,7 @@ import { LiveResultCount } from './ui/LiveResultCount'
 type Data = Awaited<ReturnType<typeof import('@/app/actions/finance').getDashboardData>>
 export type Section = 'Dashboard' | 'Invoices' | 'Payments' | 'Receipts' | 'Refunds' | 'Customers' | 'Suppliers' | 'Purchase Orders' | 'Goods Receipts' | 'Stock Movements' | 'Products & services' | 'Expenses' | 'Reports' | 'Notifications' | 'User management' | 'Audit logs' | 'Settings'
 type CatalogueItem = Data['catalogue'][number]
+type BusinessEdit = { name: string; legalName: string; email: string; phone: string; address: string; city: string; country: string; currency: string; receiptPrefix: string; invoicePrefix: string }
 const navigation: { label: Section; icon: typeof LayoutDashboard; group: string }[] = [
   { label: 'Dashboard', icon: LayoutDashboard, group: 'WORKSPACE' }, { label: 'Invoices', icon: FileText, group: 'WORKSPACE' }, { label: 'Payments', icon: CreditCard, group: 'WORKSPACE' }, { label: 'Refunds', icon: FileClock, group: 'WORKSPACE' }, { label: 'Receipts', icon: ReceiptText, group: 'WORKSPACE' }, { label: 'Customers', icon: Users, group: 'WORKSPACE' }, { label: 'Suppliers', icon: Building2, group: 'WORKSPACE' }, { label: 'Purchase Orders', icon: ClipboardList, group: 'WORKSPACE' }, { label: 'Goods Receipts', icon: Package, group: 'WORKSPACE' }, { label: 'Stock Movements', icon: WalletCards, group: 'WORKSPACE' }, { label: 'Products & services', icon: Package, group: 'MANAGE' }, { label: 'Expenses', icon: WalletCards, group: 'MANAGE' }, { label: 'Reports', icon: Activity, group: 'MANAGE' }, { label: 'Notifications', icon: Bell, group: 'ADMINISTRATION' }, { label: 'User management', icon: ShieldCheck, group: 'ADMINISTRATION' }, { label: 'Audit logs', icon: FileClock, group: 'ADMINISTRATION' }, { label: 'Settings', icon: Settings2, group: 'ADMINISTRATION' },
 ]
@@ -55,7 +56,7 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
   const [busy, setBusy] = useState(false)
   const [voidingReceiptId, setVoidingReceiptId] = useState('')
   const [cancellingInvoiceId, setCancellingInvoiceId] = useState('')
-  const [businessEdit, setBusinessEdit] = useState<{ name: string; email: string; phone: string; address: string; city: string; country: string; currency: string; receiptPrefix: string; invoicePrefix: string } | null>(null)
+  const [businessEdit, setBusinessEdit] = useState<BusinessEdit | null>(null)
   const [businesses, setBusinesses] = useState<{ id: string; name: string; role: string }[]>([])
   const [businessesLoading, setBusinessesLoading] = useState(false)
   const [businessSwitcherOpen, setBusinessSwitcherOpen] = useState(false)
@@ -437,7 +438,7 @@ function CustomerList({ customers }: { customers: Data['customers'] }) { return 
 function CustomerTable({ customers, onEdit }: { customers: Data['customers']; onEdit: (customer: Data['customers'][number]) => void }) { return <div className="invoice-table-wrap"><table className="data-table"><thead><tr><th>CUSTOMER</th><th>EMAIL</th><th>PHONE</th><th>ADDED</th><th>STATUS</th><th><span className="sr-only">Actions</span></th></tr></thead><tbody>{customers.map((customer) => <tr key={customer.id}><td><span className="customer-cell"><span className="customer-avatar">{customer.name.slice(0, 1).toUpperCase()}</span><strong>{customer.name}</strong></span></td><td>{customer.email || '—'}</td><td>{customer.phone || '—'}</td><td>{new Date(customer.createdAt).toLocaleDateString('en-GB')}</td><td><Status status="active"/></td><td><button type="button" className="row-action" onClick={() => onEdit(customer)} aria-label={`Edit ${customer.name}`}><Settings2 size={15}/></button></td></tr>)}</tbody></table>{!customers.length && <EmptyRows label="Your customer directory is ready when you are."/>}</div> }
 function Status({ status }: { status: string }) { return <span className={`status-pill status-${status.replaceAll('_', '-')}`}><i/>{titleCase(status)}</span> }
 function EmptyRows({ label }: { label: string }) { return <div className="empty-rows"><span className="empty-dot"><BookOpenCheck size={17}/></span><p>{label}</p></div> }
-function ModulePanel({ section, data, business, businessEdit, setBusinessEdit, saveBusinessSettings, busy, onCreateExpense }: { section: Section; data: Data; business: Data['business'] | undefined; businessEdit: { name: string; email: string; phone: string; address: string; city: string; country: string; currency: string; receiptPrefix: string; invoicePrefix: string } | null; setBusinessEdit: (value: { name: string; email: string; phone: string; address: string; city: string; country: string; currency: string; receiptPrefix: string; invoicePrefix: string } | null) => void; saveBusinessSettings: () => void; busy: boolean; onCreateExpense: () => void }) {
+function ModulePanel({ section, data, business, businessEdit, setBusinessEdit, saveBusinessSettings, busy, onCreateExpense }: { section: Section; data: Data; business: Data['business'] | undefined; businessEdit: BusinessEdit | null; setBusinessEdit: (value: BusinessEdit | null) => void; saveBusinessSettings: () => void; busy: boolean; onCreateExpense: () => void }) {
   const [reportDays, setReportDays] = useState<'30' | '90' | '365' | 'all'>('all')
   const [reportData, setReportData] = useState<Awaited<ReturnType<typeof getFinancialReport>> | null>(null)
   const [reportError, setReportError] = useState('')
@@ -485,10 +486,10 @@ function ModulePanel({ section, data, business, businessEdit, setBusinessEdit, s
     'Settings': [BriefcaseBusiness, 'Business profile', 'Configure your business identity, branding and document numbering.'],
   }
   const [Icon, title, description] = copy[section] || [Package, section, 'Keep your business operations organized.']
-  return <div className="module-card"><span className="module-icon"><Icon size={21}/></span><div><span className="panel-eyebrow">BUSINESS WORKSPACE</span><h2>{title}</h2><p>{description}</p>{section === 'Settings' && <div className="settings-section"><BusinessSettingsForm business={business} onEdit={() => setBusinessEdit({ name: business?.name || '', email: business?.email || '', phone: business?.phone || '', address: business?.address || '', city: business?.city || '', country: business?.country || 'Uganda', currency: business?.currency || 'UGX', receiptPrefix: business?.receiptPrefix || 'RCP', invoicePrefix: business?.invoicePrefix || 'INV' })} editing={businessEdit} onSave={saveBusinessSettings} onCancel={() => setBusinessEdit(null)} busy={busy} /><div className="members-link" style={{ marginTop: 20 }}><a href={`/business/members/${business?.id}`} className="button-secondary"><Plus size={15}/> Manage business members</a></div></div>}</div><span className="module-decoration"><Building2 size={90}/></span></div>
+  return <div className="module-card"><span className="module-icon"><Icon size={21}/></span><div><span className="panel-eyebrow">BUSINESS WORKSPACE</span><h2>{title}</h2><p>{description}</p>{section === 'Settings' && <div className="settings-section"><BusinessSettingsForm business={business} setBusinessEdit={setBusinessEdit} onEdit={() => setBusinessEdit({ name: business?.name || '', legalName: business?.legalName || '', email: business?.email || '', phone: business?.phone || '', address: business?.address || '', city: business?.city || '', country: business?.country || 'Uganda', currency: business?.currency || 'UGX', receiptPrefix: business?.receiptPrefix || 'RCP', invoicePrefix: business?.invoicePrefix || 'INV' })} editing={businessEdit} onSave={saveBusinessSettings} onCancel={() => setBusinessEdit(null)} busy={busy} /><div className="members-link" style={{ marginTop: 20 }}><a href={`/business/members/${business?.id}`} className="button-secondary"><Plus size={15}/> Manage business members</a></div></div>}</div><span className="module-decoration"><Building2 size={90}/></span></div>
 }
 
-function BusinessSettingsForm({ business, onEdit, editing, onSave, onCancel, busy }: { business: Data['business'] | undefined; onEdit: () => void; editing: { name: string; email: string; phone: string; address: string; city: string; country: string; currency: string; receiptPrefix: string; invoicePrefix: string } | null; onSave: () => void; onCancel: () => void; busy: boolean }) {
+function BusinessSettingsForm({ business, setBusinessEdit, onEdit, editing, onSave, onCancel, busy }: { business: Data['business'] | undefined; setBusinessEdit: (value: BusinessEdit | null) => void; onEdit: () => void; editing: BusinessEdit | null; onSave: () => void; onCancel: () => void; busy: boolean }) {
   const [logoUploading, setLogoUploading] = useState(false)
   const [logoUrl, setLogoUrl] = useState<string | null>(business?.logoUrl || null)
 
@@ -496,7 +497,7 @@ function BusinessSettingsForm({ business, onEdit, editing, onSave, onCancel, bus
     const file = event.target.files?.[0]
     if (!file) return
     if (file.size > 2 * 1024 * 1024) { alert('Logo must be 2 MB or smaller.'); return }
-    if (!['image/png', 'image/jpeg', 'image/jpg', 'image/webp', 'image/svg+xml'].includes(file.type)) { alert('Unsupported file type. Use PNG, JPEG, WebP or SVG.'); return }
+    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) { alert('Unsupported file type. Use PNG, JPEG or WebP.'); return }
     setLogoUploading(true)
     try {
       const formData = new FormData()
@@ -510,6 +511,7 @@ function BusinessSettingsForm({ business, onEdit, editing, onSave, onCancel, bus
   }
   const initial = {
     name: business?.name || '',
+    legalName: business?.legalName || '',
     email: business?.email || '',
     phone: business?.phone || '',
     address: business?.address || '',
@@ -520,9 +522,25 @@ function BusinessSettingsForm({ business, onEdit, editing, onSave, onCancel, bus
     invoicePrefix: business?.invoicePrefix || 'INV',
   }
   const values = editing ?? initial
+  function updateField(field: keyof BusinessEdit, value: string) {
+    if (editing) setBusinessEdit({ ...editing, [field]: value })
+  }
+  async function removeLogo() {
+    try {
+      const response = await fetch('/api/upload/logo', { method: 'DELETE' })
+      if (!response.ok) {
+        const result = await response.json().catch(() => ({}))
+        throw new Error(result.error || 'Logo removal failed.')
+      }
+      setLogoUrl(null)
+    } catch (cause) {
+      alert(cause instanceof Error ? cause.message : 'Logo removal failed.')
+    }
+  }
+  useEffect(() => setLogoUrl(business?.logoUrl || null), [business?.logoUrl])
   return <div className="panel data-panel"><div className="panel-heading"><div><span className="panel-eyebrow">BUSINESS PROFILE</span><h2>Business Settings</h2></div>{editing ? <button className="primary-button" onClick={onCancel}><X size={15}/> Cancel</button> : <button className="primary-button" onClick={onEdit}><Plus size={15}/> Edit profile</button>}</div>
-  {editing && <div className="setting-rows"><label className="logo-upload"><span>Business logo</span><input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={handleLogoUpload} disabled={logoUploading}/>{logoUploading ? <span>Uploading…</span> : null}</label>{logoUrl && <div className="logo-preview"><img src={logoUrl} alt="Business logo" style={{ maxWidth: 120, maxHeight: 60, marginTop: 8 }}/><button className="button-secondary" type="button" onClick={() => setLogoUrl(null)} style={{ marginTop: 6 }}>Remove</button></div>}</div>}
-  <form onSubmit={(event) => { event.preventDefault(); onSave() }} className="modal-form"><div className="form-two"><label>Business name<input name="name" defaultValue={values.name} required minLength={2} maxLength={160} disabled={!editing}/></label><label>Legal name<input name="legalName" defaultValue={business?.legalName || ''} disabled={!editing}/></label></div><div className="form-two"><label>Email<input name="email" type="email" defaultValue={values.email} disabled={!editing}/></label><label>Phone<input name="phone" defaultValue={values.phone} disabled={!editing}/></label></div><div className="form-two"><label>Address<input name="address" defaultValue={values.address} disabled={!editing}/></label><label>City<input name="city" defaultValue={values.city} disabled={!editing}/></label></div><div className="form-two"><label>Country<input name="country" defaultValue={values.country} disabled={!editing}/></label><label>Currency<input name="currency" defaultValue={values.currency} disabled={!editing}/></label></div><div className="form-two"><label>Receipt prefix<input name="receiptPrefix" defaultValue={values.receiptPrefix} maxLength={10} disabled={!editing}/></label><label>Invoice prefix<input name="invoicePrefix" defaultValue={values.invoicePrefix} maxLength={10} disabled={!editing}/></label></div>{editing && <div className="modal-actions"><button className="button-secondary" type="button" onClick={onCancel}>Cancel</button><button className="primary-button" type="submit">{busy ? 'Saving…' : 'Save profile'}</button></div>}</form></div>
+  {editing && <div className="setting-rows"><label className="logo-upload"><span>Business logo</span><input type="file" accept="image/png,image/jpeg,image/webp" onChange={handleLogoUpload} disabled={logoUploading}/>{logoUploading ? <span>Uploading…</span> : null}</label>{logoUrl && <div className="logo-preview"><img src={logoUrl} alt="Business logo" style={{ maxWidth: 120, maxHeight: 60, marginTop: 8 }}/><button className="button-secondary" type="button" onClick={removeLogo} disabled={logoUploading || busy} style={{ marginTop: 6 }}>Remove</button></div>}</div>}
+  <form onSubmit={(event) => { event.preventDefault(); onSave() }} className="modal-form"><div className="form-two"><label>Business name<input name="name" value={values.name} onChange={(event) => updateField('name', event.target.value)} required minLength={2} maxLength={160} disabled={!editing}/></label><label>Legal name<input name="legalName" value={values.legalName} onChange={(event) => updateField('legalName', event.target.value)} disabled={!editing}/></label></div><div className="form-two"><label>Email<input name="email" type="email" value={values.email} onChange={(event) => updateField('email', event.target.value)} disabled={!editing}/></label><label>Phone<input name="phone" value={values.phone} onChange={(event) => updateField('phone', event.target.value)} disabled={!editing}/></label></div><div className="form-two"><label>Address<input name="address" value={values.address} onChange={(event) => updateField('address', event.target.value)} disabled={!editing}/></label><label>City<input name="city" value={values.city} onChange={(event) => updateField('city', event.target.value)} disabled={!editing}/></label></div><div className="form-two"><label>Country<input name="country" value={values.country} onChange={(event) => updateField('country', event.target.value)} disabled={!editing}/></label><label>Currency<input name="currency" value={values.currency} onChange={(event) => updateField('currency', event.target.value)} disabled={!editing}/></label></div><div className="form-two"><label>Receipt prefix<input name="receiptPrefix" value={values.receiptPrefix} onChange={(event) => updateField('receiptPrefix', event.target.value)} maxLength={10} disabled={!editing}/></label><label>Invoice prefix<input name="invoicePrefix" value={values.invoicePrefix} onChange={(event) => updateField('invoicePrefix', event.target.value)} maxLength={10} disabled={!editing}/></label></div>{editing && <div className="modal-actions"><button className="button-secondary" type="button" onClick={onCancel}>Cancel</button><button className="primary-button" type="submit">{busy ? 'Saving…' : 'Save profile'}</button></div>}</form></div>
 }
 
 function RefundsPanel({ refunds, onRequestRefund, onDecideRefund, onCompleteRefund, busy }: { refunds: Data['refunds']; onRequestRefund: (amount: string, reason: string, method: string, reference: string, paymentId: string) => void; onDecideRefund: (refundId: string, approve: boolean) => void; onCompleteRefund: (refundId: string) => void; busy: boolean }) {

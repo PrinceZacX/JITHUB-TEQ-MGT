@@ -6,7 +6,5 @@ minimumReleaseAgeExclude:
 
 ignoreScripts: false
 
-enableScripts: true
-
 allowBuilds:
   esbuild: true
