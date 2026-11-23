@@ -41,16 +41,25 @@ export function AuthScreen({ authAvailable }: { authAvailable: boolean }) {
     const email = String(form.get('email') || '').trim()
     const password = String(form.get('password') || '')
     const name = String(form.get('name') || '').trim()
-    const result = mode === 'sign-up'
-      ? await authClient.signUp.email({ email, password, name })
-      : await authClient.signIn.email({ email, password })
-    setPending(false)
-    if (result.error) {
-      setError('We could not verify those details. Check your information and try again.')
-      return
+
+    try {
+      const result = mode === 'sign-up'
+        ? await authClient.signUp.email({ email, password, name })
+        : await authClient.signIn.email({ email, password })
+
+      if (result.error) {
+        const code = result.error.code || 'AUTH_FAILED'
+        setError(`Sign-in failed (${code}). Check your details or contact the platform administrator.`)
+        return
+      }
+
+      router.push('/')
+      router.refresh()
+    } catch {
+      setError('The authentication service did not return a valid response. Please try again.')
+    } finally {
+      setPending(false)
     }
-    router.push('/')
-    router.refresh()
   }
 
   return <main className="auth-screen">
