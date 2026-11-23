@@ -1,9 +1,10 @@
 /**
  * Environment validation for the JITHUB-TEQ Management System.
  *
- * Validates DATABASE_URL and other required configuration. Validation is
- * intentionaly lazy (invoke `loadEnv()`) so that the Next.js build step
- * is not blocked when DATABASE_URL is only available at runtime.
+ * Validation is lazy at the configuration boundary so build tooling can
+ * import this module without requiring runtime secrets. The database layer
+ * calls getDatabaseUrl() before constructing a pool, so missing or invalid
+ * configuration never falls back to localhost.
  *
  * Sensitive values are never logged.
  */
@@ -40,12 +41,37 @@ function maskUrl(url: string): string {
 }
 
 export function getDatabaseUrl(): string {
-  const databaseUrl = process.env.DATABASE_URL
+  const databaseUrl = process.env.DATABASE_URL?.trim()
 
   if (!databaseUrl) {
     throw new Error(
-      'DATABASE_URL is not configured. Set DATABASE_URL to the intended PostgreSQL database for this environment.',
+      'DATABASE_URL is not configured. Set it to the intended PostgreSQL database for this environment.',
     )
+  }
+
+  let parsed: URL
+  try {
+    parsed = new URL(databaseUrl)
+  } catch {
+    throw new Error('DATABASE_URL must be a valid PostgreSQL connection URL.')
+  }
+
+  if (parsed.protocol !== 'postgres:' && parsed.protocol !== 'postgresql:') {
+    throw new Error('DATABASE_URL must use the postgres:// or postgresql:// protocol.')
+  }
+
+  if (!parsed.hostname || !parsed.pathname || parsed.pathname === '/') {
+    throw new Error('DATABASE_URL must include a database host and database name.')
+  }
+
+  const hostname = parsed.hostname.toLowerCase()
+  const isLoopback = hostname === 'localhost'
+    || hostname === '127.0.0.1'
+    || hostname === '::1'
+    || hostname === '[::1]'
+
+  if (process.env.VERCEL && isLoopback) {
+    throw new Error('DATABASE_URL must point to the configured remote database in Vercel, not localhost.')
   }
 
   return databaseUrl
