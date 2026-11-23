@@ -1,6 +1,6 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { auth } from '@/lib/auth'
+import { getSession } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { businesses } from '@/lib/db/schema'
 import { eq } from 'drizzle-orm'
@@ -34,7 +34,7 @@ interface PlatformSummary {
 }
 
 async function getPlatformData() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await getSession({ headers: await headers() })
   if (!session?.user) redirect('/sign-in')
 
   const data = await getPlatformDashboardData()

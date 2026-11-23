@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto'
 import { headers } from 'next/headers'
 import { NextResponse } from 'next/server'
 import { and, eq, sql } from 'drizzle-orm'
-import { auth } from '@/lib/auth'
+import { getSession } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { auditLogs, businesses, businessMemberships } from '@/lib/db/schema'
 import { requirePermission } from '@/lib/permissions'
@@ -15,7 +15,7 @@ const MAX_FILE_SIZE = 2 * 1024 * 1024
 const ALLOWED_MIME_TYPES = ['image/png', 'image/jpeg', 'image/webp']
 
 async function requireBusinessContext() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await getSession({ headers: await headers() })
   if (!session?.user) throw new Error('Please sign in to continue.')
   const [membership] = await db
     .select({ businessId: businessMemberships.businessId, role: businessMemberships.role })

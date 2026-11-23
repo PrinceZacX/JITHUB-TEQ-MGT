@@ -6,6 +6,22 @@ const finance = fs.readFileSync(new URL('../app/actions/finance.ts', import.meta
 const permissions = fs.readFileSync(new URL('../lib/permissions.ts', import.meta.url), 'utf8')
 const schema = fs.readFileSync(new URL('../lib/db/schema.ts', import.meta.url), 'utf8')
 const logoRoute = fs.readFileSync(new URL('../app/api/upload/logo/route.ts', import.meta.url), 'utf8')
+const auth = fs.readFileSync(new URL('../lib/auth.ts', import.meta.url), 'utf8')
+const authRoute = fs.readFileSync(new URL('../app/api/auth/[...all]/route.ts', import.meta.url), 'utf8')
+const homePage = fs.readFileSync(new URL('../app/page.tsx', import.meta.url), 'utf8')
+
+/* ------------------------------------------------------------------ */
+/* Integration: Database configuration guard                          */
+/* ------------------------------------------------------------------ */
+
+test('session and auth endpoints validate database configuration before querying', () => {
+  const sessionGuard = auth.match(/export async function getSession[\s\S]*?\n\}/)
+  assert.ok(sessionGuard, 'server session helper should exist')
+  assert.ok(sessionGuard[0].indexOf('loadEnv()') < sessionGuard[0].indexOf('return auth.api.getSession'))
+  assert.match(authRoute, /loadEnv\(\)/)
+  assert.match(homePage, /getSession\(/)
+  assert.doesNotMatch(homePage, /auth\.api\.getSession/)
+})
 
 /* ------------------------------------------------------------------ */
 /* Integration: Money calculations                                    */

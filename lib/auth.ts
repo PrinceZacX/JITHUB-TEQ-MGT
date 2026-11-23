@@ -1,5 +1,6 @@
 import { betterAuth } from 'better-auth'
 import { pool } from '@/lib/db'
+import { loadEnv } from '@/lib/env'
 import { sendPasswordRecoveryEmail, sendSecurityNotification, sendVerificationEmail } from '@/lib/email'
 
 const origin = (host?: string) => host ? `https://${host}` : undefined
@@ -52,3 +53,8 @@ export const auth = betterAuth({
   session: { expiresIn: 60 * 60 * 24 * 7, updateAge: 60 * 60 * 24 },
   ...(process.env.NODE_ENV === 'development' ? { advanced: { defaultCookieAttributes: { sameSite: 'none' as const, secure: true } } } : {}),
 })
+
+export async function getSession(options: Parameters<typeof auth.api.getSession>[0]) {
+  loadEnv()
+  return auth.api.getSession(options)
+}

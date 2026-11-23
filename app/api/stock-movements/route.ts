@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { headers } from 'next/headers'
-import { auth } from '@/lib/auth'
+import { getSession } from '@/lib/auth'
 import { db } from '@/lib/db'
 import { stockMovements, businessMemberships } from '@/lib/db/schema'
 import { eq, and, desc } from 'drizzle-orm'
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 
 export async function GET() {
   loadEnv()
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await getSession({ headers: await headers() })
   if (!session?.user) return new Response('Unauthorized', { status: 401 })
 
   // Resolve user's active business

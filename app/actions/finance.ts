@@ -1,6 +1,6 @@
 'use server'
 
-import { auth } from '@/lib/auth'
+import { getSession } from '@/lib/auth'
 import { db } from '@/lib/db'
 import {
   auditLogs, businesses, businessMemberships, businessRoles, catalogueItems, customers,
@@ -23,7 +23,7 @@ import { sendInvoiceEmail, sendReceiptEmail } from '@/lib/email'
 const moneyPattern = /^\d{1,12}(\.\d{1,2})?$/
 
 async function requireUser(): Promise<string> {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await getSession({ headers: await headers() })
   if (!session?.user) throw new Error('Please sign in to continue.')
   return session.user.id
 }
@@ -75,7 +75,6 @@ function safeDate(value: Date | string | null): string {
 }
 
 async function requireBusiness(businessId?: string) {
-  loadEnv()
   const userId = await requireUser()
 
   // Platform owner: can access platform administration without a business.

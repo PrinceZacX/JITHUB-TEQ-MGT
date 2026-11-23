@@ -39,14 +39,20 @@ function maskUrl(url: string): string {
   }
 }
 
-export function loadEnv(): EnvConfig {
+export function getDatabaseUrl(): string {
   const databaseUrl = process.env.DATABASE_URL
 
   if (!databaseUrl) {
     throw new Error(
-      'DATABASE_URL is not configured. Set DATABASE_URL to a Neon connection string for this environment.',
+      'DATABASE_URL is not configured. Set DATABASE_URL to the intended PostgreSQL database for this environment.',
     )
   }
+
+  return databaseUrl
+}
+
+export function loadEnv(): EnvConfig {
+  const databaseUrl = getDatabaseUrl()
 
   if ((isDev || isTest) && databaseUrl.includes('.prod.')) {
     throw new Error(

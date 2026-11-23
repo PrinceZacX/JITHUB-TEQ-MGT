@@ -1,12 +1,12 @@
 import { headers } from 'next/headers'
 import { redirect } from 'next/navigation'
-import { auth } from '@/lib/auth'
+import { getSession } from '@/lib/auth'
 import { getDashboardData } from '@/app/actions/finance'
 import { Dashboard } from '@/components/dashboard'
 import { NoBusinessPrompt } from '@/components/no-business-prompt'
 
 export default async function Page() {
-  const session = await auth.api.getSession({ headers: await headers() })
+  const session = await getSession({ headers: await headers() })
   if (!session?.user) redirect('/sign-in')
 
   // Platform owners can still access the workspace dashboard directly.
