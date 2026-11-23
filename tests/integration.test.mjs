@@ -7,6 +7,10 @@ const permissions = fs.readFileSync(new URL('../lib/permissions.ts', import.meta
 const schema = fs.readFileSync(new URL('../lib/db/schema.ts', import.meta.url), 'utf8')
 const logoRoute = fs.readFileSync(new URL('../app/api/upload/logo/route.ts', import.meta.url), 'utf8')
 const auth = fs.readFileSync(new URL('../lib/auth.ts', import.meta.url), 'utf8')
+const database = fs.readFileSync(new URL('../lib/db/index.ts', import.meta.url), 'utf8')
+const environment = fs.readFileSync(new URL('../lib/env.ts', import.meta.url), 'utf8')
+const databaseHealth = fs.readFileSync(new URL('../app/api/health/database/route.ts', import.meta.url), 'utf8')
+const migrationConfig = fs.readFileSync(new URL('../drizzle.config.ts', import.meta.url), 'utf8')
 const authRoute = fs.readFileSync(new URL('../app/api/auth/[...all]/route.ts', import.meta.url), 'utf8')
 const homePage = fs.readFileSync(new URL('../app/page.tsx', import.meta.url), 'utf8')
 
@@ -198,4 +202,45 @@ test('logo upload validates actual image format via magic bytes', () => {
 
 test('logo upload requires business.settings permission', () => {
   assert.match(logoRoute, /requirePermission\(membership\.role as Parameters<typeof requirePermission>\[0\], 'business\.settings'\)/)
+})
+
+/* ------------------------------------------------------------------ */
+/* Integration: Fail-closed database configuration                    */
+/* ------------------------------------------------------------------ */
+
+test('database pool requires an explicit validated DATABASE_URL', () => {
+  assert.match(database, /connectionString:\s*getDatabaseUrl\(\)/)
+  assert.doesNotMatch(database, /connectionString:\s*process\.env\.DATABASE_URL/)
+  assert.match(database, /connectionTimeoutMillis:\s*10_000/)
+})
+
+test('database URL validation rejects missing, malformed and non-PostgreSQL URLs', () => {
+  assert.match(environment, /DATABASE_URL is not configured/)
+  assert.match(environment, /new URL\(databaseUrl\)/)
+  assert.match(environment, /must use the postgres:\/\/ or postgresql:\/\/ protocol/)
+  assert.match(environment, /must include a database host and database name/)
+})
+
+test('Vercel deployments reject localhost database fallback', () => {
+  assert.match(environment, /process\.env\.VERCEL && isLoopback/)
+  assert.match(environment, /not localhost/)
+})
+
+test('database health endpoint checks the real PostgreSQL pool without exposing secrets', () => {
+  assert.match(databaseHealth, /pool\.query\('SELECT 1'\)/)
+  assert.match(databaseHealth, /database: 'connected'/)
+  assert.match(databaseHealth, /database: 'unavailable'/)
+  assert.match(databaseHealth, /status: 503/)
+  assert.doesNotMatch(databaseHealth, /DATABASE_URL|password|connectionString/i)
+})
+
+test('Better Auth ignores an empty BETTER_AUTH_URL and uses the deployment URL fallback', () => {
+  assert.match(auth, /BETTER_AUTH_URL\?\.trim\(\)/)
+  assert.match(auth, /process\.env\.VERCEL_ENV === 'preview'/)
+  assert.doesNotMatch(auth, /BETTER_AUTH_URL\s*\?\?/)
+})
+
+test('migration commands use the same validated database URL source', () => {
+  assert.match(migrationConfig, /url: getDatabaseUrl\(\)/)
+  assert.doesNotMatch(migrationConfig, /process\.env\.DATABASE_URL/)
 })

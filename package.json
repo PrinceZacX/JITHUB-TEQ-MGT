@@ -5,7 +5,7 @@
   "packageManager": "pnpm@12.3.4",
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "pnpm test && next build",
     "start": "next start",
     "test": "node --no-warnings=MODULE_TYPELESS_PACKAGE_JSON --test \"tests/*.test.mjs\""
   },
