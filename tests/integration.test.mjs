@@ -234,6 +234,12 @@ test('database health endpoint checks the real PostgreSQL pool without exposing 
   assert.doesNotMatch(databaseHealth, /DATABASE_URL|password|connectionString/i)
 })
 
+test('Better Auth ignores an empty BETTER_AUTH_URL and uses the deployment URL fallback', () => {
+  assert.match(auth, /BETTER_AUTH_URL\?\.trim\(\)/)
+  assert.match(auth, /process\.env\.VERCEL_ENV === 'preview'/)
+  assert.doesNotMatch(auth, /BETTER_AUTH_URL\s*\?\?/)
+})
+
 test('migration commands use the same validated database URL source', () => {
   assert.match(migrationConfig, /url: getDatabaseUrl\(\)/)
   assert.doesNotMatch(migrationConfig, /process\.env\.DATABASE_URL/)
