@@ -1,34 +1,108 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { Pool } from 'pg'
 
 /**
- * Real integration tests that execute against a live PostgreSQL database.
- *
- * These tests require DATABASE_URL_TEST to point to an isolated test database.
- * They run migrations against the test database and execute real workflows.
- *
- * If DATABASE_URL_TEST is not set, tests are skipped with a clear blocker message.
+ * Read-only integration checks against a dedicated Neon CI branch.
+ * The only write is a temporary table inside a transaction that is rolled back.
+ * DATABASE_URL_TEST must never point to staging or production.
  */
 
-const testDbUrl = process.env.DATABASE_URL_TEST
+const testDbUrl = process.env.DATABASE_URL_TEST?.trim()
+const appDbUrl = process.env.DATABASE_URL?.trim()
 
-test('integration: DATABASE_URL_TEST configured for real database testing', () => {
-  if (!testDbUrl) {
-    // Documented blocker: no isolated test database available for integration testing
-    console.log(
-      'BLOCKER: DATABASE_URL_TEST not set. Real integration tests require an ' +
-      'isolated PostgreSQL database. Static source-inspection tests remain ' +
-      'available in tests/security.test.mjs, tests/integration.test.mjs, etc.'
-    )
-    assert.ok(true, 'Skipped - no test database configured')
-  } else {
-    assert.ok(true, 'Test database URL is configured')
+if (!testDbUrl) {
+  test('real PostgreSQL integration tests require DATABASE_URL_TEST', {
+    skip: 'Configure the isolated CI test database to enable live integration checks.',
+  }, () => {})
+} else {
+  let parsedTestUrl
+  try {
+    parsedTestUrl = new URL(testDbUrl)
+  } catch {
+    throw new Error('DATABASE_URL_TEST must be a valid PostgreSQL connection URL.')
   }
-})
 
-// When DATABASE_URL_TEST is available, the following real tests would execute:
-// - Membership removal preserves historical invoices, payments, receipts
-// - Cross-business authorization prevents IDOR attacks
-// - Payment recording and reconciliation workflows
-// - Refund approval and completion
-// - Invoice cancellation with payment guards
+  if (parsedTestUrl.protocol !== 'postgres:' && parsedTestUrl.protocol !== 'postgresql:') {
+    throw new Error('DATABASE_URL_TEST must use the postgres:// or postgresql:// protocol.')
+  }
+
+  if (appDbUrl) {
+    const appHost = new URL(appDbUrl).hostname.toLowerCase()
+    const testHost = parsedTestUrl.hostname.toLowerCase()
+    if (appHost === testHost) {
+      throw new Error('DATABASE_URL_TEST must use a separate Neon branch from DATABASE_URL.')
+    }
+  }
+
+  const pool = new Pool({
+    connectionString: testDbUrl,
+    max: 2,
+    connectionTimeoutMillis: 10_000,
+    idleTimeoutMillis: 10_000,
+  })
+
+  test('real PostgreSQL connection reaches the isolated CI database', async () => {
+    const { rows: [row] } = await pool.query(
+      'SELECT current_database() AS database_name, current_schema() AS schema_name, current_user AS role_name',
+    )
+    assert.equal(row.database_name, 'neondb')
+    assert.equal(row.schema_name, 'public')
+    assert.ok(row.role_name)
+  })
+
+  test('real PostgreSQL database contains the required application tables', async () => {
+    const requiredTables = [
+      'user',
+      'session',
+      'verification',
+      'businesses',
+      'business_memberships',
+      'customers',
+      'invoices',
+      'payments',
+      'receipts',
+      'audit_logs',
+      'expenses',
+      'items',
+      'stock_levels',
+    ]
+
+    const { rows } = await pool.query(
+      `SELECT table_name
+       FROM information_schema.tables
+       WHERE table_schema = $1
+         AND table_type = $2
+         AND table_name = ANY($3::text[])`,
+      ['public', 'BASE TABLE', requiredTables],
+    )
+
+    const existing = new Set(rows.map((row) => row.table_name))
+    const missing = requiredTables.filter((tableName) => !existing.has(tableName))
+    assert.deepEqual(missing, [], `Missing required application tables: ${missing.join(', ')}`)
+  })
+
+  test('PostgreSQL transactions support rollback without persistent test data', async () => {
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      await client.query('CREATE TEMP TABLE jithub_rollback_probe (id integer PRIMARY KEY)')
+      await client.query('INSERT INTO jithub_rollback_probe (id) VALUES (1)')
+      await client.query('ROLLBACK')
+
+      const { rows: [row] } = await client.query(
+        "SELECT to_regclass('pg_temp.jithub_rollback_probe') AS table_name",
+      )
+      assert.equal(row.table_name, null)
+    } catch (error) {
+      await client.query('ROLLBACK')
+      throw error
+    } finally {
+      client.release()
+    }
+  })
+
+  test.after(async () => {
+    await pool.end()
+  })
+}
