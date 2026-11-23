@@ -209,7 +209,7 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
         const dueDate = String(form.get('dueDate'))
         if (!isValidFormDate(dueDate)) { setError('Choose a valid due date. Use the date picker or a DD/MM/YYYY date.'); return }
         const status = form.get('invoiceStatus') === 'draft' ? 'draft' : 'issued'
-        const result = await createInvoice({ customerId: String(form.get('customerId')), description: String(form.get('description')), quantity: String(form.get('quantity')), unitPrice: String(form.get('unitPrice')), taxRate: String(form.get('taxRate')), dueDate, status })
+        const result = await createInvoice({ customerId: String(form.get('customerId')), dueDate, status, lines: [{ description: String(form.get('description')), quantity: String(form.get('quantity')), unitPrice: String(form.get('unitPrice')), taxType: 'standard', taxRate: String(form.get('taxRate')) }] })
         setToast(status === 'draft' ? `${result.number} saved as a draft.` : `${result.number} issued successfully.`)
       } else if (modal === 'payment') {
         const result = await recordPayment({ invoiceId: String(form.get('invoiceId')), amount: String(form.get('amount')), method: String(form.get('method')), reference: String(form.get('reference')), paidAt: String(form.get('paidAt')) })

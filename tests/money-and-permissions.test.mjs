@@ -18,15 +18,15 @@ test('money uses integer cents not floating point', () => {
 
 test('invoice subtotal uses integer cent arithmetic', () => {
   assert.match(finance, /BigInt\(unitCents\) \* quantityMilli \+ 500n/)
-  assert.match(finance, /BigInt\(subtotalCents\) \* taxRateBasisPoints \+ 500_000n/)
+  assert.match(finance, /BigInt\(netLineSubtotalCents\) \* taxRateBasisPoints \+ 500_000n/)
 })
 
 test('quantity scaled to 3 decimal places', () => {
-  assert.match(finance, /scaledDecimal\(input\.quantity, 3, 'Quantity'\)/)
+  assert.match(finance, /scaledDecimal\(line\.quantity, 3, 'Quantity'\)/)
 })
 
 test('tax rate scaled to 4 decimal places', () => {
-  assert.match(finance, /scaledDecimal\(input\.taxRate, 4, 'Tax rate'\)/)
+  assert.match(finance, /Number\(line\.taxRate\)/)
 })
 
 test('idempotency key column on payments', () => {

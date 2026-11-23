@@ -4,11 +4,13 @@ import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
 import {
   auditLogs, businesses, businessMemberships, businessRoles, catalogueItems, customers,
-  documentSequences, expenses, goodsReceipts, goodsReceiptLines,
+  creditNotes, creditNoteItems, documentSequences, expenses, goodsReceipts, goodsReceiptLines,
   invoiceItems, invoices, items, paymentAllocations, payments,
   purchaseOrderLines, purchaseOrders, purchaseReturnLines, purchaseReturns,
-  receipts, refunds, stockLevels, stockMovements, suppliers, taxRates,
-  user, verification, warehouses,
+  receipts, refunds, stockLevels, stockMovements, stockReservations,
+  suppliers, taxRates, user, verification, warehouses,
+  quotations, quotationItems, salesOrders, salesOrderItems,
+  costingLayers, valuationGroups,
 } from '@/lib/db/schema'
 import { and, desc, eq, gte, lte, sql } from 'drizzle-orm'
 import { cookies, headers } from 'next/headers'
@@ -188,16 +190,21 @@ async function insertPlatformAudit(tx: any, context: { userId: string }, input: 
   })
 }
 
-async function allocateDocumentNumber(tx: any, businessId: string, documentType: 'invoice' | 'receipt' | 'purchase_order') {
+async function allocateDocumentNumber(tx: any, businessId: string, documentType: 'invoice' | 'receipt' | 'purchase_order' | 'quotation' | 'sales_order') {
   const now = new Date()
   const year = now.getFullYear()
   const [row] = await tx
     .select().from(documentSequences)
     .where(and(eq(documentSequences.businessId, businessId), eq(documentSequences.documentType, documentType)))
     .for('update').limit(1)
-  const [business] = await tx.select({ invoicePrefix: businesses.invoicePrefix, receiptPrefix: businesses.receiptPrefix }).from(businesses).where(eq(businesses.id, businessId)).limit(1)
+  const [business] = await tx.select({ invoicePrefix: businesses.invoicePrefix, receiptPrefix: businesses.receiptPrefix, quotationPrefix: businesses.quotationPrefix, salesOrderPrefix: businesses.salesOrderPrefix }).from(businesses).where(eq(businesses.id, businessId)).limit(1)
   if (!business) throw new Error('Business not found.')
-  const prefix = documentType === 'invoice' ? business.invoicePrefix : documentType === 'receipt' ? business.receiptPrefix : 'PO'
+  let prefix: string
+  if (documentType === 'invoice') prefix = business.invoicePrefix
+  else if (documentType === 'receipt') prefix = business.receiptPrefix
+  else if (documentType === 'quotation') prefix = business.quotationPrefix || 'QUO'
+  else if (documentType === 'sales_order') prefix = business.salesOrderPrefix || 'SO'
+  else prefix = 'PO'
   const next = Number(row?.lastNumber ?? 0) + 1
   const padded = String(next).padStart(6, '0')
   const number = `${prefix}-${year}-${padded}`
@@ -611,34 +618,160 @@ export async function updateBusiness(input: {
 /* Invoices                                                           */
 /* ------------------------------------------------------------------ */
 
-export async function createInvoice(input: { customerId: string; description: string; quantity: string; unitPrice: string; taxRate: string; dueDate: string; status: 'draft' | 'issued' }) {
+export async function createInvoice(input: {
+  customerId: string
+  title?: string
+  dueDate: string
+  status: 'draft' | 'issued'
+  taxTreatment?: 'standard' | 'zero_rated' | 'exempt' | 'outside_scope'
+  taxInclusive?: boolean
+  poReference?: string
+  paymentTerms?: string
+  notes?: string
+  termsAndConditions?: string
+  discountAmount?: string
+  discountType?: 'percentage' | 'fixed'
+  otherCharges?: string
+  lines: { description: string; quantity: string; unitPrice: string; taxType: 'standard' | 'zero_rated' | 'exempt' | 'outside_scope'; taxRate: string; discountPercentage?: string; discountAmount?: string }[]
+}) {
   const context = await requireBusinessPermission(input.status === 'issued' ? 'invoice.issue' : 'invoice.create')
   const [customer] = await db.select({ id: customers.id, businessId: customers.businessId }).from(customers).where(and(eq(customers.id, input.customerId), eq(customers.businessId, context.businessId))).limit(1)
   if (!customer) throw new Error('Select a customer in your account.')
-  const description = input.description.trim()
-  const quantityMilli = scaledDecimal(input.quantity, 3, 'Quantity')
-  const taxRateBasisPoints = scaledDecimal(input.taxRate, 4, 'Tax rate')
-  const quantity = Number(quantityMilli) / 1000
-  const taxRate = Number(taxRateBasisPoints) / 100
-  if (!description || description.length > 200) throw new Error('Add a description of up to 200 characters.')
-  if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1000000) throw new Error('Quantity must be greater than zero.')
-  if (!Number.isFinite(taxRate) || taxRate < 0 || taxRate > 100) throw new Error('Tax rate must be between 0 and 100 percent.')
+  if (!input.lines || input.lines.length === 0) throw new Error('Add at least one invoice item.')
   if (!isValidDate(input.dueDate)) throw new Error('Choose a valid due date.')
   if (input.status !== 'draft' && input.status !== 'issued') throw new Error('Choose whether to save a draft or issue the invoice.')
-  const unitCents = money(input.unitPrice)
-  const subtotalCents = Number((BigInt(unitCents) * quantityMilli + 500n) / 1000n)
-  const taxCents = Number((BigInt(subtotalCents) * taxRateBasisPoints + 500_000n) / 1_000_000n)
-  if (!Number.isSafeInteger(subtotalCents + taxCents)) throw new Error('Invoice total is too large.')
-  const id = randomUUID()
+
+  const invoiceId = randomUUID()
   const number = await allocateDocumentNumber(db as any, context.businessId, 'invoice')
   const format = (cents: number) => (cents / 100).toFixed(2)
+
+  // Calculate totals for all lines
+  let totalSubtotalCents = 0
+  let totalTaxCents = 0
+  const lineItems: { id: string; description: string; quantity: string; unitPrice: string; taxType: string; taxRate: string; discountPercentage: string; discountAmount: string; lineTotal: string; sortOrder: number }[] = []
+
+  for (let i = 0; i < input.lines.length; i++) {
+    const line = input.lines[i]
+    const description = line.description.trim()
+    if (!description || description.length > 200) throw new Error('Add a description of up to 200 characters.')
+    const quantityMilli = scaledDecimal(line.quantity, 3, 'Quantity')
+    const quantity = Number(quantityMilli) / 1000
+    if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1000000) throw new Error('Quantity must be greater than zero.')
+    const unitCents = money(line.unitPrice)
+    const taxRate = Number(line.taxRate) || 0
+    if (taxRate < 0 || taxRate > 100) throw new Error('Tax rate must be between 0 and 100 percent.')
+
+    // Apply discount
+    const discountPct = Number(line.discountPercentage) || 0
+    const discountAmt = line.discountAmount ? money(line.discountAmount) : 0
+    const lineSubtotalCents = Number((BigInt(unitCents) * quantityMilli + 500n) / 1000n)
+    const discountFromPct = Number((BigInt(lineSubtotalCents) * BigInt(Math.round(discountPct * 100)) + 5000n) / 10000n)
+    const totalDiscountCents = discountFromPct + discountAmt
+    const netLineSubtotalCents = lineSubtotalCents - totalDiscountCents
+
+    // Calculate tax based on tax type
+    let lineTaxCents = 0
+    const taxType = line.taxType || input.taxTreatment || 'standard'
+    if (taxType === 'standard') {
+      const taxRateBasisPoints = BigInt(Math.round(taxRate * 100))
+      lineTaxCents = Number((BigInt(netLineSubtotalCents) * taxRateBasisPoints + 500_000n) / 1_000_000n)
+    }
+    // zero_rated, exempt, outside_scope: no tax
+
+    const lineTotalCents = netLineSubtotalCents + lineTaxCents
+    if (!Number.isSafeInteger(lineTotalCents)) throw new Error('Line total is too large.')
+
+    totalSubtotalCents += netLineSubtotalCents
+    totalTaxCents += lineTaxCents
+
+    lineItems.push({
+      id: randomUUID(),
+      description,
+      quantity: (Number(quantityMilli) / 1000).toFixed(3),
+      unitPrice: format(unitCents),
+      taxType,
+      taxRate: taxRate.toFixed(4),
+      discountPercentage: discountPct.toFixed(4),
+      discountAmount: format(discountAmt),
+      lineTotal: format(lineTotalCents),
+      sortOrder: i,
+    })
+  }
+
+  // Apply invoice-level discount
+  const invoiceDiscountCents = input.discountAmount ? money(input.discountAmount) : 0
+  const invoiceDiscountType = input.discountType || 'percentage'
+  let invoiceDiscountTotalCents = 0
+  if (invoiceDiscountType === 'percentage') {
+    invoiceDiscountTotalCents = Number((BigInt(totalSubtotalCents) * BigInt(Math.round(Number(input.discountAmount || '0') * 100)) + 5000n) / 10000n)
+  } else {
+    invoiceDiscountTotalCents = invoiceDiscountCents
+  }
+  const netSubtotalCents = totalSubtotalCents - invoiceDiscountTotalCents
+
+  // Apply other charges
+  const otherChargesCents = input.otherCharges ? money(input.otherCharges) : 0
+  const finalSubtotalCents = netSubtotalCents + otherChargesCents
+
+  // Calculate total tax (proportional to subtotal)
+  const totalTaxCentsFinal = totalTaxCents
+
+  const grandTotalCents = finalSubtotalCents + totalTaxCentsFinal
+  if (!Number.isSafeInteger(grandTotalCents)) throw new Error('Invoice total is too large.')
+
+  // Determine tax treatment
+  const taxTreatment = input.taxTreatment || 'standard'
+
   await db.transaction(async (tx) => {
-    await tx.insert(invoices).values({ id, businessId: context.businessId, userId: context.userId, customerId: customer.id, number, status: input.status, issueDate: new Date().toISOString().slice(0, 10), dueDate: input.dueDate, subtotal: format(subtotalCents), taxAmount: format(taxCents), total: format(subtotalCents + taxCents) })
-    await tx.insert(invoiceItems).values({ id: randomUUID(), businessId: context.businessId, invoiceId: id, description, quantity: (Number(quantityMilli) / 1000).toFixed(3), unitPrice: format(unitCents), taxRate: taxRate.toFixed(4), lineTotal: format(subtotalCents + taxCents) })
-    await insertAudit(tx, context, { action: input.status === 'draft' ? 'invoice.draft_created' : 'invoice.issued', entityType: 'invoice', entityId: id, details: { number } })
+    await tx.insert(invoices).values({
+      id: invoiceId,
+      businessId: context.businessId,
+      userId: context.userId,
+      customerId: customer.id,
+      number,
+      title: input.title?.trim() || null,
+      status: input.status,
+      issueDate: new Date().toISOString().slice(0, 10),
+      dueDate: input.dueDate,
+      currency: 'UGX',
+      taxTreatment,
+      taxInclusive: input.taxInclusive || false,
+      poReference: input.poReference?.trim() || null,
+      paymentTerms: input.paymentTerms?.trim() || null,
+      notes: input.notes?.trim() || null,
+      termsAndConditions: input.termsAndConditions?.trim() || null,
+      discountAmount: format(invoiceDiscountTotalCents),
+      discountType: invoiceDiscountType,
+      otherCharges: format(otherChargesCents),
+      subtotal: format(finalSubtotalCents),
+      taxAmount: format(totalTaxCentsFinal),
+      total: format(grandTotalCents),
+      amountPaid: '0.00',
+      creditedAmount: '0.00',
+    })
+
+    for (const item of lineItems) {
+      await tx.insert(invoiceItems).values({
+        id: item.id,
+        businessId: context.businessId,
+        invoiceId: invoiceId,
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        taxType: item.taxType,
+        taxRate: item.taxRate,
+        discountPercentage: item.discountPercentage,
+        discountAmount: item.discountAmount,
+        lineTotal: item.lineTotal,
+        sortOrder: item.sortOrder,
+      })
+    }
+
+    await insertAudit(tx, context, { action: input.status === 'draft' ? 'invoice.draft_created' : 'invoice.issued', entityType: 'invoice', entityId: invoiceId, details: { number } })
   })
+
   revalidatePath('/')
-  return { id, number, status: input.status }
+  return { id: invoiceId, number, status: input.status }
 }
 
 export async function issueDraftInvoice(id: string) {
@@ -1583,4 +1716,992 @@ export async function listPurchaseReturns() {
     .where(eq(purchaseReturns.businessId, context.businessId))
     .orderBy(desc(purchaseReturns.createdAt))
   return rows
+}
+
+/* ------------------------------------------------------------------ */
+/* Quotations                                                         */
+/* ------------------------------------------------------------------ */
+
+export async function createQuotation(input: {
+  customerId: string;
+  validUntil: string;
+  notes?: string;
+  terms?: string;
+  lines: { itemId: string; description: string; quantity: string; unitPrice: string; taxRate: string }[];
+}) {
+  const context = await requireBusinessPermission('quotation.create')
+  loadEnv()
+
+  // Calculate totals
+  let subtotal = 0
+  let tax = 0
+  const linesData: any[] = []
+  
+  for (const line of input.lines) {
+    const quantityMilli = scaledDecimal(line.quantity, 3, 'Quantity')
+    const quantity = Number(quantityMilli) / 1000
+    const unitCents = money(line.unitPrice)
+    const taxRateBasisPoints = scaledDecimal(line.taxRate, 4, 'Tax rate')
+    const taxRate = Number(taxRateBasisPoints) / 10000
+    const lineSubtotalCents = Number((BigInt(unitCents) * quantityMilli + 500n) / 1000n)
+    const lineTaxCents = Number((BigInt(lineSubtotalCents) * taxRateBasisPoints + 500_000n) / 1_000_000n)
+    
+    const lineSubtotal = Number(lineSubtotalCents) / 100
+    const lineTax = Number(lineTaxCents) / 100
+    subtotal += lineSubtotal
+    tax += lineTax
+    linesData.push({
+      itemId: line.itemId,
+      description: line.description,
+      quantity: quantity.toFixed(3),
+      unitPrice: (unitCents / 100).toFixed(2),
+      taxRate: (Number(taxRateBasisPoints) / 10000).toFixed(4),
+      taxAmount: (lineTaxCents / 100).toFixed(2),
+      lineTotal: ((lineSubtotalCents + lineTaxCents) / 100).toFixed(2)
+    })
+  }
+
+  const quotationId = randomUUID()
+  const number = await allocateDocumentNumber(db as any, context.businessId, 'quotation')
+
+  await db.transaction(async (tx) => {
+    await tx.insert(quotations).values({
+      id: quotationId,
+      businessId: context.businessId,
+      customerId: input.customerId,
+      number,
+      status: 'draft',
+      issueDate: new Date().toISOString().slice(0, 10),
+      validUntil: input.validUntil,
+      subtotal: subtotal.toFixed(2),
+      taxAmount: tax.toFixed(2),
+      total: (subtotal + tax).toFixed(2),
+      currency: 'UGX',
+      notes: input.notes?.trim() || null,
+      terms: input.terms?.trim() || null,
+      createdBy: context.userId,
+    })
+
+    for (const line of linesData) {
+      await tx.insert(quotationItems).values({
+        id: randomUUID(),
+        quotationId,
+        itemId: line.itemId,
+        description: line.description,
+        quantity: line.quantity,
+        unitPrice: line.unitPrice,
+        taxRate: line.taxRate,
+        taxAmount: line.taxAmount,
+        lineTotal: line.lineTotal,
+      })
+    }
+
+    await insertAudit(tx, { userId: context.userId, businessId: context.businessId }, { 
+      action: 'quotation.created', entityType: 'quotation', entityId: quotationId, details: { number } 
+    })
+  })
+
+  revalidatePath('/')
+  return { id: quotationId, number }
+}
+
+export async function listQuotations(filters?: { status?: string; customerId?: string; fromDate?: string; toDate?: string }) {
+  const context = await requireBusinessPermission('quotation.read')
+  let whereConditions = [eq(quotations.businessId, context.businessId)]
+  
+  if (filters?.status) whereConditions.push(eq(quotations.status, filters.status))
+  if (filters?.customerId) whereConditions.push(eq(quotations.customerId, filters.customerId))
+  if (filters?.fromDate) whereConditions.push(gte(quotations.issueDate, filters.fromDate))
+  if (filters?.toDate) whereConditions.push(lte(quotations.issueDate, filters.toDate))
+
+  const rows = await db
+    .select({
+      id: quotations.id,
+      number: quotations.number,
+      status: quotations.status,
+      issueDate: quotations.issueDate,
+      validUntil: quotations.validUntil,
+      total: quotations.total,
+      currency: quotations.currency,
+      customerName: customers.name,
+      createdAt: quotations.createdAt,
+    })
+    .from(quotations)
+    .innerJoin(customers, eq(customers.id, quotations.customerId))
+    .where(and(...whereConditions))
+    .orderBy(desc(quotations.createdAt))
+  
+  return rows
+}
+
+export async function getQuotation(id: string) {
+  const context = await requireBusinessPermission('quotation.read')
+  const [quotation] = await db
+    .select({
+      id: quotations.id,
+      number: quotations.number,
+      status: quotations.status,
+      issueDate: quotations.issueDate,
+      validUntil: quotations.validUntil,
+      subtotal: quotations.subtotal,
+      taxAmount: quotations.taxAmount,
+      total: quotations.total,
+      currency: quotations.currency,
+      notes: quotations.notes,
+      terms: quotations.terms,
+      customerId: quotations.customerId,
+      customerName: customers.name,
+      customerEmail: customers.email,
+      createdBy: quotations.createdBy,
+      createdAt: quotations.createdAt,
+      acceptedAt: quotations.acceptedAt,
+      convertedAt: quotations.convertedAt,
+      convertedSalesOrderId: quotations.convertedSalesOrderId,
+    })
+    .from(quotations)
+    .innerJoin(customers, eq(customers.id, quotations.customerId))
+    .where(and(eq(quotations.id, id), eq(quotations.businessId, context.businessId)))
+    .limit(1)
+
+  if (!quotation) throw new Error('Quotation not found.')
+
+  const fetchedItems = await db
+    .select({
+      id: quotationItems.id,
+      itemId: quotationItems.itemId,
+      description: quotationItems.description,
+      quantity: quotationItems.quantity,
+      unitPrice: quotationItems.unitPrice,
+      taxRate: quotationItems.taxRate,
+      taxAmount: quotationItems.taxAmount,
+      lineTotal: quotationItems.lineTotal,
+      itemName: items.name,
+      itemSku: items.sku,
+    })
+    .from(quotationItems)
+    .leftJoin(items, eq(items.id, quotationItems.itemId))
+    .where(eq(quotationItems.quotationId, id))
+
+  return { ...quotation, items: fetchedItems }
+}
+
+export async function sendQuotation(input: { quotationId: string }) {
+  const context = await requireBusinessPermission('quotation.send')
+  await db.transaction(async (tx) => {
+    const [quotation] = await tx.select({ 
+      id: quotations.id, 
+      status: quotations.status, 
+      number: quotations.number,
+      customerId: quotations.customerId,
+      businessId: quotations.businessId 
+    }).from(quotations).where(and(eq(quotations.id, input.quotationId), eq(quotations.businessId, context.businessId))).limit(1).for('update')
+    
+    if (!quotation) throw new Error('Quotation not found.')
+    if (quotation.status !== 'draft') throw new Error('Only draft quotations can be sent.')
+
+    await tx.update(quotations).set({ status: 'sent' }).where(eq(quotations.id, input.quotationId))
+    await insertAudit(tx, { userId: context.userId, businessId: context.businessId }, { 
+      action: 'quotation.sent', entityType: 'quotation', entityId: input.quotationId 
+    })
+  })
+  revalidatePath('/')
+  return { success: true }
+}
+
+export async function acceptQuotation(input: { quotationId: string }) {
+  const context = await requireBusinessPermission('quotation.accept')
+  await db.transaction(async (tx) => {
+    const [quotation] = await tx.select({ 
+      id: quotations.id, 
+      status: quotations.status, 
+      number: quotations.number,
+      customerId: quotations.customerId,
+      businessId: quotations.businessId 
+    }).from(quotations).where(and(eq(quotations.id, input.quotationId), eq(quotations.businessId, context.businessId))).limit(1).for('update')
+    
+    if (!quotation) throw new Error('Quotation not found.')
+    if (quotation.status !== 'sent') throw new Error('Only sent quotations can be accepted.')
+
+    await tx.update(quotations).set({ 
+      status: 'accepted', 
+      acceptedAt: new Date(),
+      acceptedBy: context.userId 
+    }).where(eq(quotations.id, input.quotationId))
+    
+    await insertAudit(tx, { userId: context.userId, businessId: context.businessId }, { 
+      action: 'quotation.accepted', entityType: 'quotation', entityId: input.quotationId 
+    })
+  })
+  revalidatePath('/')
+  return { success: true }
+}
+
+export async function convertQuotationToSalesOrder(input: { quotationId: string; warehouseId: string; expectedDate?: string }) {
+  const context = await requireBusinessPermission('sales_order.create')
+  
+  // Get quotation with items
+  const [quotation] = await db
+    .select({
+      id: quotations.id,
+      number: quotations.number,
+      status: quotations.status,
+      customerId: quotations.customerId,
+      businessId: quotations.businessId,
+      total: quotations.total,
+      subtotal: quotations.subtotal,
+      taxAmount: quotations.taxAmount,
+      currency: quotations.currency,
+    })
+    .from(quotations)
+    .where(and(eq(quotations.id, input.quotationId), eq(quotations.businessId, context.businessId)))
+    .limit(1)
+
+  if (!quotation) throw new Error('Quotation not found.')
+  if (quotation.status !== 'accepted') throw new Error('Only accepted quotations can be converted to sales orders.')
+
+  const fetchedItems = await db
+    .select({
+      itemId: quotationItems.itemId,
+      description: quotationItems.description,
+      quantity: quotationItems.quantity,
+      unitPrice: quotationItems.unitPrice,
+      taxRate: quotationItems.taxRate,
+      taxAmount: quotationItems.taxAmount,
+      lineTotal: quotationItems.lineTotal,
+    })
+    .from(quotationItems)
+    .where(eq(quotationItems.quotationId, input.quotationId))
+
+  if (fetchedItems.length === 0) throw new Error('Quotation has no items.')
+
+  // Validate stock availability for all items
+  for (const item of fetchedItems) {
+    const [stock] = await db
+      .select({ available: stockLevels.quantityAvailable })
+      .from(stockLevels)
+      .where(and(
+        eq(stockLevels.businessId, context.businessId),
+        eq(stockLevels.itemId, item.itemId),
+        eq(stockLevels.warehouseId, input.warehouseId)
+      ))
+      .limit(1)
+
+    const requestedQty = Number(item.quantity)
+    const available = Number(stock?.available ?? 0)
+    
+    if (available < requestedQty) {
+      throw new Error(`Insufficient stock for item ${item.itemId}. Available: ${available}, Requested: ${requestedQty}`)
+    }
+  }
+
+  const id = randomUUID()
+  const number = await allocateDocumentNumber(db as any, context.businessId, 'sales_order')
+  const now = new Date()
+
+  await db.transaction(async (tx) => {
+    // Create sales order
+    await tx.insert(salesOrders).values({
+      id,
+      businessId: context.businessId,
+      quotationId: input.quotationId,
+      customerId: quotation.customerId,
+      warehouseId: input.warehouseId,
+      number,
+      status: 'confirmed',
+      orderDate: now.toISOString().slice(0, 10),
+      expectedDate: input.expectedDate || null,
+      subtotal: quotation.subtotal,
+      taxAmount: quotation.taxAmount,
+      total: quotation.total,
+      currency: quotation.currency,
+      createdBy: context.userId,
+      confirmedBy: context.userId,
+      confirmedAt: now,
+    })
+
+    // Create sales order items and reserve stock
+    for (const item of fetchedItems) {
+      const soiId = randomUUID()
+      await tx.insert(salesOrderItems).values({
+        id: soiId,
+        businessId: context.businessId,
+        salesOrderId: id,
+        itemId: item.itemId,
+        description: item.description,
+        quantity: item.quantity,
+        quantityFulfilled: '0',
+        quantityReserved: item.quantity,
+        unitPrice: item.unitPrice,
+        taxRate: item.taxRate,
+        taxAmount: item.taxAmount,
+        lineTotal: item.lineTotal,
+      })
+
+      // Reserve stock
+      const reservationId = randomUUID()
+      await tx.insert(stockReservations).values({
+        id: reservationId,
+        businessId: context.businessId,
+        salesOrderId: id,
+        salesOrderItemId: soiId,
+        itemId: item.itemId,
+        warehouseId: input.warehouseId,
+        quantityReserved: item.quantity,
+        quantityFulfilled: '0',
+        status: 'active',
+        createdBy: context.userId,
+      })
+
+      // Update stock_levels: increase reserved
+      await tx
+        .update(stockLevels)
+        .set({
+          quantityReserved: sql`${stockLevels.quantityReserved} + ${item.quantity}`,
+          quantityAvailable: sql`GREATEST(0, ${stockLevels.quantityOnHand} - ${stockLevels.quantityReserved} - ${item.quantity} - ${stockLevels.quantityAvailable})`,
+        })
+        .where(and(
+          eq(stockLevels.businessId, context.businessId),
+          eq(stockLevels.itemId, item.itemId),
+          eq(stockLevels.warehouseId, input.warehouseId)
+        ))
+    }
+
+    // Update quotation status
+    await tx.update(quotations)
+      .set({ 
+        status: 'converted', 
+        convertedAt: now, 
+        convertedSalesOrderId: id 
+      })
+      .where(eq(quotations.id, input.quotationId))
+
+    await insertAudit(tx, { userId: context.userId, businessId: context.businessId }, { 
+      action: 'sales_order.created_from_quotation', entityType: 'sales_order', entityId: id, 
+      details: { quotationId: input.quotationId, quotationNumber: quotation.number } 
+    })
+  })
+
+  revalidatePath('/')
+  return { id, number }
+}
+
+export async function listSalesOrders(filters?: { status?: string; customerId?: string; warehouseId?: string; fromDate?: string; toDate?: string }) {
+  const context = await requireBusinessPermission('sales_order.read')
+  let whereConditions = [eq(salesOrders.businessId, context.businessId)]
+  
+  if (filters?.status) whereConditions.push(eq(salesOrders.status, filters.status))
+  if (filters?.customerId) whereConditions.push(eq(salesOrders.customerId, filters.customerId))
+  if (filters?.warehouseId) whereConditions.push(eq(salesOrders.warehouseId, filters.warehouseId))
+  if (filters?.fromDate) whereConditions.push(gte(salesOrders.orderDate, filters.fromDate))
+  if (filters?.toDate) whereConditions.push(lte(salesOrders.orderDate, filters.toDate))
+
+  const rows = await db
+    .select({
+      id: salesOrders.id,
+      number: salesOrders.number,
+      status: salesOrders.status,
+      orderDate: salesOrders.orderDate,
+      expectedDate: salesOrders.expectedDate,
+      total: salesOrders.total,
+      currency: salesOrders.currency,
+      customerName: customers.name,
+      warehouseName: warehouses.name,
+      createdAt: salesOrders.createdAt,
+    })
+    .from(salesOrders)
+    .innerJoin(customers, eq(customers.id, salesOrders.customerId))
+    .innerJoin(warehouses, eq(warehouses.id, salesOrders.warehouseId))
+    .where(and(...whereConditions))
+    .orderBy(desc(salesOrders.createdAt))
+  
+  return rows
+}
+
+export async function getSalesOrder(id: string) {
+  const context = await requireBusinessPermission('sales_order.read')
+  const [order] = await db
+    .select({
+      id: salesOrders.id,
+      number: salesOrders.number,
+      status: salesOrders.status,
+      orderDate: salesOrders.orderDate,
+      expectedDate: salesOrders.expectedDate,
+      subtotal: salesOrders.subtotal,
+      taxAmount: salesOrders.taxAmount,
+      total: salesOrders.total,
+      currency: salesOrders.currency,
+      notes: salesOrders.notes,
+      customerId: salesOrders.customerId,
+      customerName: customers.name,
+      warehouseId: salesOrders.warehouseId,
+      warehouseName: warehouses.name,
+      createdBy: salesOrders.createdBy,
+      confirmedBy: salesOrders.confirmedBy,
+      confirmedAt: salesOrders.confirmedAt,
+      createdAt: salesOrders.createdAt,
+    })
+    .from(salesOrders)
+    .innerJoin(customers, eq(customers.id, salesOrders.customerId))
+    .innerJoin(warehouses, eq(warehouses.id, salesOrders.warehouseId))
+    .where(and(eq(salesOrders.id, id), eq(salesOrders.businessId, context.businessId)))
+    .limit(1)
+
+  if (!order) throw new Error('Sales order not found.')
+
+  const fetchedItems = await db
+    .select({
+      id: salesOrderItems.id,
+      itemId: salesOrderItems.itemId,
+      description: salesOrderItems.description,
+      quantity: salesOrderItems.quantity,
+      quantityFulfilled: salesOrderItems.quantityFulfilled,
+      quantityReserved: salesOrderItems.quantityReserved,
+      unitPrice: salesOrderItems.unitPrice,
+      taxRate: salesOrderItems.taxRate,
+      taxAmount: salesOrderItems.taxAmount,
+      lineTotal: salesOrderItems.lineTotal,
+      itemName: items.name,
+      itemSku: items.sku,
+      reservations: sql<{ id: string; quantityReserved: string; quantityFulfilled: string; status: string }[]>`
+        SELECT json_agg(json_build_object(
+          'id', sr.id,
+          'quantityReserved', sr.quantity_reserved,
+          'quantityFulfilled', sr.quantity_fulfilled,
+          'status', sr.status
+        ))
+        FROM stock_reservations sr
+        WHERE sr.sales_order_item_id = ${salesOrderItems.id}
+      `,
+    })
+    .from(salesOrderItems)
+    .leftJoin(items, eq(items.id, salesOrderItems.itemId))
+    .where(eq(salesOrderItems.salesOrderId, id))
+
+  return { ...order, items: fetchedItems }
+}
+
+export async function confirmSalesOrder(input: { salesOrderId: string }) {
+  const context = await requireBusinessPermission('sales_order.confirm')
+  await db.transaction(async (tx) => {
+    const [order] = await tx.select({ 
+      id: salesOrders.id, 
+      status: salesOrders.status, 
+      businessId: salesOrders.businessId 
+    }).from(salesOrders).where(and(eq(salesOrders.id, input.salesOrderId), eq(salesOrders.businessId, context.businessId))).limit(1).for('update')
+    
+    if (!order) throw new Error('Sales order not found.')
+    if (order.status !== 'draft') throw new Error('Only draft sales orders can be confirmed.')
+
+    await tx.update(salesOrders).set({ 
+      status: 'confirmed', 
+      confirmedAt: new Date(),
+      confirmedBy: context.userId 
+    }).where(eq(salesOrders.id, input.salesOrderId))
+    
+    await insertAudit(tx, { userId: context.userId, businessId: context.businessId }, { 
+      action: 'sales_order.confirmed', entityType: 'sales_order', entityId: input.salesOrderId 
+    })
+  })
+  revalidatePath('/')
+  return { success: true }
+}
+
+export async function fulfillSalesOrderItem(input: { salesOrderId: string; salesOrderItemId: string; quantity: string; warehouseId?: string }) {
+  const context = await requireBusinessPermission('sales_order.fulfill')
+  const quantity = Number(input.quantity)
+  if (quantity <= 0) throw new Error('Quantity must be greater than zero.')
+
+  await db.transaction(async (tx) => {
+    const [soi] = await tx.select({ 
+      id: salesOrderItems.id, 
+      salesOrderId: salesOrderItems.salesOrderId,
+      itemId: salesOrderItems.itemId,
+      quantity: salesOrderItems.quantity,
+      quantityFulfilled: salesOrderItems.quantityFulfilled,
+      quantityReserved: salesOrderItems.quantityReserved,
+      businessId: salesOrderItems.businessId,
+      status: salesOrderItems.status
+    }).from(salesOrderItems).where(and(eq(salesOrderItems.id, input.salesOrderItemId), eq(salesOrderItems.salesOrderId, input.salesOrderId))).limit(1).for('update')
+    
+    if (!soi) throw new Error('Sales order item not found.')
+    if (soi.status === 'cancelled') throw new Error('Cannot fulfill cancelled order item.')
+    
+    const requestedQty = Number(input.quantity)
+    const alreadyFulfilled = Number(soi.quantityFulfilled)
+    const maxFulfillable = Number(soi.quantity) - alreadyFulfilled
+    
+    if (requestedQty > maxFulfillable) throw new Error(`Cannot fulfill more than ordered. Max fulfillable: ${maxFulfillable}`)
+
+    const warehouseId = input.warehouseId || (await tx.select({ warehouseId: salesOrders.warehouseId }).from(salesOrders).where(eq(salesOrders.id, input.salesOrderId)).limit(1))[0]?.warehouseId
+    if (!warehouseId) throw new Error('Warehouse not specified.')
+
+    // Check stock availability
+    const [stock] = await tx.select({ available: stockLevels.quantityAvailable }).from(stockLevels).where(and(eq(stockLevels.businessId, soi.businessId), eq(stockLevels.itemId, soi.itemId), eq(stockLevels.warehouseId, warehouseId))).limit(1)
+    const available = Number(stock?.available ?? 0)
+    
+    if (available < quantity) throw new Error(`Insufficient stock. Available: ${available}, Requested: ${quantity}`)
+
+    // Fulfill from reservation
+    const reservationRows = await tx.select({ 
+      id: stockReservations.id, 
+      status: stockReservations.status,
+      quantityFulfilled: stockReservations.quantityFulfilled, 
+      quantityReserved: stockReservations.quantityReserved,
+      itemId: stockReservations.itemId,
+      warehouseId: stockReservations.warehouseId,
+      businessId: stockReservations.businessId,
+    }).from(stockReservations).where(and(eq(stockReservations.salesOrderItemId, input.salesOrderItemId), eq(stockReservations.status, 'active'))).limit(1).for('update')
+    const reservation = reservationRows[0]
+    
+    if (reservation) {
+      const newFulfilled = Number(reservation.quantityFulfilled) + quantity
+      const newStatus = newFulfilled >= Number(reservation.quantityReserved) ? 'fulfilled' : 'partially_fulfilled'
+      
+      await tx.update(stockReservations)
+        .set({ quantityFulfilled: newFulfilled.toFixed(3), status: newStatus })
+        .where(eq(stockReservations.id, reservation.id))
+    }
+
+    // Update stock levels: decrease reserved, increase fulfilled, decrease on_hand
+    await tx.update(stockLevels)
+      .set({
+        quantityReserved: sql`${stockLevels.quantityReserved} - ${quantity}`,
+        quantityOnHand: sql`${stockLevels.quantityOnHand} - ${quantity}`,
+        quantityAvailable: sql`GREATEST(0, ${stockLevels.quantityOnHand} - ${quantity} - ${stockLevels.quantityReserved} + ${quantity} - ${stockLevels.quantityAvailable})`,
+        lastMovementAt: new Date(),
+      })
+      .where(and(eq(stockLevels.businessId, soi.businessId), eq(stockLevels.itemId, soi.itemId), eq(stockLevels.warehouseId, warehouseId)))
+
+    // Record stock movement
+    await tx.insert(stockMovements).values({
+      id: randomUUID(),
+      businessId: soi.businessId,
+      itemId: soi.itemId,
+      warehouseId: warehouseId,
+      movementType: 'out',
+      quantity: quantity.toFixed(3),
+      referenceType: 'sales_order',
+      referenceId: input.salesOrderId,
+      referenceNumber: (await tx.select({ number: salesOrders.number }).from(salesOrders).where(eq(salesOrders.id, input.salesOrderId)).limit(1))[0]?.number,
+      notes: `Sales order fulfillment`,
+      createdBy: context.userId,
+    })
+
+    // Update sales order item
+    const newFulfilled = (Number(soi.quantityFulfilled) + quantity).toFixed(3)
+    const newStatus = Number(newFulfilled) >= Number(soi.quantity) ? 'fulfilled' : 'partially_fulfilled'
+    
+    await tx.update(salesOrderItems)
+      .set({ quantityFulfilled: newFulfilled, status: newStatus })
+      .where(eq(salesOrderItems.id, input.salesOrderItemId))
+
+    // Update sales order status
+    const [order] = await tx.select({ status: salesOrders.status }).from(salesOrders).where(eq(salesOrders.id, input.salesOrderId)).limit(1)
+    const allItems = await tx.select({ quantity: salesOrderItems.quantity, quantityFulfilled: salesOrderItems.quantityFulfilled }).from(salesOrderItems).where(eq(salesOrderItems.salesOrderId, input.salesOrderId))
+    const allFulfilled = allItems.every(i => Number(i.quantityFulfilled) >= Number(i.quantity))
+    const anyFulfilled = allItems.some(i => Number(i.quantityFulfilled) > 0)
+    
+    let newOrderStatus = order.status
+    if (allFulfilled) newOrderStatus = 'fulfilled'
+    else if (anyFulfilled) newOrderStatus = 'partially_fulfilled'
+    
+    if (newOrderStatus !== order.status) {
+      await tx.update(salesOrders).set({ status: newOrderStatus }).where(eq(salesOrders.id, input.salesOrderId))
+    }
+
+    await insertAudit(tx, { userId: context.userId, businessId: context.businessId }, { 
+      action: 'sales_order.fulfilled', entityType: 'sales_order_item', entityId: input.salesOrderItemId, 
+      details: { quantity, salesOrderId: input.salesOrderId } 
+    })
+  })
+  
+  revalidatePath('/')
+  return { success: true }
+}
+
+export async function cancelSalesOrder(input: { salesOrderId: string }) {
+  const context = await requireBusinessPermission('sales_order.cancel')
+  await db.transaction(async (tx) => {
+    const [order] = await tx.select({ 
+      id: salesOrders.id, 
+      status: salesOrders.status, 
+      businessId: salesOrders.businessId 
+    }).from(salesOrders).where(and(eq(salesOrders.id, input.salesOrderId), eq(salesOrders.businessId, context.businessId))).limit(1).for('update')
+    
+    if (!order) throw new Error('Sales order not found.')
+    if (order.status === 'fulfilled' || order.status === 'cancelled') throw new Error('Cannot cancel fulfilled or already cancelled order.')
+
+    // Release all reservations
+    const reservations = await tx.select({ id: stockReservations.id, itemId: stockReservations.itemId, warehouseId: stockReservations.warehouseId, quantityReserved: stockReservations.quantityReserved, quantityFulfilled: stockReservations.quantityFulfilled }).from(stockReservations).where(eq(stockReservations.salesOrderId, input.salesOrderId)).for('update')
+    
+    for (const res of reservations) {
+      const qtyToRelease = Number(res.quantityReserved) - Number(res.quantityFulfilled || 0)
+      if (qtyToRelease > 0) {
+        await tx.update(stockLevels)
+          .set({
+            quantityReserved: sql`${stockLevels.quantityReserved} - ${qtyToRelease}`,
+            quantityAvailable: sql`GREATEST(0, ${stockLevels.quantityOnHand} - ${stockLevels.quantityReserved} + ${qtyToRelease} - ${stockLevels.quantityAvailable})`,
+          })
+          .where(and(eq(stockLevels.businessId, context.businessId), eq(stockLevels.itemId, res.itemId), eq(stockLevels.warehouseId, res.warehouseId)))
+      }
+      await tx.update(stockReservations).set({ status: 'released', releasedAt: new Date(), releasedBy: context.userId }).where(eq(stockReservations.id, res.id))
+    }
+
+    // Release stock_order_items reservations
+    await tx.update(salesOrderItems).set({ quantityReserved: '0' }).where(eq(salesOrderItems.salesOrderId, input.salesOrderId))
+
+    await tx.update(salesOrders).set({ status: 'cancelled' }).where(eq(salesOrders.id, input.salesOrderId))
+    await insertAudit(tx, { userId: context.userId, businessId: context.businessId }, { action: 'sales_order.cancelled', entityType: 'sales_order', entityId: input.salesOrderId })
+  })
+  revalidatePath('/')
+  return { success: true }
+}
+
+/* ------------------------------------------------------------------ */
+/* Stock Reservations                                                 */
+/* ------------------------------------------------------------------ */
+
+export async function listStockReservations(filters?: { salesOrderId?: string; itemId?: string; warehouseId?: string; status?: string }) {
+  const context = await requireBusinessPermission('stock.adjust')
+  let whereConditions = [eq(stockReservations.businessId, context.businessId)]
+  
+  if (filters?.salesOrderId) whereConditions.push(eq(stockReservations.salesOrderId, filters.salesOrderId))
+  if (filters?.itemId) whereConditions.push(eq(stockReservations.itemId, filters.itemId))
+  if (filters?.warehouseId) whereConditions.push(eq(stockReservations.warehouseId, filters.warehouseId))
+  if (filters?.status) whereConditions.push(eq(stockReservations.status, filters.status))
+
+  const rows = await db
+    .select({
+      id: stockReservations.id,
+      salesOrderId: stockReservations.salesOrderId,
+      salesOrderItemId: stockReservations.salesOrderItemId,
+      itemId: stockReservations.itemId,
+      itemName: items.name,
+      warehouseId: stockReservations.warehouseId,
+      warehouseName: warehouses.name,
+      quantityReserved: stockReservations.quantityReserved,
+      quantityFulfilled: stockReservations.quantityFulfilled,
+      status: stockReservations.status,
+      createdAt: stockReservations.createdAt,
+    })
+    .from(stockReservations)
+    .leftJoin(items, eq(items.id, stockReservations.itemId))
+    .leftJoin(warehouses, eq(warehouses.id, stockReservations.warehouseId))
+    .where(and(...whereConditions))
+    .orderBy(desc(stockReservations.createdAt))
+  return rows
+}
+
+export async function releaseStockReservation(input: { reservationId: string }) {
+  const context = await requireBusinessPermission('stock.adjust')
+  await db.transaction(async (tx) => {
+    const [reservation] = await tx.select({ 
+      id: stockReservations.id, 
+      status: stockReservations.status,
+      quantityReserved: stockReservations.quantityReserved,
+      quantityFulfilled: stockReservations.quantityFulfilled,
+      itemId: stockReservations.itemId,
+      warehouseId: stockReservations.warehouseId,
+      businessId: stockReservations.businessId 
+    }).from(stockReservations).where(eq(stockReservations.id, input.reservationId)).limit(1).for('update')
+    
+    if (!reservation) throw new Error('Reservation not found.')
+    if (reservation.status === 'released' || reservation.status === 'cancelled') throw new Error('Reservation already released or cancelled.')
+
+    const qtyToRelease = Number(reservation.quantityReserved) - Number(reservation.quantityFulfilled || 0)
+    if (qtyToRelease > 0) {
+      await tx.update(stockLevels)
+        .set({
+          quantityReserved: sql`${stockLevels.quantityReserved} - ${qtyToRelease}`,
+          quantityAvailable: sql`GREATEST(0, ${stockLevels.quantityOnHand} - ${stockLevels.quantityReserved} + ${qtyToRelease} - ${stockLevels.quantityAvailable})`,
+        })
+        .where(and(eq(stockLevels.businessId, context.businessId), eq(stockLevels.itemId, reservation.itemId), eq(stockLevels.warehouseId, reservation.warehouseId)))
+    }
+
+    await tx.update(stockReservations).set({ status: 'released', releasedAt: new Date(), releasedBy: context.userId }).where(eq(stockReservations.id, input.reservationId))
+    await insertAudit(tx, { userId: context.userId, businessId: context.businessId }, { action: 'stock_reservation.released', entityType: 'stock_reservation', entityId: input.reservationId })
+  })
+  revalidatePath('/')
+  return { success: true }
+}
+
+/* ------------------------------------------------------------------ */
+/* Stock Availability                                                 */
+/* ------------------------------------------------------------------ */
+
+export async function checkStockAvailability(input: { itemId: string; warehouseId: string; quantity: string }) {
+  const context = await requireBusinessPermission('stock.adjust')
+  const quantity = Number(input.quantity)
+  if (quantity <= 0) throw new Error('Quantity must be greater than zero.')
+
+  const [stock] = await db
+    .select({ 
+      quantityOnHand: stockLevels.quantityOnHand,
+      quantityReserved: stockLevels.quantityReserved,
+      quantityUnavailable: stockLevels.quantityAvailable,
+      quantityAvailable: stockLevels.quantityAvailable,
+    })
+    .from(stockLevels)
+    .where(and(eq(stockLevels.businessId, context.businessId), eq(stockLevels.itemId, input.itemId), eq(stockLevels.warehouseId, input.warehouseId)))
+    .limit(1)
+
+  const available = Number(stock?.quantityAvailable ?? 0)
+  const requested = Number(input.quantity)
+  
+  return {
+    available: available >= quantity,
+    availableQty: available,
+    requested: requested,
+    shortage: Math.max(0, requested - available),
+    onHand: Number(stock?.quantityOnHand ?? 0),
+    reserved: Number(stock?.quantityReserved ?? 0),
+    unavailable: Number(stock?.quantityUnavailable ?? 0),
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Inventory Valuation (FIFO & Weighted Average)                      */
+/* ------------------------------------------------------------------ */
+
+export async function getInventoryValuation(filters?: { warehouseId?: string; valuationGroupId?: string; costingMethod?: 'fifo' | 'weighted_average' }) {
+  const context = await requireBusinessPermission('reports.read')
+  
+  // Get valuation groups for this business
+  const groups = await db
+    .select()
+    .from(valuationGroups)
+    .where(eq(valuationGroups.businessId, context.businessId))
+
+  const results = []
+  
+  for (const group of groups) {
+    if (filters?.valuationGroupId && filters.valuationGroupId !== group.id) continue
+    if (filters?.costingMethod && filters.costingMethod !== group.costingMethod) continue
+
+    // Get items in this valuation group
+    const fetchedItems = await db
+      .select({ id: items.id, name: items.name, sku: items.sku, averageCost: items.averageCost })
+      .from(items)
+      .where(and(eq(items.businessId, context.businessId), eq(items.valuationGroupId, group.id)))
+
+    let totalValue = 0
+    const itemValuations = []
+
+    for (const item of fetchedItems) {
+      if (group.costingMethod === 'fifo') {
+        // FIFO: sum of costing layers
+        const layers = await db
+          .select({ quantityRemaining: costingLayers.quantityRemaining, unitCost: costingLayers.unitCost })
+          .from(costingLayers)
+          .where(and(
+            eq(costingLayers.businessId, context.businessId),
+            eq(costingLayers.itemId, item.id),
+            eq(costingLayers.isActive, true),
+            eq(costingLayers.valuationGroupId, group.id)
+          ))
+          .orderBy(costingLayers.receivedDate)
+
+        let itemValue = 0
+        for (const layer of layers) {
+          itemValue += Number(layer.quantityRemaining) * Number(layer.unitCost)
+        }
+        totalValue += itemValue
+        itemValuations.push({ itemId: item.id, itemName: item.name, sku: item.sku, value: itemValue, layers: layers.length })
+      } else {
+        // Weighted Average
+        const [stock] = await db
+          .select({ 
+            totalQty: sql<number>`coalesce(sum(${stockLevels.quantityOnHand}),0)`,
+            avgCost: items.averageCost 
+          })
+          .from(stockLevels)
+          .innerJoin(items, eq(items.id, stockLevels.itemId))
+          .where(and(
+            eq(stockLevels.businessId, context.businessId),
+            eq(stockLevels.itemId, item.id)
+          ))
+
+        const itemValue = Number(stock.totalQty) * Number(stock.avgCost ?? 0)
+        totalValue += itemValue
+        itemValuations.push({ itemId: item.id, itemName: item.name, sku: item.sku, value: itemValue, avgCost: stock.avgCost })
+      }
+    }
+
+    results.push({
+      valuationGroupId: group.id,
+      valuationGroupName: group.name,
+      costingMethod: group.costingMethod,
+      totalValue,
+      itemCount: fetchedItems.length,
+      items: itemValuations,
+    })
+  }
+
+  return { groups: results, grandTotal: results.reduce((sum, g) => sum + g.totalValue, 0) }
+}
+
+export async function recordCostingLayer(input: {
+  itemId: string;
+  warehouseId: string;
+  quantityReceived: string;
+  unitCost: string;
+  receivedDate: string;
+  sourceType: 'purchase' | 'adjustment' | 'return' | 'transfer_in' | 'opening_balance';
+  sourceReferenceId?: string;
+  sourceReferenceType?: string;
+  valuationGroupId?: string;
+}) {
+  const context = await requireBusinessPermission('stock.adjust')
+  const quantity = Number(input.quantityReceived)
+  const unitCost = money(input.unitCost) / 10000 // 4 decimal places for costing
+
+  if (quantity <= 0) throw new Error('Quantity received must be positive.')
+  if (unitCost < 0) throw new Error('Unit cost cannot be negative.')
+
+  const id = randomUUID()
+  await db.transaction(async (tx) => {
+    await tx.insert(costingLayers).values({
+      id,
+      businessId: context.businessId,
+      itemId: input.itemId,
+      warehouseId: input.warehouseId,
+      quantityReceived: quantity.toFixed(3),
+      quantityRemaining: input.quantityReceived,
+      unitCost: (unitCost).toFixed(4),
+      unitCostCurrency: 'UGX',
+      receivedDate: input.receivedDate,
+      sourceType: input.sourceType,
+      sourceReferenceId: input.sourceReferenceId || null,
+      sourceReferenceType: input.sourceReferenceType || null,
+      valuationGroupId: input.valuationGroupId || null,
+    })
+    await insertAudit(tx, { userId: context.userId, businessId: context.businessId }, { 
+      action: 'costing_layer.created', entityType: 'costing_layer', entityId: id, 
+      details: { quantity: input.quantityReceived, unitCost: input.unitCost } 
+    })
+  })
+  revalidatePath('/')
+  return { id }
+}
+
+export async function getCostingLayers(filters?: { itemId?: string; warehouseId?: string; valuationGroupId?: string; activeOnly?: boolean }) {
+  const context = await requireBusinessPermission('reports.read')
+  let whereConditions = [eq(costingLayers.businessId, context.businessId)]
+  
+  if (filters?.itemId) whereConditions.push(eq(costingLayers.itemId, filters.itemId))
+  if (filters?.warehouseId) whereConditions.push(eq(costingLayers.warehouseId, filters.warehouseId))
+  if (filters?.valuationGroupId) whereConditions.push(eq(costingLayers.valuationGroupId, filters.valuationGroupId))
+  if (filters?.activeOnly !== false) whereConditions.push(eq(costingLayers.isActive, true))
+
+  const rows = await db
+    .select({
+      id: costingLayers.id,
+      itemId: costingLayers.itemId,
+      itemName: items.name,
+      itemSku: items.sku,
+      warehouseId: costingLayers.warehouseId,
+      warehouseName: warehouses.name,
+      quantityReceived: costingLayers.quantityReceived,
+      quantityRemaining: costingLayers.quantityRemaining,
+      unitCost: costingLayers.unitCost,
+      unitCostCurrency: costingLayers.unitCostCurrency,
+      receivedDate: costingLayers.receivedDate,
+      sourceType: costingLayers.sourceType,
+      sourceReferenceId: costingLayers.sourceReferenceId,
+      sourceReferenceType: costingLayers.sourceReferenceType,
+      valuationGroupId: costingLayers.valuationGroupId,
+      valuationGroupName: valuationGroups.name,
+      isActive: costingLayers.isActive,
+      createdAt: costingLayers.createdAt,
+    })
+    .from(costingLayers)
+    .leftJoin(items, eq(items.id, costingLayers.itemId))
+    .leftJoin(warehouses, eq(warehouses.id, costingLayers.warehouseId))
+    .leftJoin(valuationGroups, eq(valuationGroups.id, costingLayers.valuationGroupId))
+    .where(and(...whereConditions))
+    .orderBy(costingLayers.receivedDate)
+  return rows
+}
+
+/* ------------------------------------------------------------------ */
+/* Valuation Groups                                                   */
+/* ------------------------------------------------------------------ */
+
+export async function createValuationGroup(input: { name: string; costingMethod: 'fifo' | 'weighted_average'; description?: string; isDefault?: boolean }) {
+  const context = await requireBusinessPermission('business.settings')
+  
+  if (input.isDefault) {
+    // Ensure only one default per business
+    await db.update(valuationGroups).set({ isDefault: false }).where(eq(valuationGroups.businessId, context.businessId))
+  }
+
+  const id = randomUUID()
+  await db.transaction(async (tx) => {
+    await tx.insert(valuationGroups).values({
+      id,
+      businessId: context.businessId,
+      name: input.name.trim(),
+      costingMethod: input.costingMethod,
+      description: input.description?.trim() || null,
+      isDefault: input.isDefault || false,
+    })
+    await insertAudit(tx, { userId: context.userId, businessId: context.businessId }, { 
+      action: 'valuation_group.created', entityType: 'valuation_group', entityId: id, details: { costingMethod: input.costingMethod } 
+    })
+  })
+  revalidatePath('/')
+  return { id }
+}
+
+export async function listValuationGroups() {
+  const context = await requireBusinessPermission('business.settings')
+  const rows = await db
+    .select()
+    .from(valuationGroups)
+    .where(eq(valuationGroups.businessId, context.businessId))
+    .orderBy(valuationGroups.createdAt)
+  return rows
+}
+
+export async function updateValuationGroup(input: { id: string; name?: string; costingMethod?: 'fifo' | 'weighted_average'; description?: string; isDefault?: boolean }) {
+  const context = await requireBusinessPermission('business.settings')
+  const updates: Record<string, unknown> = {}
+  
+  if (input.name !== undefined) updates.name = input.name.trim()
+  if (input.costingMethod !== undefined) updates.costingMethod = input.costingMethod
+  if (input.description !== undefined) updates.description = input.description?.trim() || null
+  if (input.isDefault !== undefined) {
+    updates.isDefault = input.isDefault
+    if (input.isDefault) {
+      // Ensure only one default per business
+      await db.update(valuationGroups).set({ isDefault: false }).where(eq(valuationGroups.businessId, context.businessId))
+    }
+  }
+
+  const [existing] = await db.select({ id: valuationGroups.id }).from(valuationGroups).where(and(eq(valuationGroups.id, input.id), eq(valuationGroups.businessId, context.businessId))).limit(1)
+  if (!existing) throw new Error('Valuation group not found.')
+
+  await db.transaction(async (tx) => {
+    await tx.update(valuationGroups).set(updates).where(and(eq(valuationGroups.id, input.id), eq(valuationGroups.businessId, context.businessId)))
+    await insertAudit(tx, { userId: context.userId, businessId: context.businessId }, { action: 'valuation_group.updated', entityType: 'valuation_group', entityId: input.id })
+  })
+  revalidatePath('/')
+  return { id: input.id }
+}
+
+export async function assignItemToValuationGroup(input: { itemId: string; valuationGroupId: string }) {
+  const context = await requireBusinessPermission('catalogue.manage')
+  
+  const [existing] = await db.select({ id: items.id }).from(items).where(and(eq(items.id, input.itemId), eq(items.businessId, context.businessId))).limit(1)
+  if (!existing) throw new Error('Item not found.')
+
+  const [group] = await db.select({ id: valuationGroups.id, costingMethod: valuationGroups.costingMethod }).from(valuationGroups).where(and(eq(valuationGroups.id, input.valuationGroupId), eq(valuationGroups.businessId, context.businessId))).limit(1)
+  if (!group) throw new Error('Valuation group not found.')
+
+  await db.transaction(async (tx) => {
+    await tx.update(items).set({ valuationGroupId: input.valuationGroupId }).where(and(eq(items.id, input.itemId), eq(items.businessId, context.businessId)))
+    await insertAudit(tx, { userId: context.userId, businessId: context.businessId }, { action: 'item.assigned_valuation_group', entityType: 'item', entityId: input.itemId, details: { valuationGroupId: input.valuationGroupId, costingMethod: group.costingMethod } })
+  })
+  revalidatePath('/')
+  return { success: true }
 }

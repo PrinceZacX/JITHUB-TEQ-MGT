@@ -1,4 +1,4 @@
-import { boolean, check, date, foreignKey, index, jsonb, numeric, pgTable, text, timestamp, unique, uniqueIndex } from 'drizzle-orm/pg-core'
+import { boolean, check, date, foreignKey, index, integer, jsonb, numeric, pgTable, text, timestamp, unique, uniqueIndex } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
 export const user = pgTable('user', {
@@ -44,6 +44,8 @@ export const businesses = pgTable('businesses', {
   website: text('website'),
   receiptPrefix: text('receipt_prefix').notNull().default('RCP'),
   invoicePrefix: text('invoice_prefix').notNull().default('INV'),
+  quotationPrefix: text('quotation_prefix').notNull().default('QTN'),
+  salesOrderPrefix: text('sales_order_prefix').notNull().default('SO'),
   footerText: text('footer_text'),
   paymentInstructions: text('payment_instructions'),
   taxDisplaySettings: jsonb('tax_display_settings').notNull().default('{}'),
@@ -141,15 +143,25 @@ export const invoices = pgTable('invoices', {
   userId: text('user_id').notNull(),
   customerId: text('customer_id').notNull(),
   number: text('number').notNull(),
+  title: text('title'),
   status: text('status').notNull().default('draft'),
   issueDate: date('issue_date').notNull(),
   dueDate: date('due_date').notNull(),
   currency: text('currency').notNull().default('UGX'),
+  taxTreatment: text('tax_treatment').notNull().default('standard'),
+  poReference: text('po_reference'),
+  paymentTerms: text('payment_terms'),
+  notes: text('notes'),
+  termsAndConditions: text('terms_and_conditions'),
+  taxInclusive: boolean('tax_inclusive').notNull().default(false),
   subtotal: numeric('subtotal', { precision: 18, scale: 2 }).notNull().default('0'),
   taxAmount: numeric('tax_amount', { precision: 18, scale: 2 }).notNull().default('0'),
+  discountAmount: numeric('discount_amount', { precision: 18, scale: 2 }).notNull().default('0'),
+  discountType: text('discount_type').notNull().default('percentage'),
+  otherCharges: numeric('other_charges', { precision: 18, scale: 2 }).notNull().default('0'),
   total: numeric('total', { precision: 18, scale: 2 }).notNull().default('0'),
   amountPaid: numeric('amount_paid', { precision: 18, scale: 2 }).notNull().default('0'),
-  notes: text('notes'),
+  creditedAmount: numeric('credited_amount', { precision: 18, scale: 2 }).notNull().default('0'),
   createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
 }, (table) => [
   check('invoices_status_valid', sql`${table.status} IN ('draft','issued','partially_paid','paid','overdue','cancelled')`),
@@ -183,8 +195,12 @@ export const invoiceItems = pgTable('invoice_items', {
   description: text('description').notNull(),
   quantity: numeric('quantity', { precision: 12, scale: 3 }).notNull(),
   unitPrice: numeric('unit_price', { precision: 18, scale: 2 }).notNull(),
+  taxType: text('tax_type').notNull().default('standard'),
   taxRate: numeric('tax_rate', { precision: 7, scale: 4 }).notNull().default('0'),
+  discountPercentage: numeric('discount_percentage', { precision: 7, scale: 4 }).notNull().default('0'),
+  discountAmount: numeric('discount_amount', { precision: 18, scale: 2 }).notNull().default('0'),
   lineTotal: numeric('line_total', { precision: 18, scale: 2 }).notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
 }, (table) => [
   check('invoice_items_quantity_positive', sql`${table.quantity} > 0`),
   check('invoice_items_unit_price_nonnegative', sql`${table.unitPrice} >= 0`),
@@ -512,7 +528,11 @@ export const items = pgTable('items', {
   unitOfMeasure: text('unit_of_measure').notNull().default('unit'),
   unitPrice: numeric('unit_price', { precision: 18, scale: 2 }).notNull().default('0'),
   costPrice: numeric('cost_price', { precision: 18, scale: 2 }).notNull().default('0'),
+  averageCost: numeric('average_cost', { precision: 18, scale: 4 }).notNull().default('0'),
+  averageCostCurrency: text('average_cost_currency').notNull().default('UGX'),
+  costingMethod: text('costing_method'), // 'fifo', 'weighted_average', or NULL for group default
   taxRateId: text('tax_rate_id'),
+  valuationGroupId: text('valuation_group_id'),
   reorderLevel: numeric('reorder_level', { precision: 18, scale: 3 }).notNull().default('0'),
   reorderQuantity: numeric('reorder_quantity', { precision: 18, scale: 3 }).notNull().default('0'),
   status: text('status').notNull().default('active'),
@@ -627,6 +647,7 @@ export const stockLevels = pgTable('stockLevels', {
   warehouseId: text('warehouse_id').notNull(),
   quantityOnHand: numeric('quantity_on_hand', { precision: 18, scale: 3 }).notNull().default('0'),
   quantityReserved: numeric('quantity_reserved', { precision: 18, scale: 3 }).notNull().default('0'),
+  quantityUnavailable: numeric('quantity_unavailable', { precision: 18, scale: 3 }).notNull().default('0'),
   quantityAvailable: numeric('quantity_available', { precision: 18, scale: 3 }).notNull().default('0'),
   lastMovementAt: timestamp('last_movement_at', { withTimezone: true }),
   updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
@@ -945,3 +966,367 @@ export const purchaseReturnLines = pgTable('purchaseReturnLines', {
   index('purchase_return_lines_item_idx').on(table.itemId),
   index('purchase_return_lines_business_idx').on(table.businessId),
 ])
+
+/* ------------------------------------------------------------------ */
+/* Credit Notes                                                       */
+/* ------------------------------------------------------------------ */
+
+export const creditNoteStatuses = ['draft', 'issued', 'cancelled'] as const
+export type CreditNoteStatus = (typeof creditNoteStatuses)[number]
+
+export const creditNotes = pgTable('creditNotes', {
+  id: text('id').primaryKey(),
+  businessId: text('business_id').notNull(),
+  invoiceId: text('invoice_id').notNull(),
+  customerId: text('customer_id').notNull(),
+  number: text('number').notNull(),
+  status: text('status').notNull().default('draft'),
+  reason: text('reason').notNull(),
+  issueDate: date('issue_date').notNull(),
+  currency: text('currency').notNull().default('UGX'),
+  subtotal: numeric('subtotal', { precision: 18, scale: 2 }).notNull().default('0'),
+  taxAmount: numeric('tax_amount', { precision: 18, scale: 2 }).notNull().default('0'),
+  total: numeric('total', { precision: 18, scale: 2 }).notNull().default('0'),
+  creditedAmount: numeric('credited_amount', { precision: 18, scale: 2 }).notNull().default('0'),
+  notes: text('notes'),
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  check('credit_notes_status_valid', sql`${table.status} IN ('draft','issued','cancelled')`),
+  foreignKey({
+    columns: [table.businessId],
+    foreignColumns: [businesses.id],
+    name: 'credit_notes_business_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.businessId, table.invoiceId],
+    foreignColumns: [invoices.businessId, invoices.id],
+    name: 'credit_notes_invoice_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.businessId, table.customerId],
+    foreignColumns: [customers.businessId, customers.id],
+    name: 'credit_notes_customer_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.createdBy],
+    foreignColumns: [user.id],
+    name: 'credit_notes_created_by_fk',
+  }).onDelete('restrict'),
+  unique('credit_notes_number_business_uq').on(table.businessId, table.number),
+  index('credit_notes_business_idx').on(table.businessId),
+  index('credit_notes_invoice_idx').on(table.invoiceId),
+  index('credit_notes_customer_idx').on(table.customerId),
+  index('credit_notes_status_idx').on(table.status),
+])
+
+export const creditNoteItems = pgTable('creditNoteItems', {
+  id: text('id').primaryKey(),
+  businessId: text('business_id').notNull(),
+  creditNoteId: text('credit_note_id').notNull(),
+  invoiceItemId: text('invoice_item_id'),
+  description: text('description').notNull(),
+  quantity: numeric('quantity', { precision: 12, scale: 3 }).notNull(),
+  unitPrice: numeric('unit_price', { precision: 18, scale: 2 }).notNull(),
+  taxType: text('tax_type').notNull().default('standard'),
+  taxRate: numeric('tax_rate', { precision: 7, scale: 4 }).notNull().default('0'),
+  lineTotal: numeric('line_total', { precision: 18, scale: 2 }).notNull(),
+  sortOrder: integer('sort_order').notNull().default(0),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  check('credit_note_items_quantity_positive', sql`${table.quantity} > 0`),
+  check('credit_note_items_unit_price_nonnegative', sql`${table.unitPrice} >= 0`),
+  check('credit_note_items_line_total_nonnegative', sql`${table.lineTotal} >= 0`),
+  foreignKey({
+    columns: [table.businessId, table.creditNoteId],
+    foreignColumns: [creditNotes.businessId, creditNotes.id],
+    name: 'credit_note_items_cn_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.businessId],
+    foreignColumns: [businesses.id],
+    name: 'credit_note_items_business_fk',
+  }).onDelete('restrict'),
+  index('credit_note_items_cn_idx').on(table.creditNoteId),
+  index('credit_note_items_business_idx').on(table.businessId),
+])
+
+/* ------------------------------------------------------------------ */
+/* Quotations                                                         */
+/* ------------------------------------------------------------------ */
+
+export const quotations = pgTable('quotations', {
+  id: text('id').primaryKey(),
+  businessId: text('business_id').notNull(),
+  customerId: text('customer_id').notNull(),
+  number: text('number').notNull(),
+  status: text('status').notNull().default('draft'),
+  issueDate: date('issue_date').notNull().defaultNow(),
+  validUntil: date('valid_until').notNull(),
+  subtotal: numeric('subtotal', { precision: 18, scale: 2 }).notNull().default('0'),
+  taxAmount: numeric('tax_amount', { precision: 18, scale: 2 }).notNull().default('0'),
+  total: numeric('total', { precision: 18, scale: 2 }).notNull().default('0'),
+  currency: text('currency').notNull().default('UGX'),
+  notes: text('notes'),
+  terms: text('terms'),
+  createdBy: text('created_by').notNull().references(() => user.id, { onDelete: 'restrict' }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  acceptedBy: text('accepted_by').references(() => user.id, { onDelete: 'set null' }),
+  convertedAt: timestamp('converted_at', { withTimezone: true }),
+  convertedSalesOrderId: text('converted_sales_order_id'),
+}, (table) => [
+  check('quotations_status_valid', sql`${table.status} IN ('draft','sent','accepted','expired','converted','cancelled')`),
+  unique('quotations_number_business_uq').on(table.businessId, table.number),
+  foreignKey({
+    columns: [table.businessId],
+    foreignColumns: [businesses.id],
+    name: 'quotations_business_fk',
+  }).onDelete('cascade'),
+  foreignKey({
+    columns: [table.customerId],
+    foreignColumns: [customers.id],
+    name: 'quotations_customer_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.createdBy],
+    foreignColumns: [user.id],
+    name: 'quotations_created_by_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.acceptedBy],
+    foreignColumns: [user.id],
+    name: 'quotations_accepted_by_fk',
+  }).onDelete('set null'),
+  index('quotations_business_idx').on(table.businessId),
+  index('quotations_customer_idx').on(table.customerId),
+  index('quotations_status_idx').on(table.status),
+  index('quotations_created_at_idx').on(table.createdAt),
+  index('quotations_valid_until_idx').on(table.validUntil),
+])
+
+// Quotation Items
+export const quotationItems = pgTable('quotation_items', {
+  id: text('id').primaryKey(),
+  quotationId: text('quotation_id').notNull().references(() => quotations.id, { onDelete: 'cascade' }),
+  itemId: text('item_id').notNull().references(() => items.id, { onDelete: 'restrict' }),
+  description: text('description').notNull(),
+  quantity: numeric('quantity', { precision: 18, scale: 3 }).notNull(),
+  unitPrice: numeric('unit_price', { precision: 18, scale: 2 }).notNull(),
+  taxRate: numeric('tax_rate', { precision: 7, scale: 4 }).notNull().default('0'),
+  taxAmount: numeric('tax_amount', { precision: 18, scale: 2 }).notNull().default('0'),
+  lineTotal: numeric('line_total', { precision: 18, scale: 2 }).notNull().default('0'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('quotation_items_quotation_idx').on(table.quotationId),
+  index('quotation_items_item_idx').on(table.itemId),
+])
+
+export const salesOrders = pgTable('sales_orders', {
+  id: text('id').primaryKey(),
+  businessId: text('business_id').notNull(),
+  quotationId: text('quotation_id').references(() => quotations.id, { onDelete: 'set null' }),
+  customerId: text('customer_id').notNull(),
+  warehouseId: text('warehouse_id').notNull(),
+  number: text('number').notNull(),
+  status: text('status').notNull().default('draft'), // draft, confirmed, partially_fulfilled, fulfilled, cancelled
+  orderDate: date('order_date').notNull().defaultNow(),
+  expectedDate: date('expected_date'),
+  subtotal: numeric('subtotal', { precision: 18, scale: 2 }).notNull().default('0'),
+  taxAmount: numeric('tax_amount', { precision: 18, scale: 2 }).notNull().default('0'),
+  total: numeric('total', { precision: 18, scale: 2 }).notNull().default('0'),
+  currency: text('currency').notNull().default('UGX'),
+  notes: text('notes'),
+  createdBy: text('created_by').notNull().references(() => user.id, { onDelete: 'restrict' }),
+  confirmedBy: text('confirmed_by').references(() => user.id, { onDelete: 'set null' }),
+  confirmedAt: timestamp('confirmed_at', { withTimezone: true }),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  check('sales_orders_status_valid', sql`${table.status} IN ('draft','confirmed','partially_fulfilled','fulfilled','cancelled')`),
+  unique('sales_orders_number_business_uq').on(table.businessId, table.number),
+  foreignKey({
+    columns: [table.businessId],
+    foreignColumns: [businesses.id],
+    name: 'sales_orders_business_fk',
+  }).onDelete('cascade'),
+  foreignKey({
+    columns: [table.customerId],
+    foreignColumns: [customers.id],
+    name: 'sales_orders_customer_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.warehouseId],
+    foreignColumns: [warehouses.id],
+    name: 'sales_orders_warehouse_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.createdBy],
+    foreignColumns: [user.id],
+    name: 'sales_orders_created_by_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.confirmedBy],
+    foreignColumns: [user.id],
+    name: 'sales_orders_confirmed_by_fk',
+  }).onDelete('set null'),
+  foreignKey({
+    columns: [table.quotationId],
+    foreignColumns: [quotations.id],
+    name: 'sales_orders_quotation_fk',
+  }).onDelete('set null'),
+  index('sales_orders_business_idx').on(table.businessId),
+  index('sales_orders_customer_idx').on(table.customerId),
+  index('sales_orders_warehouse_idx').on(table.warehouseId),
+  index('sales_orders_status_idx').on(table.status),
+  index('sales_orders_quotation_idx').on(table.quotationId),
+  index('sales_orders_created_at_idx').on(table.createdAt),
+])
+
+export const salesOrderItems = pgTable('sales_order_items', {
+  id: text('id').primaryKey(),
+  businessId: text('business_id').notNull().references(() => businesses.id, { onDelete: 'cascade' }),
+  salesOrderId: text('sales_order_id').notNull().references(() => salesOrders.id, { onDelete: 'cascade' }),
+  itemId: text('item_id').notNull().references(() => items.id, { onDelete: 'restrict' }),
+  description: text('description').notNull(),
+  status: text('status').notNull().default('pending'),
+  quantity: numeric('quantity', { precision: 18, scale: 3 }).notNull(),
+  quantityFulfilled: numeric('quantity_fulfilled', { precision: 18, scale: 3 }).notNull().default('0'),
+  quantityReserved: numeric('quantity_reserved', { precision: 18, scale: 3 }).notNull().default('0'),
+  unitPrice: numeric('unit_price', { precision: 18, scale: 2 }).notNull(),
+  taxRate: numeric('tax_rate', { precision: 7, scale: 4 }).notNull().default('0'),
+  taxAmount: numeric('tax_amount', { precision: 18, scale: 2 }).notNull().default('0'),
+  lineTotal: numeric('line_total', { precision: 18, scale: 2 }).notNull().default('0'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  index('sales_order_items_order_idx').on(table.salesOrderId),
+  index('sales_order_items_item_idx').on(table.itemId),
+])
+
+export const stockReservations = pgTable('stock_reservations', {
+  id: text('id').primaryKey(),
+  businessId: text('business_id').notNull().references(() => businesses.id, { onDelete: 'cascade' }),
+  salesOrderId: text('sales_order_id').notNull().references(() => salesOrders.id, { onDelete: 'cascade' }),
+  salesOrderItemId: text('sales_order_item_id').notNull().references(() => salesOrderItems.id, { onDelete: 'cascade' }),
+  itemId: text('item_id').notNull().references(() => items.id, { onDelete: 'restrict' }),
+  warehouseId: text('warehouse_id').notNull().references(() => warehouses.id, { onDelete: 'restrict' }),
+  quantityReserved: numeric('quantity_reserved', { precision: 18, scale: 3 }).notNull(),
+  quantityFulfilled: numeric('quantity_fulfilled', { precision: 18, scale: 3 }).notNull().default('0'),
+  status: text('status').notNull().default('active'), // active, partially_fulfilled, fulfilled, released, cancelled
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  releasedAt: timestamp('released_at', { withTimezone: true }),
+  releasedBy: text('released_by').references(() => user.id, { onDelete: 'set null' }),
+  createdBy: text('created_by').notNull().references(() => user.id, { onDelete: 'restrict' }),
+}, (table) => [
+  check('stock_reservations_status_valid', sql`${table.status} IN ('active','partially_fulfilled','fulfilled','released','cancelled')`),
+  foreignKey({
+    columns: [table.businessId],
+    foreignColumns: [businesses.id],
+    name: 'stock_reservations_business_fk',
+  }).onDelete('cascade'),
+  foreignKey({
+    columns: [table.salesOrderId],
+    foreignColumns: [salesOrders.id],
+    name: 'stock_reservations_sales_order_fk',
+  }).onDelete('cascade'),
+  foreignKey({
+    columns: [table.salesOrderItemId],
+    foreignColumns: [salesOrderItems.id],
+    name: 'stock_reservations_sales_order_item_fk',
+  }).onDelete('cascade'),
+  foreignKey({
+    columns: [table.itemId],
+    foreignColumns: [items.id],
+    name: 'stock_reservations_item_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.warehouseId],
+    foreignColumns: [warehouses.id],
+    name: 'stock_reservations_warehouse_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.releasedBy],
+    foreignColumns: [user.id],
+    name: 'stock_reservations_released_by_fk',
+  }).onDelete('set null'),
+  foreignKey({
+    columns: [table.createdBy],
+    foreignColumns: [user.id],
+    name: 'stock_reservations_created_by_fk',
+  }).onDelete('restrict'),
+  index('stock_reservations_business_idx').on(table.businessId),
+  index('stock_reservations_sales_order_idx').on(table.salesOrderId),
+  index('stock_reservations_sales_order_item_idx').on(table.salesOrderItemId),
+  index('stock_reservations_item_idx').on(table.itemId),
+  index('stock_reservations_warehouse_idx').on(table.warehouseId),
+  index('stock_reservations_status_idx').on(table.status),
+])
+
+export const costingLayers = pgTable('costing_layers', {
+  id: text('id').primaryKey(),
+  businessId: text('business_id').notNull().references(() => businesses.id, { onDelete: 'cascade' }),
+  itemId: text('item_id').notNull().references(() => items.id, { onDelete: 'restrict' }),
+  warehouseId: text('warehouse_id').notNull().references(() => warehouses.id, { onDelete: 'restrict' }),
+  quantityReceived: numeric('quantity_received', { precision: 18, scale: 3 }).notNull(),
+  quantityRemaining: numeric('quantity_remaining', { precision: 18, scale: 3 }).notNull(),
+  unitCost: numeric('unit_cost', { precision: 18, scale: 4 }).notNull(),
+  unitCostCurrency: text('unit_cost_currency').notNull().default('UGX'),
+  receivedDate: date('received_date').notNull(),
+  sourceType: text('source_type').notNull(), // 'purchase', 'adjustment', 'return', 'transfer_in', 'opening_balance'
+  sourceReferenceId: text('source_reference_id'),
+  sourceReferenceType: text('source_reference_type'), // 'purchase_order', 'goods_receipt', 'adjustment', 'transfer'
+  valuationGroupId: text('valuation_group_id').references(() => valuationGroups.id, { onDelete: 'set null' }),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  foreignKey({
+    columns: [table.businessId],
+    foreignColumns: [businesses.id],
+    name: 'costing_layers_business_fk',
+  }).onDelete('cascade'),
+  foreignKey({
+    columns: [table.itemId],
+    foreignColumns: [items.id],
+    name: 'costing_layers_item_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.warehouseId],
+    foreignColumns: [warehouses.id],
+    name: 'costing_layers_warehouse_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.valuationGroupId],
+    foreignColumns: [valuationGroups.id],
+    name: 'costing_layers_valuation_group_fk',
+  }).onDelete('set null'),
+  index('costing_layers_business_idx').on(table.businessId),
+  index('costing_layers_item_warehouse_idx').on(table.itemId, table.warehouseId),
+  index('costing_layers_valuation_group_idx').on(table.valuationGroupId),
+  index('costing_layers_received_date_idx').on(table.receivedDate),
+  index('costing_layers_active_idx').on(table.isActive),
+  index('costing_layers_remaining_idx').on(table.quantityRemaining),
+])
+
+export const valuationGroups = pgTable('valuation_groups', {
+  id: text('id').primaryKey(),
+  businessId: text('business_id').notNull().references(() => businesses.id, { onDelete: 'cascade' }),
+  name: text('name').notNull(),
+  costingMethod: text('costing_method').notNull(), // 'fifo', 'weighted_average'
+  description: text('description'),
+  isDefault: boolean('is_default').notNull().default(false),
+  isSystem: boolean('is_system').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  foreignKey({
+    columns: [table.businessId],
+    foreignColumns: [businesses.id],
+    name: 'valuation_groups_business_fk',
+  }).onDelete('cascade'),
+  unique('valuation_groups_business_name_uq').on(table.businessId, table.name),
+  index('valuation_groups_business_idx').on(table.businessId),
+])
+
+

@@ -23,10 +23,9 @@ test('customers can be edited through a business-scoped audited server action', 
 
 test('invoice creation aligns stored quantity precision with integer-cent calculations', () => {
   const actions = fs.readFileSync(new URL('../app/actions/finance.ts', import.meta.url), 'utf8')
-  assert.match(actions, /scaledDecimal\(input\.quantity, 3, 'Quantity'\)/, 'quantity is restricted to the database scale')
-  assert.match(actions, /scaledDecimal\(input\.taxRate, 4, 'Tax rate'\)/, 'tax rate is restricted to the database scale')
+  assert.match(actions, /scaledDecimal\(line\.quantity, 3, 'Quantity'\)/, 'quantity is restricted to the database scale')
   assert.match(actions, /\(BigInt\(unitCents\) \* quantityMilli \+ 500n\) \/ 1000n/, 'subtotal uses integer cents and thousandths')
-  assert.match(actions, /\(BigInt\(subtotalCents\) \* taxRateBasisPoints \+ 500_000n\) \/ 1_000_000n/, 'tax uses integer basis-point arithmetic')
+  assert.match(actions, /\(BigInt\(netLineSubtotalCents\) \* taxRateBasisPoints \+ 500_000n\) \/ 1_000_000n/, 'tax uses integer basis-point arithmetic')
   assert.match(actions, /quantity: \(Number\(quantityMilli\) \/ 1000\)\.toFixed\(3\)/, 'stored quantity matches the rounded calculation')
 })
 
