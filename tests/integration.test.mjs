@@ -10,6 +10,7 @@ const auth = fs.readFileSync(new URL('../lib/auth.ts', import.meta.url), 'utf8')
 const database = fs.readFileSync(new URL('../lib/db/index.ts', import.meta.url), 'utf8')
 const environment = fs.readFileSync(new URL('../lib/env.ts', import.meta.url), 'utf8')
 const databaseHealth = fs.readFileSync(new URL('../app/api/health/database/route.ts', import.meta.url), 'utf8')
+const migrationConfig = fs.readFileSync(new URL('../drizzle.config.ts', import.meta.url), 'utf8')
 const authRoute = fs.readFileSync(new URL('../app/api/auth/[...all]/route.ts', import.meta.url), 'utf8')
 const homePage = fs.readFileSync(new URL('../app/page.tsx', import.meta.url), 'utf8')
 
@@ -231,4 +232,9 @@ test('database health endpoint checks the real PostgreSQL pool without exposing 
   assert.match(databaseHealth, /database: 'unavailable'/)
   assert.match(databaseHealth, /status: 503/)
   assert.doesNotMatch(databaseHealth, /DATABASE_URL|password|connectionString/i)
+})
+
+test('migration commands use the same validated database URL source', () => {
+  assert.match(migrationConfig, /url: getDatabaseUrl\(\)/)
+  assert.doesNotMatch(migrationConfig, /process\.env\.DATABASE_URL/)
 })
