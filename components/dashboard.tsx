@@ -232,6 +232,21 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
   // Function selection cards for Dashboard view
   const [selectedFunction, setSelectedFunction] = useState<string | null>(null)
 
+  // Map function IDs to Section types
+  const functionToSection: Record<string, Section> = {
+    'invoices': 'Invoices',
+    'payments': 'Payments',
+    'customers': 'Customers',
+    'receipts': 'Receipts',
+    'purchase-orders': 'Purchase Orders',
+    'goods-receipts': 'Goods Receipts',
+    'stock-movements': 'Stock Movements',
+    'suppliers': 'Suppliers',
+    'reports': 'Reports',
+    'expenses': 'Expenses',
+    'settings': 'Settings',
+  }
+
   const FUNCTIONS: FunctionItem[] = [
     { id: 'invoices', label: 'Invoices', description: 'Create, issue and track customer invoices', icon: <FileText size={20} />, keyboardHint: '⌘I' },
     { id: 'payments', label: 'Payments', description: 'Record and reconcile incoming payments', icon: <CreditCard size={20} />, keyboardHint: '⌘P' },
@@ -301,7 +316,13 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
             <FunctionGrid
               items={FUNCTIONS}
               selectedId={selectedFunction}
-              onSelect={setSelectedFunction}
+              onSelect={(id) => {
+                setSelectedFunction(id)
+                const targetSection = functionToSection[id]
+                if (targetSection) {
+                  setSection(targetSection)
+                }
+              }}
             />
           </section>
           <section className="metric-grid" aria-label="Financial overview">
