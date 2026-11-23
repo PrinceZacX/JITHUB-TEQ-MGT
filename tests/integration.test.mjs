@@ -209,19 +209,19 @@ test('logo upload requires business.settings permission', () => {
 
 test('database pool requires an explicit validated DATABASE_URL', () => {
   assert.match(database, /connectionString:\s*getDatabaseUrl\(\)/)
-  assert.doesNotMatch(database, /connectionString:\s*process\\.env\\.DATABASE_URL/)
+  assert.doesNotMatch(database, /connectionString:\s*process\.env\.DATABASE_URL/)
   assert.match(database, /connectionTimeoutMillis:\s*10_000/)
 })
 
 test('database URL validation rejects missing, malformed and non-PostgreSQL URLs', () => {
   assert.match(environment, /DATABASE_URL is not configured/)
   assert.match(environment, /new URL\(databaseUrl\)/)
-  assert.match(environment, /must use the postgres:\\/\\/ or postgresql:\\/\\/ protocol/)
+  assert.match(environment, /must use the postgres:\/\/ or postgresql:\/\/ protocol/)
   assert.match(environment, /must include a database host and database name/)
 })
 
 test('Vercel deployments reject localhost database fallback', () => {
-  assert.match(environment, /process\\.env\\.VERCEL && isLoopback/)
+  assert.match(environment, /process\.env\.VERCEL && isLoopback/)
   assert.match(environment, /not localhost/)
 })
 
