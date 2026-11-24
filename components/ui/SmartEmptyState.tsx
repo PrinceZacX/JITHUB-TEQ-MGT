@@ -1,7 +1,7 @@
-'use client'
+'use client';
 
-import { cn } from '@/lib/utils'
-import { EMPTY_STATES } from '@/components/navigation/NavigationConfig'
+import { cn } from '@/lib/utils';
+import { EMPTY_STATES } from '@/components/navigation/NavigationConfig';
 import {
   FileText,
   CreditCard,
@@ -25,22 +25,22 @@ import {
   AlertCircle,
   CheckCircle2,
   X,
-} from 'lucide-react'
-import { motion } from 'framer-motion'
+} from 'lucide-react';
+import { motion } from 'framer-motion';
 
 interface SmartEmptyStateProps {
-  section: string
-  className?: string
-  customTitle?: string
-  customDescription?: string
-  customPrimaryAction?: { label: string; href: string; onClick?: () => void }
-  customSecondaryAction?: { label: string; href: string; onClick?: () => void }
-  showSearch?: boolean
-  onSearch?: (query: string) => void
-  filters?: string[]
-  onFilterChange?: (filters: string[]) => void
-  count?: number
-  variant?: 'default' | 'inline' | 'card'
+  section: string;
+  className?: string;
+  customTitle?: string;
+  customDescription?: string;
+  customPrimaryAction?: { label: string; href: string; onClick?: () => void };
+  customSecondaryAction?: { label: string; href: string; onClick?: () => void };
+  showSearch?: boolean;
+  onSearch?: (query: string) => void;
+  filters?: string[];
+  onFilterChange?: (filters: string[]) => void;
+  count?: number;
+  variant?: 'default' | 'inline' | 'card';
 }
 
 const SECTION_ICONS: Record<string, typeof FileText> = {
@@ -59,7 +59,7 @@ const SECTION_ICONS: Record<string, typeof FileText> = {
   'Audit logs': FileClock,
   Settings: Settings2,
   Notifications: FileText,
-}
+};
 
 export function SmartEmptyState({
   section,
@@ -75,14 +75,14 @@ export function SmartEmptyState({
   count = 0,
   variant = 'default',
 }: SmartEmptyStateProps) {
-  const emptyState = EMPTY_STATES[section] || EMPTY_STATES.default
+  const emptyState = EMPTY_STATES[section] || EMPTY_STATES.default;
 
-  const title = customTitle || EMPTY_STATES[section]?.title || 'No results'
-  const description = customDescription || EMPTY_STATES[section]?.description || 'No data found'
-  const primaryAction = customPrimaryAction || EMPTY_STATES[section]?.primaryAction
-  const secondaryAction = customSecondaryAction || EMPTY_STATES[section]?.secondaryAction
+  const title = customTitle || EMPTY_STATES[section]?.title || 'No results';
+  const description = customDescription || EMPTY_STATES[section]?.description || 'No data found';
+  const primaryAction = customPrimaryAction || EMPTY_STATES[section]?.primaryAction;
+  const secondaryAction = customSecondaryAction || EMPTY_STATES[section]?.secondaryAction;
 
-  const hasFilters = filters && filters.length > 0
+  const hasFilters = filters && filters.length > 0;
 
   if (variant === 'inline') {
     return (
@@ -95,7 +95,7 @@ export function SmartEmptyState({
           <p className="text-sm text-jt-muted mt-1">{description}</p>
         </div>
       </div>
-    )
+    );
   }
 
   return (
@@ -178,5 +178,5 @@ export function SmartEmptyState({
         </motion.p>
       </motion.div>
     </div>
-  )
+  );
 }

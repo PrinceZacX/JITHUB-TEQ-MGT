@@ -17,7 +17,7 @@ test('Scenario A: complete workflow has all required server actions', () => {
 })
 
 test('Scenario A: receipt is created automatically on payment', () => {
-  assert.match(finance, /await tx\.insert\(receipts\)\.values\(\{ id: randomUUID\(\)/)
+  assert.match(finance, /await tx[\s\S]*?insert\(receipts\)[\s\S]*?values\(\{[\s\S]*?id: randomUUID\(\)/)
 })
 
 test('Scenario A: payment allocated to invoice', () => {

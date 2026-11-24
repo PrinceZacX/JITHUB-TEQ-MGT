@@ -35,7 +35,7 @@ jobs:
         run: pnpm exec prettier --check "app/**/*.ts" "app/**/*.tsx" "lib/**/*.ts" "components/**/*.tsx"
 
       - name: Run ESLint
-        run: pnpm exec eslint "app/**" "lib/**" "components/**"
+        run: pnpm exec eslint "app/**/*.ts" "app/**/*.tsx" "lib/**/*.ts" "components/**/*.tsx"
 
       - name: Run TypeScript checks
         run: pnpm exec tsc --noEmit

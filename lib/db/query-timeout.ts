@@ -3,12 +3,12 @@
  * Prevents hanging queries when database is unreachable
  */
 
-export const DB_QUERY_TIMEOUT_MS = 10000
+export const DB_QUERY_TIMEOUT_MS = 10000;
 
 export class DatabaseTimeoutError extends Error {
   constructor(message = 'Database query timed out') {
-    super(message)
-    this.name = 'DatabaseTimeoutError'
+    super(message);
+    this.name = 'DatabaseTimeoutError';
   }
 }
 
@@ -19,17 +19,17 @@ export class DatabaseTimeoutError extends Error {
 export async function withDbTimeout<T>(
   queryBuilder: Promise<T> | { then: (onfulfilled: (value: T) => any) => any },
   timeoutMs = DB_QUERY_TIMEOUT_MS,
-  timeoutError = new DatabaseTimeoutError()
+  timeoutError = new DatabaseTimeoutError(),
 ): Promise<T> {
-  let timeoutId: ReturnType<typeof setTimeout>
+  let timeoutId: ReturnType<typeof setTimeout>;
   const timeoutPromise = new Promise<never>((_, reject) => {
-    timeoutId = setTimeout(() => reject(timeoutError), timeoutMs)
-  })
+    timeoutId = setTimeout(() => reject(timeoutError), timeoutMs);
+  });
   try {
     // Wrap in Promise.resolve to handle Drizzle's thenable query builders
-    return await Promise.race([Promise.resolve(queryBuilder), timeoutPromise])
+    return await Promise.race([Promise.resolve(queryBuilder), timeoutPromise]);
   } finally {
-    clearTimeout(timeoutId!)
+    clearTimeout(timeoutId!);
   }
 }
 
@@ -38,11 +38,11 @@ export async function withDbTimeout<T>(
  */
 export async function executeWithTimeout<T>(
   queries: (() => Promise<T> | { then: (onfulfilled: (value: T) => any) => any })[],
-  timeoutMs = DB_QUERY_TIMEOUT_MS
+  timeoutMs = DB_QUERY_TIMEOUT_MS,
 ): Promise<T[]> {
-  const results: T[] = []
+  const results: T[] = [];
   for (const query of queries) {
-    results.push(await withDbTimeout(query(), timeoutMs))
+    results.push(await withDbTimeout(query(), timeoutMs));
   }
-  return results
+  return results;
 }

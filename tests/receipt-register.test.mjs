@@ -8,12 +8,12 @@ const end = source.indexOf("{section === 'Products & services'", start)
 const registerBlock = start >= 0 && end > start ? source.slice(start, end) : ''
 
 test('catalogue creation stays enabled when no existing item is selected', () => {
-  assert.match(source, /modal === 'catalogue' \? \(selectedCatalogue \? 'Edit catalogue item' : 'Add catalogue item'\)/, 'catalogue dialog should support both create and edit states')
+  assert.match(source, /modal === 'catalogue'[\s\S]*?'Edit catalogue item'[\s\S]*?'Add catalogue item'/, 'catalogue dialog should support both create and edit states')
   assert.doesNotMatch(source, /modal === 'catalogue' && !String\(selectedCatalogue\?\.id \|\| ''\)/, 'catalogue create action should not be disabled when there is no selected item')
 })
 
 test('customers can be edited through a business-scoped audited server action', () => {
-  assert.match(source, /function CustomerTable\(\{ customers, onEdit \}/, 'customer rows should expose edit actions')
+  assert.match(source, /function CustomerTable\(\{\s*customers,\s*onEdit/, 'customer rows should expose edit actions')
   assert.match(source, /updateCustomer\(\{ id: selectedCustomer\.id, \.\.\.customerInput \}\)/, 'customer dialog should submit edits')
   const actions = fs.readFileSync(new URL('../app/actions/finance.ts', import.meta.url), 'utf8')
   assert.match(actions, /export async function updateCustomer\(/, 'customer update action should exist')
@@ -42,5 +42,5 @@ test('receipt register exposes client-side search and sorting', () => {
   assert.match(registerBlock, /aria-label="Sort receipts"/, 'receipt sort should have an accessible label')
   assert.match(registerBlock, /visibleReceipts\.map\(/, 'receipt table should render the filtered and sorted list')
   assert.match(registerBlock, /formatReceiptDate\(receipt\.paidAt\)/, 'receipt dates should use the stable date helper')
-  assert.match(registerBlock, /query \? 'No receipts match your search\./, 'filtered empty state should be distinct from the no-data state')
+  assert.match(registerBlock, /query[\s\S]*?'No receipts match your search\./, 'filtered empty state should be distinct from the no-data state')
 })

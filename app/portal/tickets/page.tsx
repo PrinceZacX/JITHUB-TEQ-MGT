@@ -1,93 +1,102 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { Plus, Search, Filter, ChevronDown, MoreHorizontal } from 'lucide-react'
-import { listClientServiceTickets, createClientServiceTicket, addClientServiceTicketComment, getClientServiceTicket } from '@/app/actions/service-desk'
+import { useEffect, useState } from 'react';
+import { Plus, Search, Filter, ChevronDown, MoreHorizontal } from 'lucide-react';
+import {
+  listClientServiceTickets,
+  createClientServiceTicket,
+  addClientServiceTicketComment,
+  getClientServiceTicket,
+} from '@/app/actions/service-desk';
 
-type Priority = 'low' | 'normal' | 'high' | 'critical' | 'urgent'
+type Priority = 'low' | 'normal' | 'high' | 'critical' | 'urgent';
 
 export default function ClientPortalTicketsPage() {
-  const [tickets, setTickets] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filters, setFilters] = useState({ status: '', search: '' })
-  const [openTicket, setOpenTicket] = useState<any | null>(null)
-  const [commentText, setCommentText] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const [showNewTicket, setShowNewTicket] = useState(false)
-  const [newTicketForm, setNewTicketForm] = useState<{ title: string; description: string; priority: Priority }>({ title: '', description: '', priority: 'normal' })
+  const [tickets, setTickets] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({ status: '', search: '' });
+  const [openTicket, setOpenTicket] = useState<any | null>(null);
+  const [commentText, setCommentText] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [showNewTicket, setShowNewTicket] = useState(false);
+  const [newTicketForm, setNewTicketForm] = useState<{
+    title: string;
+    description: string;
+    priority: Priority;
+  }>({ title: '', description: '', priority: 'normal' });
 
   async function loadData() {
-    setLoading(true)
+    setLoading(true);
     try {
-      const ticketsData = await listClientServiceTickets({ limit: 100 })
-      setTickets(ticketsData)
+      const ticketsData = await listClientServiceTickets({ limit: 100 });
+      setTickets(ticketsData);
     } catch (err) {
-      console.error('Failed to load tickets:', err)
+      console.error('Failed to load tickets:', err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadData()
-  }, [])
+    loadData();
+  }, []);
 
-  const filteredTickets = tickets.filter(t => {
-    if (filters.status && t.status !== filters.status) return false
+  const filteredTickets = tickets.filter((t) => {
+    if (filters.status && t.status !== filters.status) return false;
     if (filters.search) {
-      const search = filters.search.toLowerCase()
-      if (!t.title.toLowerCase().includes(search)) return false
+      const search = filters.search.toLowerCase();
+      if (!t.title.toLowerCase().includes(search)) return false;
     }
-    return true
-  })
+    return true;
+  });
 
   async function handleCreateTicket(e: React.FormEvent) {
-    e.preventDefault()
-    if (!newTicketForm.title.trim()) return
+    e.preventDefault();
+    if (!newTicketForm.title.trim()) return;
     try {
-      setSubmitting(true)
+      setSubmitting(true);
       await createClientServiceTicket({
         title: newTicketForm.title,
         description: newTicketForm.description,
         priority: newTicketForm.priority,
-      })
-      setShowNewTicket(false)
-      setNewTicketForm({ title: '', description: '', priority: 'normal' })
-      await loadData()
+      });
+      setShowNewTicket(false);
+      setNewTicketForm({ title: '', description: '', priority: 'normal' });
+      await loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to create ticket')
+      alert(err.message || 'Failed to create ticket');
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
   }
 
   async function handleAddComment(ticketId: string) {
-    if (!commentText.trim()) return
+    if (!commentText.trim()) return;
     try {
-      setSubmitting(true)
-      await addClientServiceTicketComment({ ticketId, body: commentText })
-      setCommentText('')
+      setSubmitting(true);
+      await addClientServiceTicketComment({ ticketId, body: commentText });
+      setCommentText('');
       if (openTicket?.ticket?.id === ticketId) {
-        const ticket = await getClientServiceTicket(ticketId)
-        setOpenTicket(ticket)
+        const ticket = await getClientServiceTicket(ticketId);
+        setOpenTicket(ticket);
       }
     } catch (err: any) {
-      alert(err.message || 'Failed to add comment')
+      alert(err.message || 'Failed to add comment');
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
   }
 
   async function openTicketDetails(ticket: any) {
     try {
-      const data = await getClientServiceTicket(ticket.id)
-      setOpenTicket(data)
+      const data = await getClientServiceTicket(ticket.id);
+      setOpenTicket(data);
     } catch (err) {
-      console.error('Failed to load ticket details:', err)
+      console.error('Failed to load ticket details:', err);
     }
   }
 
-  const statusOptions = ['open', 'in_progress', 'on_hold', 'resolved', 'closed', 'cancelled']
+  const statusOptions = ['open', 'in_progress', 'on_hold', 'resolved', 'closed', 'cancelled'];
 
   return (
     <div className="p-6">
@@ -118,7 +127,12 @@ export default function ClientPortalTicketsPage() {
               <textarea
                 className="w-full border border-jt-border rounded-lg px-3 py-2 bg-jt-surface"
                 value={newTicketForm.description}
-                onChange={(e) => setNewTicketForm({ ...newTicketForm, description: e.target.value })}
+                onChange={(e) =>
+                  setNewTicketForm({
+                    ...newTicketForm,
+                    description: e.target.value,
+                  })
+                }
                 rows={4}
                 placeholder="Detailed description of your issue..."
               />
@@ -128,7 +142,12 @@ export default function ClientPortalTicketsPage() {
               <select
                 className="w-full border border-jt-border rounded-lg px-3 py-2 bg-jt-surface"
                 value={newTicketForm.priority}
-                onChange={(e) => setNewTicketForm({ ...newTicketForm, priority: e.target.value as Priority })}
+                onChange={(e) =>
+                  setNewTicketForm({
+                    ...newTicketForm,
+                    priority: e.target.value as Priority,
+                  })
+                }
               >
                 <option value="low">Low</option>
                 <option value="normal">Normal</option>
@@ -138,7 +157,11 @@ export default function ClientPortalTicketsPage() {
               </select>
             </div>
             <div className="flex gap-2">
-              <button type="button" className="button-secondary" onClick={() => setShowNewTicket(false)}>
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={() => setShowNewTicket(false)}
+              >
                 Cancel
               </button>
               <button type="submit" className="primary-button" disabled={submitting}>
@@ -167,7 +190,11 @@ export default function ClientPortalTicketsPage() {
             onChange={(e) => setFilters({ ...filters, status: e.target.value })}
           >
             <option value="">All Statuses</option>
-            {statusOptions.map(s => <option key={s} value={s}>{s.replace('_', ' ')}</option>)}
+            {statusOptions.map((s) => (
+              <option key={s} value={s}>
+                {s.replace('_', ' ')}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -198,7 +225,7 @@ export default function ClientPortalTicketsPage() {
               {filteredTickets.map((ticket) => (
                 <tr key={ticket.id}>
                   <td>
-                    <button 
+                    <button
                       onClick={() => openTicketDetails(ticket)}
                       className="font-medium text-jt-primary hover:underline text-left"
                     >
@@ -211,17 +238,16 @@ export default function ClientPortalTicketsPage() {
                     </span>
                   </td>
                   <td>
-                    <span className={`status-pill ${['critical','urgent'].includes(ticket.priority) ? 'status-danger' : ticket.priority === 'high' ? 'status-warning' : 'status-info'}`}>
+                    <span
+                      className={`status-pill ${['critical', 'urgent'].includes(ticket.priority) ? 'status-danger' : ticket.priority === 'high' ? 'status-warning' : 'status-info'}`}
+                    >
                       {ticket.priority}
                     </span>
                   </td>
                   <td>{new Date(ticket.createdAt).toLocaleDateString()}</td>
                   <td>{new Date(ticket.updatedAt).toLocaleDateString()}</td>
                   <td>
-                    <button 
-                      onClick={() => openTicketDetails(ticket)}
-                      className="row-action"
-                    >
+                    <button onClick={() => openTicketDetails(ticket)} className="row-action">
                       View
                     </button>
                   </td>
@@ -237,7 +263,10 @@ export default function ClientPortalTicketsPage() {
           <div className="bg-white dark:bg-jt-bg rounded-xl shadow-xl max-w-3xl w-full max-h-[90vh] overflow-y-auto">
             <div className="p-6 border-b border-jt-border flex items-center justify-between">
               <h2 className="text-xl font-bold">{openTicket.ticket?.title || 'Request Details'}</h2>
-              <button onClick={() => setOpenTicket(null)} className="text-jt-muted hover:text-jt-text">
+              <button
+                onClick={() => setOpenTicket(null)}
+                className="text-jt-muted hover:text-jt-text"
+              >
                 ✕
               </button>
             </div>
@@ -246,7 +275,9 @@ export default function ClientPortalTicketsPage() {
                 <div>
                   <p className="text-jt-muted text-sm">Status</p>
                   <p className="font-medium">
-                    <span className={`status-pill status-${openTicket.ticket?.status?.replace('_', '-')}`}>
+                    <span
+                      className={`status-pill status-${openTicket.ticket?.status?.replace('_', '-')}`}
+                    >
                       {openTicket.ticket?.status?.replace('_', ' ')}
                     </span>
                   </p>
@@ -254,44 +285,68 @@ export default function ClientPortalTicketsPage() {
                 <div>
                   <p className="text-jt-muted text-sm">Priority</p>
                   <p className="font-medium">
-                    <span className={`status-pill ${['critical','urgent'].includes(openTicket.ticket?.priority) ? 'status-danger' : openTicket.ticket?.priority === 'high' ? 'status-warning' : 'status-info'}`}>
+                    <span
+                      className={`status-pill ${['critical', 'urgent'].includes(openTicket.ticket?.priority) ? 'status-danger' : openTicket.ticket?.priority === 'high' ? 'status-warning' : 'status-info'}`}
+                    >
                       {openTicket.ticket?.priority}
                     </span>
                   </p>
                 </div>
                 <div>
                   <p className="text-jt-muted text-sm">Created</p>
-                  <p className="font-medium">{new Date(openTicket.ticket?.createdAt).toLocaleString()}</p>
+                  <p className="font-medium">
+                    {new Date(openTicket.ticket?.createdAt).toLocaleString()}
+                  </p>
                 </div>
                 <div>
                   <p className="text-jt-muted text-sm">Last Updated</p>
-                  <p className="font-medium">{new Date(openTicket.ticket?.updatedAt).toLocaleString()}</p>
+                  <p className="font-medium">
+                    {new Date(openTicket.ticket?.updatedAt).toLocaleString()}
+                  </p>
                 </div>
               </div>
 
               <div className="mb-6">
                 <p className="text-jt-muted text-sm mb-2">Description</p>
-                <p className="whitespace-pre-wrap">{openTicket.ticket?.description || 'No description'}</p>
+                <p className="whitespace-pre-wrap">
+                  {openTicket.ticket?.description || 'No description'}
+                </p>
               </div>
 
               <div className="mb-6">
                 <p className="text-jt-muted text-sm mb-3">Conversation</p>
                 <div className="space-y-3 mb-4">
                   {openTicket.comments?.map((comment: any) => (
-                    <div key={comment.id} className="p-4 rounded-lg bg-jt-surface border border-jt-border">
+                    <div
+                      key={comment.id}
+                      className="p-4 rounded-lg bg-jt-surface border border-jt-border"
+                    >
                       <div className="flex items-center justify-between mb-2">
-                        <span className="font-medium">{comment.authorUserId === openTicket.ticket?.customerId ? 'You' : 'Support Team'}</span>
-                        <span className="text-jt-muted text-sm">{new Date(comment.createdAt).toLocaleString()}</span>
+                        <span className="font-medium">
+                          {comment.authorUserId === openTicket.ticket?.customerId
+                            ? 'You'
+                            : 'Support Team'}
+                        </span>
+                        <span className="text-jt-muted text-sm">
+                          {new Date(comment.createdAt).toLocaleString()}
+                        </span>
                       </div>
                       <p className="whitespace-pre-wrap">{comment.body}</p>
                     </div>
                   ))}
                   {openTicket.events?.map((event: any) => (
-                    <div key={event.id} className="p-3 rounded-lg bg-blue-50 border border-blue-100 text-sm">
-                      <span className="font-medium text-blue-700">{event.eventType.replace('_', ' ')}</span>
+                    <div
+                      key={event.id}
+                      className="p-3 rounded-lg bg-blue-50 border border-blue-100 text-sm"
+                    >
+                      <span className="font-medium text-blue-700">
+                        {event.eventType.replace('_', ' ')}
+                      </span>
                       {event.fromValue && <span className="mx-2">→</span>}
                       {event.toValue && <span className="text-blue-700">{event.toValue}</span>}
-                      <span className="text-jt-muted ml-2">{new Date(event.createdAt).toLocaleString()}</span>
+                      <span className="text-jt-muted ml-2">
+                        {new Date(event.createdAt).toLocaleString()}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -317,5 +372,5 @@ export default function ClientPortalTicketsPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

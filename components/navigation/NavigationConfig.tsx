@@ -1,3 +1,1 @@
-﻿
-
-export const NavigationConfig = NAVIGATION_CONFIG
+﻿export const NavigationConfig = NAVIGATION_CONFIG;

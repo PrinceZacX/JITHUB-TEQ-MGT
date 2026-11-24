@@ -47,7 +47,7 @@ test('cancel invoice requires invoice.cancel permission', () => {
 })
 
 test('cancel invoice rejects invoice with payments', () => {
-  assert.match(finance, /if \(money\(invoice.amountPaid\) > 0\) throw new Error\('Cannot cancel an invoice that has received payments\. Refund the payments first\.'\)/)
+  assert.match(finance, /if \(money\(invoice\.amountPaid\) > 0\)[\s\S]*?'Cannot cancel an invoice that has received payments\. Refund the payments first\.'/)
 })
 
 test('cashier role cannot approve refunds', () => {

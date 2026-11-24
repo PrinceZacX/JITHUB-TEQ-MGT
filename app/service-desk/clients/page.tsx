@@ -1,70 +1,87 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { Plus, Mail, UserPlus, X, RefreshCw, MoreHorizontal, Eye, Edit } from 'lucide-react'
-import { listBusinessInvitations, createBusinessInvitation, revokeBusinessInvitation, resendBusinessInvitation, listServiceDeskMembers } from '@/app/actions/service-desk'
+import { useEffect, useState } from 'react';
+import { Plus, Mail, UserPlus, X, RefreshCw, MoreHorizontal, Eye, Edit } from 'lucide-react';
+import {
+  listBusinessInvitations,
+  createBusinessInvitation,
+  revokeBusinessInvitation,
+  resendBusinessInvitation,
+  listServiceDeskMembers,
+} from '@/app/actions/service-desk';
 
 export default function ServiceDeskClientsPage() {
-  const [clients, setClients] = useState<any[]>([])
-  const [invitations, setInvitations] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [openInviteForm, setOpenInviteForm] = useState(false)
-  type InviteRole = 'owner' | 'administrator' | 'finance_manager' | 'accountant' | 'sales_officer' | 'cashier' | 'viewer'
+  const [clients, setClients] = useState<any[]>([]);
+  const [invitations, setInvitations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [openInviteForm, setOpenInviteForm] = useState(false);
+  type InviteRole =
+    | 'owner'
+    | 'administrator'
+    | 'finance_manager'
+    | 'accountant'
+    | 'sales_officer'
+    | 'cashier'
+    | 'viewer';
 
-const [inviteForm, setInviteForm] = useState<{ email: string; role: InviteRole; expiresInDays: number }>({ email: '', role: 'viewer', expiresInDays: 7 })
-  const [submitting, setSubmitting] = useState(false)
+  const [inviteForm, setInviteForm] = useState<{
+    email: string;
+    role: InviteRole;
+    expiresInDays: number;
+  }>({ email: '', role: 'viewer', expiresInDays: 7 });
+  const [submitting, setSubmitting] = useState(false);
 
   async function loadData() {
-    setLoading(true)
+    setLoading(true);
     try {
       const [clientsData, invitesData] = await Promise.all([
         listServiceDeskMembers(),
         listBusinessInvitations(),
-      ])
-      setClients(clientsData.filter(c => c.status === 'active'))
-      setInvitations(invitesData)
+      ]);
+      setClients(clientsData.filter((c) => c.status === 'active'));
+      setInvitations(invitesData);
     } catch (err) {
-      console.error('Failed to load clients:', err)
+      console.error('Failed to load clients:', err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadData()
-  }, [])
+    loadData();
+  }, []);
 
   async function handleInviteSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSubmitting(true)
+    e.preventDefault();
+    setSubmitting(true);
     try {
-      await createBusinessInvitation(inviteForm)
-      setOpenInviteForm(false)
-      setInviteForm({ email: '', role: 'viewer', expiresInDays: 7 })
-      await loadData()
+      await createBusinessInvitation(inviteForm);
+      setOpenInviteForm(false);
+      setInviteForm({ email: '', role: 'viewer', expiresInDays: 7 });
+      await loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to send invitation')
+      alert(err.message || 'Failed to send invitation');
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
   }
 
   async function handleRevoke(invitationId: string) {
-    if (!confirm('Revoke this invitation?')) return
+    if (!confirm('Revoke this invitation?')) return;
     try {
-      await revokeBusinessInvitation(invitationId)
-      await loadData()
+      await revokeBusinessInvitation(invitationId);
+      await loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to revoke invitation')
+      alert(err.message || 'Failed to revoke invitation');
     }
   }
 
   async function handleResend(invitationId: string) {
     try {
-      await resendBusinessInvitation(invitationId)
-      await loadData()
+      await resendBusinessInvitation(invitationId);
+      await loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to resend invitation')
+      alert(err.message || 'Failed to resend invitation');
     }
   }
 
@@ -76,7 +93,7 @@ const [inviteForm, setInviteForm] = useState<{ email: string; role: InviteRole; 
     { value: 'finance_manager', label: 'Finance Manager' },
     { value: 'administrator', label: 'Administrator' },
     { value: 'owner', label: 'Owner (full access)' },
-  ]
+  ];
 
   const statusColors: Record<string, string> = {
     active: 'status-success',
@@ -86,7 +103,7 @@ const [inviteForm, setInviteForm] = useState<{ email: string; role: InviteRole; 
     accepted: 'status-success',
     expired: 'status-danger',
     revoked: 'status-gray',
-  }
+  };
 
   return (
     <div className="p-6">
@@ -118,9 +135,18 @@ const [inviteForm, setInviteForm] = useState<{ email: string; role: InviteRole; 
                 <select
                   className="w-full border border-jt-border rounded-lg px-3 py-2 bg-jt-surface"
                   value={inviteForm.role}
-                  onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value as InviteRole })}
+                  onChange={(e) =>
+                    setInviteForm({
+                      ...inviteForm,
+                      role: e.target.value as InviteRole,
+                    })
+                  }
                 >
-                  {roleOptions.map(r => <option key={r.value} value={r.value}>{r.label}</option>)}
+                  {roleOptions.map((r) => (
+                    <option key={r.value} value={r.value}>
+                      {r.label}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -131,12 +157,21 @@ const [inviteForm, setInviteForm] = useState<{ email: string; role: InviteRole; 
                   max="30"
                   className="w-full border border-jt-border rounded-lg px-3 py-2 bg-jt-surface"
                   value={inviteForm.expiresInDays}
-                  onChange={(e) => setInviteForm({ ...inviteForm, expiresInDays: parseInt(e.target.value) || 7 })}
+                  onChange={(e) =>
+                    setInviteForm({
+                      ...inviteForm,
+                      expiresInDays: parseInt(e.target.value) || 7,
+                    })
+                  }
                 />
               </div>
             </div>
             <div className="flex gap-2">
-              <button type="button" className="button-secondary" onClick={() => setOpenInviteForm(false)}>
+              <button
+                type="button"
+                className="button-secondary"
+                onClick={() => setOpenInviteForm(false)}
+              >
                 <X size={14} /> Cancel
               </button>
               <button type="submit" className="primary-button" disabled={submitting}>
@@ -155,10 +190,15 @@ const [inviteForm, setInviteForm] = useState<{ email: string; role: InviteRole; 
           ) : (
             <div className="space-y-3">
               {clients.map((client) => (
-                <div key={client.id} className="flex items-center justify-between p-4 bg-jt-surface rounded-lg border border-jt-border">
+                <div
+                  key={client.id}
+                  className="flex items-center justify-between p-4 bg-jt-surface rounded-lg border border-jt-border"
+                >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-jt-primary/10 flex items-center justify-center">
-                      <span className="text-jt-primary font-medium">{client.name?.charAt(0) || 'U'}</span>
+                      <span className="text-jt-primary font-medium">
+                        {client.name?.charAt(0) || 'U'}
+                      </span>
                     </div>
                     <div>
                       <p className="font-medium">{client.name}</p>
@@ -186,7 +226,10 @@ const [inviteForm, setInviteForm] = useState<{ email: string; role: InviteRole; 
           ) : (
             <div className="space-y-3">
               {invitations.map((inv) => (
-                <div key={inv.id} className="flex items-center justify-between p-4 bg-jt-surface rounded-lg border border-jt-border">
+                <div
+                  key={inv.id}
+                  className="flex items-center justify-between p-4 bg-jt-surface rounded-lg border border-jt-border"
+                >
                   <div className="flex items-center gap-4">
                     <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
                       <Mail size={20} className="text-purple-600" />
@@ -204,10 +247,18 @@ const [inviteForm, setInviteForm] = useState<{ email: string; role: InviteRole; 
                     </span>
                     {inv.status === 'pending' && (
                       <>
-                        <button onClick={() => handleResend(inv.id)} className="row-action" title="Resend">
+                        <button
+                          onClick={() => handleResend(inv.id)}
+                          className="row-action"
+                          title="Resend"
+                        >
                           <RefreshCw size={14} />
                         </button>
-                        <button onClick={() => handleRevoke(inv.id)} className="row-action text-red-600" title="Revoke">
+                        <button
+                          onClick={() => handleRevoke(inv.id)}
+                          className="row-action text-red-600"
+                          title="Revoke"
+                        >
                           <X size={14} />
                         </button>
                       </>
@@ -220,5 +271,5 @@ const [inviteForm, setInviteForm] = useState<{ email: string; role: InviteRole; 
         </div>
       </div>
     </div>
-  )
+  );
 }

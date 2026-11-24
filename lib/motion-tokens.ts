@@ -16,8 +16,8 @@ export const motionTokens = {
 
   // Easings
   easings: {
-    emil: [0.22, 1, 0.36, 1] as const,      // Emil's signature ease-out
-    jakub: [0.16, 1, 0.3, 1] as const,      // Jakub's slightly softer
+    emil: [0.22, 1, 0.36, 1] as const, // Emil's signature ease-out
+    jakub: [0.16, 1, 0.3, 1] as const, // Jakub's slightly softer
     standard: [0.25, 0.46, 0.45, 0.94] as const,
   } as const,
 
@@ -39,7 +39,7 @@ export const motionTokens = {
 
   // Stagger timing
   stagger: {
-    children: 0.04,    // Emil: quick, purposeful
+    children: 0.04, // Emil: quick, purposeful
     delay: 0.05,
   } as const,
 } as const;

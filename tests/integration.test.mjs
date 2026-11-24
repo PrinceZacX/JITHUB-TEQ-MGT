@@ -17,7 +17,7 @@ test('money function converts to integer cents', () => {
 })
 
 test('money function rejects invalid formats', () => {
-  assert.match(finance, /if \(!moneyPattern\.test\(value\)\) throw new Error\('Enter a valid amount with up to two decimal places\.'\)/)
+  assert.match(finance, /if \(!moneyPattern\.test\(value\)\)\s*throw new Error\('Enter a valid amount with up to two decimal places\.'\)/)
 })
 
 test('scaledDecimal validates decimal places', () => {
@@ -117,11 +117,11 @@ test('refund completion records processed timestamp', () => {
 })
 
 test('refund rejection sets status to rejected', () => {
-  assert.match(finance, /await tx\.update\(refunds\)\.set\(\{ status: 'rejected',/)
+  assert.match(finance, /await tx[\s\S]*?update\(refunds\)[\s\S]*?set\(\{ status: 'rejected',/)
 })
 
 test('refund completion sets status to completed', () => {
-  assert.match(finance, /await tx\.update\(refunds\)\.set\(\{ status: 'completed',/)
+  assert.match(finance, /await tx[\s\S]*?update\(refunds\)[\s\S]*?set\(\{ status: 'completed',/)
 })
 
 /* ------------------------------------------------------------------ */
@@ -129,7 +129,7 @@ test('refund completion sets status to completed', () => {
 /* ------------------------------------------------------------------ */
 
 test('voiding records voidedAt and voidedBy', () => {
-  assert.match(finance, /await tx\.update\(receipts\)\.set\(\{ status: 'voided', voidedAt: new Date\(\), voidedBy: context\.userId \}/)
+  assert.match(finance, /await tx[\s\S]*?update\(receipts\)[\s\S]*?set\(\{ status: 'voided', voidedAt: new Date\(\), voidedBy: context\.userId \}\)/)
 })
 
 test('void receipt rejects already voided receipts', () => {
@@ -141,7 +141,7 @@ test('void receipt rejects already voided receipts', () => {
 /* ------------------------------------------------------------------ */
 
 test('cancel invoice prevents cancellation when payments exist', () => {
-  assert.match(finance, /if \(money\(invoice\.amountPaid\) > 0\) throw new Error\('Cannot cancel an invoice that has received payments\./)
+  assert.match(finance, /if \(money\(invoice\.amountPaid\) > 0\)[\s\S]*?'Cannot cancel an invoice that has received payments\./)
 })
 
 test('cancel invoice sets status to cancelled', () => {
@@ -159,7 +159,7 @@ test('updateBusiness validates all fields', () => {
 })
 
 test('updateBusiness audits changes', () => {
-  assert.match(finance, /action: 'business\.updated', entityType: 'business'/)
+  assert.match(finance, /action: 'business\.updated',\s*entityType: 'business'/)
 })
 
 /* ------------------------------------------------------------------ */
@@ -171,12 +171,12 @@ test('logo upload validates file size', () => {
 })
 
 test('logo upload validates MIME type', () => {
-  assert.match(logoRoute, /if \(!ALLOWED_MIME_TYPES\.includes\(file\.type\)\) throw new Error\('Unsupported file type\./)
+  assert.match(logoRoute, /if \(!ALLOWED_MIME_TYPES\.includes\(file\.type\)\)\s*throw new Error\('Unsupported file type\./)
 })
 
 test('logo upload validates actual image format via magic bytes', () => {
   assert.match(logoRoute, /function detectImageMime\(buffer: Buffer\)/)
-  assert.match(logoRoute, /buffer\[0\] === 0x89.*buffer\[1\] === 0x50.*buffer\[2\] === 0x4e.*buffer\[3\] === 0x47/)
+  assert.match(logoRoute, /buffer\[0\] === 0x89[\s\S]*?buffer\[1\] === 0x50[\s\S]*?buffer\[2\] === 0x4e[\s\S]*?buffer\[3\] === 0x47/)
   assert.match(logoRoute, /buffer\[0\] === 0xff.*buffer\[1\] === 0xd8/)
 })
 

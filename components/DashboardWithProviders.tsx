@@ -1,24 +1,24 @@
-'use client'
+'use client';
 
-import { useState, useCallback } from 'react'
-import { Dashboard } from './dashboard'
-import { UnifiedNavigation } from './navigation/UnifiedNavigation'
-import { SearchOverlay } from './navigation/SearchOverlay'
-import { ToastProvider, useToast } from './ui/Notifications'
+import { useState, useCallback } from 'react';
+import { Dashboard } from './dashboard';
+import { UnifiedNavigation } from './navigation/UnifiedNavigation';
+import { SearchOverlay } from './navigation/SearchOverlay';
+import { ToastProvider, useToast } from './ui/Notifications';
 
 interface DashboardWithProvidersProps {
-  user: { name: string; email: string }
-  data: any
+  user: { name: string; email: string };
+  data: any;
 }
 
 function DashboardContent({ user, data }: { user: { name: string; email: string }; data: any }) {
-  const [searchOpen, setSearchOpen] = useState(false)
-  const { success, error, info, warning, loading } = useToast()
+  const [searchOpen, setSearchOpen] = useState(false);
+  const { success, error, info, warning, loading } = useToast();
 
   // Replace the old setToast with new toast system
   const showToast = useCallback((message: string) => {
-    info('Notification', message)
-  }, [])
+    info('Notification', message);
+  }, []);
 
   // We need to wrap the Dashboard component to provide the new toast system
   // The Dashboard component uses setToast internally, so we need to handle that
@@ -30,13 +30,13 @@ function DashboardContent({ user, data }: { user: { name: string; email: string 
       data={data}
       // The Dashboard component will be wrapped with providers
     />
-  )
+  );
 }
 
 export function DashboardWithProviders({ user, data }: DashboardWithProvidersProps) {
-  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchOpen, setSearchOpen] = useState(false);
 
-  const handleSearchOpen = useCallback(() => setSearchOpen(true), [])
+  const handleSearchOpen = useCallback(() => setSearchOpen(true), []);
 
   return (
     <ToastProvider>
@@ -61,5 +61,5 @@ export function DashboardWithProviders({ user, data }: DashboardWithProvidersPro
         <Dashboard user={user} data={data} />
       </div>
     </ToastProvider>
-  )
+  );
 }

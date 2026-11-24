@@ -32,7 +32,7 @@ export const FunctionCard = forwardRef<HTMLButtonElement, FunctionCardProps>(
       className,
       ...props
     },
-    ref: Ref<HTMLButtonElement>
+    ref: Ref<HTMLButtonElement>,
   ) => {
     const handleClick = () => {
       if (!disabled) onSelect(id);
@@ -63,7 +63,7 @@ export const FunctionCard = forwardRef<HTMLButtonElement, FunctionCardProps>(
             ? 'border-jt-teal bg-jt-teal/5 shadow-[0_0_0_1px_var(--jt-teal)]'
             : 'border-jt-border hover:border-jt-teal/50 hover:bg-jt-surface',
           disabled && 'opacity-40 cursor-not-allowed',
-          className
+          className,
         )}
         initial={false}
         animate={{
@@ -76,11 +76,15 @@ export const FunctionCard = forwardRef<HTMLButtonElement, FunctionCardProps>(
           duration: 0.18,
           ease: [0.22, 1, 0.36, 1],
         }}
-        whileHover={!disabled && !selected ? {
-          y: -2,
-          boxShadow: '0 8px 24px -8px rgb(16 36 58 / 0.12)',
-          transition: { duration: 0.15, ease: [0.22, 1, 0.36, 1] },
-        } : undefined}
+        whileHover={
+          !disabled && !selected
+            ? {
+                y: -2,
+                boxShadow: '0 8px 24px -8px rgb(16 36 58 / 0.12)',
+                transition: { duration: 0.15, ease: [0.22, 1, 0.36, 1] },
+              }
+            : undefined
+        }
         whileTap={!disabled ? { scale: 0.99 } : undefined}
         {...props}
       >
@@ -157,12 +161,15 @@ export const FunctionCard = forwardRef<HTMLButtonElement, FunctionCardProps>(
         {/* Reduced motion fallback */}
         <style jsx>{`
           @media (prefers-reduced-motion: reduce) {
-            * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+            * {
+              animation-duration: 0.01ms !important;
+              transition-duration: 0.01ms !important;
+            }
           }
         `}</style>
       </motion.button>
     );
-  }
+  },
 );
 
 FunctionCard.displayName = 'FunctionCard';

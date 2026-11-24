@@ -1,8 +1,8 @@
-﻿'use client'
+﻿'use client';
 
-import { useState, useCallback } from 'react'
-import { cn } from '@/lib/utils'
-import { WORKFLOW_STEPS } from '@/components/navigation/NavigationConfig'
+import { useState, useCallback } from 'react';
+import { cn } from '@/lib/utils';
+import { WORKFLOW_STEPS } from '@/components/navigation/NavigationConfig';
 import {
   ChevronRight,
   ChevronDown,
@@ -15,29 +15,29 @@ import {
   ArrowRight,
   X,
   Check,
-} from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Step {
-  label: string
-  description: string
-  optional?: boolean
-  isValid?: boolean
-  isComplete?: boolean
+  label: string;
+  description: string;
+  optional?: boolean;
+  isValid?: boolean;
+  isComplete?: boolean;
 }
 
 interface ProgressiveDisclosureProps {
-  workflow: keyof typeof WORKFLOW_STEPS | Step[]
-  currentStep: number
-  onStepChange: (step: number) => void
-  onNext: () => Promise<void> | void
-  onBack: () => void
-  onSubmit: () => Promise<void> | void
-  isSubmitting?: boolean
-  canGoBack?: boolean
-  canGoNext?: boolean
-  className?: string
-  children: (step: Step, index: number, isActive: boolean) => React.ReactNode
+  workflow: keyof typeof WORKFLOW_STEPS | Step[];
+  currentStep: number;
+  onStepChange: (step: number) => void;
+  onNext: () => Promise<void> | void;
+  onBack: () => void;
+  onSubmit: () => Promise<void> | void;
+  isSubmitting?: boolean;
+  canGoBack?: boolean;
+  canGoNext?: boolean;
+  className?: string;
+  children: (step: Step, index: number, isActive: boolean) => React.ReactNode;
 }
 
 export function ProgressiveDisclosure({
@@ -53,25 +53,25 @@ export function ProgressiveDisclosure({
   className,
   children,
 }: ProgressiveDisclosureProps) {
-  const steps = Array.isArray(workflow) ? workflow : WORKFLOW_STEPS[workflow] || []
-  const totalSteps = steps.length
-  const isLastStep = currentStep === totalSteps - 1
-  const isFirstStep = currentStep === 0
+  const steps = Array.isArray(workflow) ? workflow : WORKFLOW_STEPS[workflow] || [];
+  const totalSteps = steps.length;
+  const isLastStep = currentStep === totalSteps - 1;
+  const isFirstStep = currentStep === 0;
 
   const handleNext = async () => {
-    if (!canGoNext || isSubmitting) return
-    await onNext()
-  }
+    if (!canGoNext || isSubmitting) return;
+    await onNext();
+  };
 
   const handleBack = () => {
-    if (!canGoBack || isFirstStep) return
-    onBack()
-  }
+    if (!canGoBack || isFirstStep) return;
+    onBack();
+  };
 
   const handleSubmit = async () => {
-    if (isSubmitting) return
-    await onSubmit()
-  }
+    if (isSubmitting) return;
+    await onSubmit();
+  };
 
   return (
     <div className={cn('w-full', className)}>
@@ -129,15 +129,15 @@ export function ProgressiveDisclosure({
 
               {/* Step Label */}
               <div className="mt-2 text-center w-32">
-                <p className={cn(
-                  'text-xs font-medium truncate',
-                  index <= currentStep ? 'text-jt-text' : 'text-jt-muted'
-                )}>
+                <p
+                  className={cn(
+                    'text-xs font-medium truncate',
+                    index <= currentStep ? 'text-jt-text' : 'text-jt-muted',
+                  )}
+                >
                   {step.label}
                 </p>
-                {step.optional && (
-                  <span className="text-[10px] text-jt-muted">(optional)</span>
-                )}
+                {step.optional && <span className="text-[10px] text-jt-muted">(optional)</span>}
               </div>
             </motion.div>
           ))}
@@ -214,6 +214,5 @@ export function ProgressiveDisclosure({
         </div>
       </div>
     </div>
-  )
+  );
 }
-

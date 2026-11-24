@@ -1,8 +1,8 @@
-'use client'
+'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { cn } from '@/lib/utils'
-import { SEARCH_CONFIG } from './NavigationConfig'
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { cn } from '@/lib/utils';
+import { SEARCH_CONFIG } from './NavigationConfig';
 import {
   Search,
   X,
@@ -22,24 +22,24 @@ import {
   Clock,
   ChevronRight,
   Loader2,
-} from 'lucide-react'
+} from 'lucide-react';
 
 interface SearchResult {
-  id: string
-  type: string
-  title: string
-  subtitle: string
-  href: string
-  badge?: string
-  metadata?: Record<string, string>
+  id: string;
+  type: string;
+  title: string;
+  subtitle: string;
+  href: string;
+  badge?: string;
+  metadata?: Record<string, string>;
 }
 
 interface SearchOverlayProps {
-  isOpen: boolean
-  onClose: () => void
-  onResultSelect?: (result: SearchResult) => void
-  recentSearches?: string[]
-  userPermissions?: string[]
+  isOpen: boolean;
+  onClose: () => void;
+  onResultSelect?: (result: SearchResult) => void;
+  recentSearches?: string[];
+  userPermissions?: string[];
 }
 
 export function SearchOverlay({
@@ -49,131 +49,132 @@ export function SearchOverlay({
   recentSearches = [],
   userPermissions = [],
 }: SearchOverlayProps) {
-  const [query, setQuery] = useState('')
-  const [results, setResults] = useState<SearchResult[]>([])
-  const [isLoading, setIsLoading] = useState(false)
-  const [selectedIndex, setSelectedIndex] = useState(-1)
-  const [activeFilter, setActiveFilter] = useState<'all' | string>('all')
-  const inputRef = useRef<HTMLInputElement>(null)
-  const resultsRef = useRef<HTMLDivElement>(null)
+  const [query, setQuery] = useState('');
+  const [results, setResults] = useState<SearchResult[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [activeFilter, setActiveFilter] = useState<'all' | string>('all');
+  const inputRef = useRef<HTMLInputElement>(null);
+  const resultsRef = useRef<HTMLDivElement>(null);
 
-  const searchableSections = SEARCH_CONFIG.searchableSections
+  const searchableSections = SEARCH_CONFIG.searchableSections;
 
   // Filter sections by permissions
-  const allowedSections = searchableSections.filter(section => {
-    const config = SEARCH_CONFIG.filters[section]
-    if (!config) return true
-    const navItem = SEARCH_CONFIG.searchableSections.find(s => s === section)
-    return true // Simplified - would check actual permissions
-  })
+  const allowedSections = searchableSections.filter((section) => {
+    const config = SEARCH_CONFIG.filters[section];
+    if (!config) return true;
+    const navItem = SEARCH_CONFIG.searchableSections.find((s) => s === section);
+    return true; // Simplified - would check actual permissions
+  });
 
   // Debounced search
   const debouncedSearch = useCallback(
     debounce(async (searchQuery: string) => {
       if (!searchQuery.trim()) {
-        setResults([])
-        setIsLoading(false)
-        return
+        setResults([]);
+        setIsLoading(false);
+        return;
       }
 
-      setIsLoading(true)
+      setIsLoading(true);
       try {
         // In a real implementation, this would call an API
         // For now, simulate with mock data
-        await new Promise(resolve => setTimeout(resolve, 200))
-        const mockResults = generateMockResults(searchQuery)
-        setResults(mockResults)
+        await new Promise((resolve) => setTimeout(resolve, 200));
+        const mockResults = generateMockResults(searchQuery);
+        setResults(mockResults);
       } catch (error) {
-        console.error('Search error:', error)
-        setResults([])
+        console.error('Search error:', error);
+        setResults([]);
       } finally {
-        setIsLoading(false)
+        setIsLoading(false);
       }
     }, SEARCH_CONFIG.debounceMs),
-  [])
+    [],
+  );
 
   useEffect(() => {
-    debouncedSearch(query)
-  }, [query, debouncedSearch])
+    debouncedSearch(query);
+  }, [query, debouncedSearch]);
 
   // Handle keyboard navigation
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (!isOpen) return
+      if (!isOpen) return;
 
       switch (e.key) {
         case 'Escape':
-          onClose()
-          break
+          onClose();
+          break;
         case 'ArrowDown':
-          e.preventDefault()
-          setSelectedIndex(prev => Math.min(prev + 1, results.length - 1))
-          break
+          e.preventDefault();
+          setSelectedIndex((prev) => Math.min(prev + 1, results.length - 1));
+          break;
         case 'ArrowUp':
-          e.preventDefault()
-          setSelectedIndex(prev => Math.max(prev - 1, -1))
-          break
+          e.preventDefault();
+          setSelectedIndex((prev) => Math.max(prev - 1, -1));
+          break;
         case 'Enter':
-          e.preventDefault()
+          e.preventDefault();
           if (selectedIndex >= 0 && results[selectedIndex]) {
-            onResultSelect?.(results[selectedIndex])
-            onClose()
+            onResultSelect?.(results[selectedIndex]);
+            onClose();
           }
-          break
+          break;
         case 'Tab':
           if (e.shiftKey) {
-            e.preventDefault()
-            setSelectedIndex(prev => Math.max(prev - 1, -1))
+            e.preventDefault();
+            setSelectedIndex((prev) => Math.max(prev - 1, -1));
           } else {
-            e.preventDefault()
-            setSelectedIndex(prev => Math.min(prev + 1, results.length - 1))
+            e.preventDefault();
+            setSelectedIndex((prev) => Math.min(prev + 1, results.length - 1));
           }
-          break
+          break;
       }
     }
 
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen, results, selectedIndex, onClose])
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, results, selectedIndex, onClose]);
 
   // Focus input on open
   useEffect(() => {
     if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 100)
-      setSelectedIndex(-1)
+      setTimeout(() => inputRef.current?.focus(), 100);
+      setSelectedIndex(-1);
     }
-  }, [isOpen])
+  }, [isOpen]);
 
   // Focus trap
-  const overlayRef = useRef<HTMLDivElement>(null)
+  const overlayRef = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    if (!isOpen) return
+    if (!isOpen) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Tab') {
         const focusableElements = overlayRef.current?.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        )
-        if (!focusableElements || focusableElements.length === 0) return
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+        );
+        if (!focusableElements || focusableElements.length === 0) return;
 
-        const firstElement = focusableElements[0] as HTMLElement
-        const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement
+        const firstElement = focusableElements[0] as HTMLElement;
+        const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
 
         if (e.shiftKey && document.activeElement === firstElement) {
-          e.preventDefault()
-          lastElement.focus()
+          e.preventDefault();
+          lastElement.focus();
         } else if (!e.shiftKey && document.activeElement === lastElement) {
-          e.preventDefault()
-          firstElement.focus()
+          e.preventDefault();
+          firstElement.focus();
         }
       }
-    }
+    };
 
-    document.addEventListener('keydown', handleKeyDown)
-    return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [isOpen])
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen]);
 
-  if (!isOpen) return null
+  if (!isOpen) return null;
 
   const SECTION_ICONS: Record<string, typeof FileText> = {
     Invoices: FileText,
@@ -190,7 +191,7 @@ export function SearchOverlay({
     'User management': ShieldCheck,
     'Audit logs': FileClock,
     Settings: Settings2,
-  }
+  };
 
   return (
     <div
@@ -218,7 +219,10 @@ export function SearchOverlay({
               aria-controls="search-results"
             />
             {isLoading && (
-              <Loader2 className="absolute right-10 top-1/2 -translate-y-1/2 text-jt-teal animate-spin" size={20} />
+              <Loader2
+                className="absolute right-10 top-1/2 -translate-y-1/2 text-jt-teal animate-spin"
+                size={20}
+              />
             )}
             <button
               onClick={onClose}
@@ -239,12 +243,12 @@ export function SearchOverlay({
                 'px-3 py-1.5 text-sm font-medium rounded-full transition-colors whitespace-nowrap',
                 activeFilter === 'all'
                   ? 'bg-jt-teal text-white'
-                  : 'bg-jt-surface text-jt-text hover:bg-jt-border'
+                  : 'bg-jt-surface text-jt-text hover:bg-jt-border',
               )}
             >
               All
             </button>
-            {allowedSections.map(section => (
+            {allowedSections.map((section) => (
               <button
                 key={section}
                 onClick={() => setActiveFilter(section)}
@@ -252,7 +256,7 @@ export function SearchOverlay({
                   'px-3 py-1.5 text-sm font-medium rounded-full transition-colors whitespace-nowrap',
                   activeFilter === section
                     ? 'bg-jt-teal text-white'
-                    : 'bg-jt-surface text-jt-text hover:bg-jt-border'
+                    : 'bg-jt-surface text-jt-text hover:bg-jt-border',
                 )}
               >
                 {section}
@@ -275,10 +279,14 @@ export function SearchOverlay({
               {recentSearches.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-jt-muted">Recent searches</h3>
+                    <h3 className="text-xs font-semibold uppercase tracking-wider text-jt-muted">
+                      Recent searches
+                    </h3>
                     <button
                       className="text-sm text-jt-teal hover:text-jt-teal-dark"
-                      onClick={() => { /* clear recent */ }}
+                      onClick={() => {
+                        /* clear recent */
+                      }}
                     >
                       Clear
                     </button>
@@ -287,7 +295,10 @@ export function SearchOverlay({
                     {recentSearches.slice(0, 8).map((term) => (
                       <button
                         key={term}
-                        onClick={() => { setQuery(term); setSelectedIndex(-1) }}
+                        onClick={() => {
+                          setQuery(term);
+                          setSelectedIndex(-1);
+                        }}
                         className="px-3 py-1.5 text-sm text-jt-text bg-jt-surface border border-jt-border rounded-lg hover:bg-jt-teal/5 hover:border-jt-teal transition-colors"
                       >
                         {term}
@@ -299,17 +310,43 @@ export function SearchOverlay({
 
               {/* Suggested Filters */}
               <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-jt-muted mb-3">Quick filters</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-jt-muted mb-3">
+                  Quick filters
+                </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                   {[
-                    { label: 'Unpaid invoices', icon: FileText, filter: 'Invoices', query: 'status:issued' },
-                    { label: 'Overdue', icon: FileClock, filter: 'Invoices', query: 'status:overdue' },
-                    { label: 'This month', icon: Activity, filter: 'Reports', query: 'period:30' },
-                    { label: 'Customers', icon: Users, filter: 'Customers', query: '' },
+                    {
+                      label: 'Unpaid invoices',
+                      icon: FileText,
+                      filter: 'Invoices',
+                      query: 'status:issued',
+                    },
+                    {
+                      label: 'Overdue',
+                      icon: FileClock,
+                      filter: 'Invoices',
+                      query: 'status:overdue',
+                    },
+                    {
+                      label: 'This month',
+                      icon: Activity,
+                      filter: 'Reports',
+                      query: 'period:30',
+                    },
+                    {
+                      label: 'Customers',
+                      icon: Users,
+                      filter: 'Customers',
+                      query: '',
+                    },
                   ].map((item) => (
                     <button
                       key={item.label}
-                      onClick={() => { setQuery(item.query); setActiveFilter(item.filter); setSelectedIndex(-1) }}
+                      onClick={() => {
+                        setQuery(item.query);
+                        setActiveFilter(item.filter);
+                        setSelectedIndex(-1);
+                      }}
                       className="flex items-center gap-3 p-3 bg-jt-surface border border-jt-border rounded-xl hover:bg-jt-teal/5 hover:border-jt-teal transition-colors text-left"
                     >
                       <item.icon size={20} className="text-jt-teal" />
@@ -321,20 +358,26 @@ export function SearchOverlay({
 
               {/* Suggested Sections */}
               <div>
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-jt-muted mb-3">Jump to</h3>
+                <h3 className="text-xs font-semibold uppercase tracking-wider text-jt-muted mb-3">
+                  Jump to
+                </h3>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                  {allowedSections.map(section => {
-                    const Icon = SECTION_ICONS[section]
+                  {allowedSections.map((section) => {
+                    const Icon = SECTION_ICONS[section];
                     return (
                       <button
                         key={section}
-                        onClick={() => { setActiveFilter(section); setQuery(''); setSelectedIndex(-1) }}
+                        onClick={() => {
+                          setActiveFilter(section);
+                          setQuery('');
+                          setSelectedIndex(-1);
+                        }}
                         className="flex items-center gap-3 p-3 bg-jt-surface border border-jt-border rounded-xl hover:bg-jt-teal/5 hover:border-jt-teal transition-colors"
                       >
                         <Icon size={20} className="text-jt-teal" />
                         <span className="font-medium truncate">{section}</span>
                       </button>
-                    )
+                    );
                   })}
                 </div>
               </div>
@@ -355,19 +398,25 @@ export function SearchOverlay({
               {results.map((result, index) => (
                 <button
                   key={result.id}
-                  onClick={() => { onResultSelect?.(result); onClose() }}
+                  onClick={() => {
+                    onResultSelect?.(result);
+                    onClose();
+                  }}
                   className={cn(
                     'w-full flex items-start gap-3 p-3 rounded-xl transition-colors text-left',
                     'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-jt-teal',
                     selectedIndex === index
                       ? 'bg-jt-teal/5 ring-2 ring-jt-teal'
-                      : 'hover:bg-jt-surface'
+                      : 'hover:bg-jt-surface',
                   )}
                   role="option"
                   aria-selected={selectedIndex === index}
                 >
                   <div className="w-10 h-10 flex items-center justify-center rounded-lg bg-jt-teal/10 text-jt-teal flex-shrink-0">
-                    {(() => { const Icon = SECTION_ICONS[result.type]; return Icon ? <Icon size={20} /> : null })()}
+                    {(() => {
+                      const Icon = SECTION_ICONS[result.type];
+                      return Icon ? <Icon size={20} /> : null;
+                    })()}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
@@ -382,7 +431,10 @@ export function SearchOverlay({
                     {result.metadata && (
                       <div className="flex flex-wrap gap-2 mt-1">
                         {Object.entries(result.metadata).map(([key, value]) => (
-                          <span key={key} className="px-2 py-0.5 text-[10px] text-jt-muted bg-jt-border rounded">
+                          <span
+                            key={key}
+                            className="px-2 py-0.5 text-[10px] text-jt-muted bg-jt-border rounded"
+                          >
                             {key}: {value}
                           </span>
                         ))}
@@ -410,36 +462,65 @@ export function SearchOverlay({
         </div>
       </div>
     </div>
-  )
+  );
 }
 
 function debounce<T extends (...args: any[]) => any>(
   fn: T,
-  ms: number
+  ms: number,
 ): (...args: Parameters<T>) => void {
-  let timeoutId: ReturnType<typeof setTimeout>
+  let timeoutId: ReturnType<typeof setTimeout>;
   return (...args: Parameters<T>) => {
-    clearTimeout(timeoutId)
-    timeoutId = setTimeout(() => fn(...args), ms)
-  }
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => fn(...args), ms);
+  };
 }
 
 function generateMockResults(query: string): any[] {
   // This would be replaced with actual API calls
   const mockData = [
-    { id: 'inv-1', type: 'Invoices', title: 'INV-2024-001', subtitle: 'Acme Corp · UGX 5,000,000 · Issued', href: '/invoices/inv-1', badge: 'issued' },
-    { id: 'cust-1', type: 'Customers', title: 'Acme Corporation', subtitle: 'acme@example.com · Kampala', href: '/customers/cust-1' },
-    { id: 'pay-1', type: 'Payments', title: 'Payment for INV-2024-001', subtitle: 'UGX 5,000,000 · Mobile Money', href: '/payments/pay-1', badge: 'completed' },
-    { id: 'rec-1', type: 'Receipts', title: 'RCP-2024-001', subtitle: 'Acme Corp · UGX 5,000,000', href: '/receipts/rec-1' },
-  ]
+    {
+      id: 'inv-1',
+      type: 'Invoices',
+      title: 'INV-2024-001',
+      subtitle: 'Acme Corp · UGX 5,000,000 · Issued',
+      href: '/invoices/inv-1',
+      badge: 'issued',
+    },
+    {
+      id: 'cust-1',
+      type: 'Customers',
+      title: 'Acme Corporation',
+      subtitle: 'acme@example.com · Kampala',
+      href: '/customers/cust-1',
+    },
+    {
+      id: 'pay-1',
+      type: 'Payments',
+      title: 'Payment for INV-2024-001',
+      subtitle: 'UGX 5,000,000 · Mobile Money',
+      href: '/payments/pay-1',
+      badge: 'completed',
+    },
+    {
+      id: 'rec-1',
+      type: 'Receipts',
+      title: 'RCP-2024-001',
+      subtitle: 'Acme Corp · UGX 5,000,000',
+      href: '/receipts/rec-1',
+    },
+  ];
 
-  return mockData.filter(item =>
-    item.title.toLowerCase().includes(query.toLowerCase()) ||
-    item.subtitle.toLowerCase().includes(query.toLowerCase())
-  ).map(item => ({
-    ...item,
-    metadata: { section: item.type },
-  }))
+  return mockData
+    .filter(
+      (item) =>
+        item.title.toLowerCase().includes(query.toLowerCase()) ||
+        item.subtitle.toLowerCase().includes(query.toLowerCase()),
+    )
+    .map((item) => ({
+      ...item,
+      metadata: { section: item.type },
+    }));
 }
 
 const SECTION_ICONS: Record<string, typeof FileText> = {
@@ -457,4 +538,4 @@ const SECTION_ICONS: Record<string, typeof FileText> = {
   'User management': ShieldCheck,
   'Audit logs': FileClock,
   Settings: Settings2,
-}
+};

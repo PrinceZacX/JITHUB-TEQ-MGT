@@ -1,40 +1,40 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { createGoodsReceipt, listGoodsReceipts, receiveGoodsReceipt } from '@/app/actions/finance'
-import { Plus } from 'lucide-react'
+import { useEffect, useState } from 'react';
+import { createGoodsReceipt, listGoodsReceipts, receiveGoodsReceipt } from '@/app/actions/finance';
+import { Plus } from 'lucide-react';
 
 export default function GoodsReceiptsPage() {
-  const [goodsReceipts, setGoodsReceipts] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [openForm, setOpenForm] = useState(false)
+  const [goodsReceipts, setGoodsReceipts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [openForm, setOpenForm] = useState(false);
   const [form, setForm] = useState({
     purchaseOrderId: '',
     supplierId: '',
     warehouseId: '',
     receivedDate: '',
     notes: '',
-  })
+  });
 
   async function loadData() {
-    setLoading(true)
+    setLoading(true);
     try {
-      const rows = await listGoodsReceipts()
-      setGoodsReceipts(rows)
+      const rows = await listGoodsReceipts();
+      setGoodsReceipts(rows);
     } catch {
-      setGoodsReceipts([])
+      setGoodsReceipts([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadData()
-  }, [])
+    loadData();
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
     try {
       await createGoodsReceipt({
         purchaseOrderId: form.purchaseOrderId,
@@ -42,26 +42,32 @@ export default function GoodsReceiptsPage() {
         warehouseId: form.warehouseId,
         receivedDate: form.receivedDate || undefined,
         notes: form.notes || undefined,
-      })
-      setOpenForm(false)
-      setForm({ purchaseOrderId: '', supplierId: '', warehouseId: '', receivedDate: '', notes: '' })
-      await loadData()
+      });
+      setOpenForm(false);
+      setForm({
+        purchaseOrderId: '',
+        supplierId: '',
+        warehouseId: '',
+        receivedDate: '',
+        notes: '',
+      });
+      await loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to create goods receipt')
+      alert(err.message || 'Failed to create goods receipt');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   async function receiveReceipt(id: string) {
-    setLoading(true)
+    setLoading(true);
     try {
-      await receiveGoodsReceipt({ goodsReceiptId: id })
-      await loadData()
+      await receiveGoodsReceipt({ goodsReceiptId: id });
+      await loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to receive goods')
+      alert(err.message || 'Failed to receive goods');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -79,21 +85,54 @@ export default function GoodsReceiptsPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <label className="block text-sm font-medium">Purchase Order ID</label>
-              <input name="purchaseOrderId" className="w-full border rounded px-2 py-1" value={form.purchaseOrderId} onChange={(e) => setForm({ ...form, purchaseOrderId: e.target.value })} required />
+              <input
+                name="purchaseOrderId"
+                className="w-full border rounded px-2 py-1"
+                value={form.purchaseOrderId}
+                onChange={(e) => setForm({ ...form, purchaseOrderId: e.target.value })}
+                required
+              />
               <label className="block text-sm font-medium">Supplier ID</label>
-              <input name="supplierId" className="w-full border rounded px-2 py-1" value={form.supplierId} onChange={(e) => setForm({ ...form, supplierId: e.target.value })} required />
+              <input
+                name="supplierId"
+                className="w-full border rounded px-2 py-1"
+                value={form.supplierId}
+                onChange={(e) => setForm({ ...form, supplierId: e.target.value })}
+                required
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <label className="block text-sm font-medium">Warehouse ID</label>
-              <input name="warehouseId" className="w-full border rounded px-2 py-1" value={form.warehouseId} onChange={(e) => setForm({ ...form, warehouseId: e.target.value })} required />
+              <input
+                name="warehouseId"
+                className="w-full border rounded px-2 py-1"
+                value={form.warehouseId}
+                onChange={(e) => setForm({ ...form, warehouseId: e.target.value })}
+                required
+              />
               <label className="block text-sm font-medium">Received Date</label>
-              <input name="receivedDate" type="date" className="w-full border rounded px-2 py-1" value={form.receivedDate} onChange={(e) => setForm({ ...form, receivedDate: e.target.value })} />
+              <input
+                name="receivedDate"
+                type="date"
+                className="w-full border rounded px-2 py-1"
+                value={form.receivedDate}
+                onChange={(e) => setForm({ ...form, receivedDate: e.target.value })}
+              />
             </div>
             <label className="block text-sm font-medium">Notes</label>
-            <input name="notes" className="w-full border rounded px-2 py-1" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+            <input
+              name="notes"
+              className="w-full border rounded px-2 py-1"
+              value={form.notes}
+              onChange={(e) => setForm({ ...form, notes: e.target.value })}
+            />
             <div className="flex gap-2">
-              <button className="button-secondary" onClick={() => setOpenForm(false)}>Cancel</button>
-              <button className="primary-button" type="submit" disabled={loading}>{loading ? 'Creating...' : 'Create Receipt'}</button>
+              <button className="button-secondary" onClick={() => setOpenForm(false)}>
+                Cancel
+              </button>
+              <button className="primary-button" type="submit" disabled={loading}>
+                {loading ? 'Creating...' : 'Create Receipt'}
+              </button>
             </div>
           </form>
         </div>
@@ -118,11 +157,17 @@ export default function GoodsReceiptsPage() {
                 <td>{r.purchaseOrderId}</td>
                 <td>{r.supplierId}</td>
                 <td>{r.warehouseId}</td>
-                <td><span className={`status-pill status-${r.status?.toLowerCase() || 'draft'}`}>{r.status}</span></td>
+                <td>
+                  <span className={`status-pill status-${r.status?.toLowerCase() || 'draft'}`}>
+                    {r.status}
+                  </span>
+                </td>
                 <td>{r.total}</td>
                 <td>
                   {r.status === 'draft' && (
-                    <button className="row-action" onClick={() => receiveReceipt(r.id)}>Receive</button>
+                    <button className="row-action" onClick={() => receiveReceipt(r.id)}>
+                      Receive
+                    </button>
                   )}
                 </td>
               </tr>
@@ -131,5 +176,5 @@ export default function GoodsReceiptsPage() {
         </table>
       </div>
     </div>
-  )
+  );
 }

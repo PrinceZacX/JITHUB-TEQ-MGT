@@ -46,7 +46,7 @@ test('idempotency key column on refunds', () => {
 test('role-based permissions enforced', () => {
   assert.match(permissions, /roleHasPermission/)
   assert.match(permissions, /requirePermission/)
-  assert.match(permissions, /BusinessRole = 'owner'/)
+  assert.match(permissions, /BusinessRole =[\s\S]*?'owner'/)
   assert.match(permissions, /BusinessRole = .*'viewer'/)
 })
 

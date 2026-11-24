@@ -1,14 +1,22 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { createSupplier, listBusinesses, listSuppliers, updateBusiness, updateSupplier, suspendSupplier, reactivateSupplier } from '@/app/actions/finance'
-import { Plus, PlusCircle, Edit, X } from 'lucide-react'
+import { useEffect, useState } from 'react';
+import {
+  createSupplier,
+  listBusinesses,
+  listSuppliers,
+  updateBusiness,
+  updateSupplier,
+  suspendSupplier,
+  reactivateSupplier,
+} from '@/app/actions/finance';
+import { Plus, PlusCircle, Edit, X } from 'lucide-react';
 
 export default function SuppliersPage() {
-  const [businesses, setBusinesses] = useState<any[]>([])
-  const [suppliers, setSuppliers] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [openForm, setOpenForm] = useState(false)
+  const [businesses, setBusinesses] = useState<any[]>([]);
+  const [suppliers, setSuppliers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [openForm, setOpenForm] = useState(false);
   const [form, setForm] = useState({
     name: '',
     legalName: '',
@@ -20,50 +28,61 @@ export default function SuppliersPage() {
     category: '',
     creditLimit: '',
     creditTermsDays: '',
-  })
+  });
 
   async function loadData() {
-    setLoading(true)
+    setLoading(true);
     try {
-      const [bizs, sups] = await Promise.all([listBusinesses(), listSuppliers()])
-      setBusinesses(bizs)
-      setSuppliers(sups)
+      const [bizs, sups] = await Promise.all([listBusinesses(), listSuppliers()]);
+      setBusinesses(bizs);
+      setSuppliers(sups);
     } catch {
       // ignore
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadData()
-  }, [])
+    loadData();
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
     try {
-      await createSupplier(form)
-      setOpenForm(false)
-      setForm({ name: '', legalName: '', email: '', phone: '', address: '', city: '', country: 'Uganda', category: '', creditLimit: '', creditTermsDays: '' })
-      await loadData()
+      await createSupplier(form);
+      setOpenForm(false);
+      setForm({
+        name: '',
+        legalName: '',
+        email: '',
+        phone: '',
+        address: '',
+        city: '',
+        country: 'Uganda',
+        category: '',
+        creditLimit: '',
+        creditTermsDays: '',
+      });
+      await loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to create supplier')
+      alert(err.message || 'Failed to create supplier');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   async function toggleStatus(id: string, currentStatus: string) {
     try {
       if (currentStatus === 'active') {
-        await suspendSupplier({ id })
+        await suspendSupplier({ id });
       } else {
-        await reactivateSupplier({ id })
+        await reactivateSupplier({ id });
       }
-      await loadData()
+      await loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to update supplier')
+      alert(err.message || 'Failed to update supplier');
     }
   }
 
@@ -81,35 +100,88 @@ export default function SuppliersPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <label className="block text-sm font-medium">Business Name</label>
-              <input name="name" className="w-full border rounded px-2 py-1" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
+              <input
+                name="name"
+                className="w-full border rounded px-2 py-1"
+                value={form.name}
+                onChange={(e) => setForm({ ...form, name: e.target.value })}
+                required
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <label className="block text-sm font-medium">Email</label>
-              <input name="email" type="email" className="w-full border rounded px-2 py-1" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              <input
+                name="email"
+                type="email"
+                className="w-full border rounded px-2 py-1"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
               <label className="block text-sm font-medium">Phone</label>
-              <input name="phone" className="w-full border rounded px-2 py-1" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+              <input
+                name="phone"
+                className="w-full border rounded px-2 py-1"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <label className="block text-sm font-medium">Address</label>
-              <input name="address" className="w-full border rounded px-2 py-1" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+              <input
+                name="address"
+                className="w-full border rounded px-2 py-1"
+                value={form.address}
+                onChange={(e) => setForm({ ...form, address: e.target.value })}
+              />
               <label className="block text-sm font-medium">City</label>
-              <input name="city" className="w-full border rounded px-2 py-1" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+              <input
+                name="city"
+                className="w-full border rounded px-2 py-1"
+                value={form.city}
+                onChange={(e) => setForm({ ...form, city: e.target.value })}
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <label className="block text-sm font-medium">Country</label>
-              <input name="country" className="w-full border rounded px-2 py-1" value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
+              <input
+                name="country"
+                className="w-full border rounded px-2 py-1"
+                value={form.country}
+                onChange={(e) => setForm({ ...form, country: e.target.value })}
+              />
               <label className="block text-sm font-medium">Category</label>
-              <input name="category" className="w-full border rounded px-2 py-1" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
+              <input
+                name="category"
+                className="w-full border rounded px-2 py-1"
+                value={form.category}
+                onChange={(e) => setForm({ ...form, category: e.target.value })}
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <label className="block text-sm font-medium">Credit Limit</label>
-              <input name="creditLimit" type="number" className="w-full border rounded px-2 py-1" value={form.creditLimit} onChange={(e) => setForm({ ...form, creditLimit: e.target.value })} />
+              <input
+                name="creditLimit"
+                type="number"
+                className="w-full border rounded px-2 py-1"
+                value={form.creditLimit}
+                onChange={(e) => setForm({ ...form, creditLimit: e.target.value })}
+              />
               <label className="block text-sm font-medium">Credit Terms (days)</label>
-              <input name="creditTermsDays" type="number" className="w-full border rounded px-2 py-1" value={form.creditTermsDays} onChange={(e) => setForm({ ...form, creditTermsDays: e.target.value })} />
+              <input
+                name="creditTermsDays"
+                type="number"
+                className="w-full border rounded px-2 py-1"
+                value={form.creditTermsDays}
+                onChange={(e) => setForm({ ...form, creditTermsDays: e.target.value })}
+              />
             </div>
             <div className="flex gap-2">
-              <button className="button-secondary" onClick={() => setOpenForm(false)}>Cancel</button>
-              <button className="primary-button" type="submit" disabled={loading}>{loading ? 'Creating...' : 'Create Supplier'}</button>
+              <button className="button-secondary" onClick={() => setOpenForm(false)}>
+                Cancel
+              </button>
+              <button className="primary-button" type="submit" disabled={loading}>
+                {loading ? 'Creating...' : 'Create Supplier'}
+              </button>
             </div>
           </form>
         </div>
@@ -137,7 +209,11 @@ export default function SuppliersPage() {
                 <td>{s.city || '—'}</td>
                 <td>{s.category || '—'}</td>
                 <td>{s.creditLimit ? parseFloat(s.creditLimit).toFixed(2) : '0.00'}</td>
-                <td><span className={`status-pill status-${s.status?.toLowerCase() || 'active'}`}>{s.status}</span></td>
+                <td>
+                  <span className={`status-pill status-${s.status?.toLowerCase() || 'active'}`}>
+                    {s.status}
+                  </span>
+                </td>
                 <td>
                   <button className="row-action" onClick={() => toggleStatus(s.id, s.status)}>
                     {s.status === 'active' ? 'Suspend' : 'Reactivate'}
@@ -149,5 +225,5 @@ export default function SuppliersPage() {
         </table>
       </div>
     </div>
-  )
+  );
 }

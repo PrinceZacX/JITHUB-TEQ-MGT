@@ -1,64 +1,67 @@
-import { headers } from 'next/headers'
-import { redirect } from 'next/navigation'
-import { auth } from '@/lib/auth'
-import { db } from '@/lib/db'
-import { businesses } from '@/lib/db/schema'
-import { eq } from 'drizzle-orm'
-import { revalidatePath } from 'next/cache'
-import { getPlatformDashboardData } from '@/app/actions/finance'
+import { headers } from 'next/headers';
+import { redirect } from 'next/navigation';
+import { auth } from '@/lib/auth';
+import { db } from '@/lib/db';
+import { businesses } from '@/lib/db/schema';
+import { eq } from 'drizzle-orm';
+import { revalidatePath } from 'next/cache';
+import { getPlatformDashboardData } from '@/app/actions/finance';
 
 interface PlatformBusiness {
-  id: string
-  name: string
-  city: string | null
-  country: string
-  currency: string
-  status: string
-  createdAt: Date
+  id: string;
+  name: string;
+  city: string | null;
+  country: string;
+  currency: string;
+  status: string;
+  createdAt: Date;
 }
 
 interface PlatformAuditEntry {
-  id: string
-  action: string
-  entityType: string
-  entityId: string
-  createdAt: Date
+  id: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  createdAt: Date;
 }
 
 interface PlatformSummary {
-  totalBusinesses: number
-  totalUsers: number
-  totalInvoiced: number
-  totalReceived: number
-  totalOutstanding: number
+  totalBusinesses: number;
+  totalUsers: number;
+  totalInvoiced: number;
+  totalReceived: number;
+  totalOutstanding: number;
 }
 
 async function getPlatformData() {
-  const session = await auth.api.getSession({ headers: await headers() })
-  if (!session?.user) redirect('/sign-in')
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) redirect('/sign-in');
 
-  const data = await getPlatformDashboardData()
-  return { session, data }
+  const data = await getPlatformDashboardData();
+  return { session, data };
 }
 
 export default async function PlatformPage() {
-  const { session, data } = await getPlatformData()
+  const { session, data } = await getPlatformData();
 
-  return <PlatformDashboard user={{ name: session.user.name, email: session.user.email }} data={data} />
+  return (
+    <PlatformDashboard user={{ name: session.user.name, email: session.user.email }} data={data} />
+  );
 }
 
 function PlatformDashboard({
   user,
   data,
 }: {
-  user: { name: string; email: string }
+  user: { name: string; email: string };
   data: {
-    businesses: PlatformBusiness[]
-    auditTrail: PlatformAuditEntry[]
-    summary: PlatformSummary
-  }
+    businesses: PlatformBusiness[];
+    auditTrail: PlatformAuditEntry[];
+    summary: PlatformSummary;
+  };
 }) {
-  const money = (value: number) => `UGX ${new Intl.NumberFormat('en-UG', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value || 0)}`
+  const money = (value: number) =>
+    `UGX ${new Intl.NumberFormat('en-UG', { minimumFractionDigits: 0, maximumFractionDigits: 2 }).format(value || 0)}`;
 
   return (
     <div className="p-6">
@@ -68,7 +71,9 @@ function PlatformDashboard({
           <p className="text-muted-foreground">JITHUB-TEQ Platform Owner Workspace</p>
         </div>
         <div className="flex gap-2">
-          <a href="/sign-in" className="button-secondary">Sign Out</a>
+          <a href="/sign-in" className="button-secondary">
+            Sign Out
+          </a>
         </div>
       </div>
 
@@ -120,17 +125,18 @@ function PlatformDashboard({
                     <td className="py-3">{b.country}</td>
                     <td className="py-3">{b.currency}</td>
                     <td className="py-3">
-                      <span className={`px-2 py-1 rounded-full text-xs ${
-                        b.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                      }`}>
+                      <span
+                        className={`px-2 py-1 rounded-full text-xs ${
+                          b.status === 'active'
+                            ? 'bg-green-100 text-green-700'
+                            : 'bg-red-100 text-red-700'
+                        }`}
+                      >
                         {b.status}
                       </span>
                     </td>
                     <td className="py-3">
-                      <a
-                        href={`/business/members/${b.id}`}
-                        className="button-secondary text-sm"
-                      >
+                      <a href={`/business/members/${b.id}`} className="button-secondary text-sm">
                         Open Workspace
                       </a>
                     </td>
@@ -175,5 +181,5 @@ function PlatformDashboard({
         )}
       </div>
     </div>
-  )
+  );
 }

@@ -1,25 +1,30 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { Plus, Edit, X, Trash2, Check, MoreHorizontal } from 'lucide-react'
-import { listServiceLevelPolicies, createServiceLevelPolicy, updateServiceLevelPolicy, deleteServiceLevelPolicy } from '@/app/actions/service-desk'
+import { useEffect, useState } from 'react';
+import { Plus, Edit, X, Trash2, Check, MoreHorizontal } from 'lucide-react';
+import {
+  listServiceLevelPolicies,
+  createServiceLevelPolicy,
+  updateServiceLevelPolicy,
+  deleteServiceLevelPolicy,
+} from '@/app/actions/service-desk';
 
-type Priority = 'low' | 'normal' | 'high' | 'critical' | 'urgent'
+type Priority = 'low' | 'normal' | 'high' | 'critical' | 'urgent';
 
 export default function ServiceDeskSettingsPage() {
-  const [policies, setPolicies] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [openForm, setOpenForm] = useState(false)
-  const [editingPolicy, setEditingPolicy] = useState<any | null>(null)
+  const [policies, setPolicies] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [openForm, setOpenForm] = useState(false);
+  const [editingPolicy, setEditingPolicy] = useState<any | null>(null);
   const [form, setForm] = useState<{
-    name: string
-    description: string
-    responseMinutes: number
-    resolutionMinutes: number
-    isDefault: boolean
-    appliesToPriorities: Priority[]
-    businessHoursOnly: boolean
-    timezone: string
+    name: string;
+    description: string;
+    responseMinutes: number;
+    resolutionMinutes: number;
+    isDefault: boolean;
+    appliesToPriorities: Priority[];
+    businessHoursOnly: boolean;
+    timezone: string;
   }>({
     name: '',
     description: '',
@@ -29,26 +34,26 @@ export default function ServiceDeskSettingsPage() {
     appliesToPriorities: ['low', 'normal', 'high', 'critical', 'urgent'],
     businessHoursOnly: true,
     timezone: 'Africa/Kampala',
-  })
-  const [submitting, setSubmitting] = useState(false)
+  });
+  const [submitting, setSubmitting] = useState(false);
 
-  const priorityOptions: Priority[] = ['low', 'normal', 'high', 'critical', 'urgent']
+  const priorityOptions: Priority[] = ['low', 'normal', 'high', 'critical', 'urgent'];
 
   async function loadData() {
-    setLoading(true)
+    setLoading(true);
     try {
-      const data = await listServiceLevelPolicies()
-      setPolicies(data)
+      const data = await listServiceLevelPolicies();
+      setPolicies(data);
     } catch (err) {
-      console.error('Failed to load policies:', err)
+      console.error('Failed to load policies:', err);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadData()
-  }, [])
+    loadData();
+  }, []);
 
   function resetForm() {
     setForm({
@@ -60,56 +65,62 @@ export default function ServiceDeskSettingsPage() {
       appliesToPriorities: ['low', 'normal', 'high', 'critical', 'urgent'],
       businessHoursOnly: true,
       timezone: 'Africa/Kampala',
-    })
-    setEditingPolicy(null)
-    setOpenForm(false)
+    });
+    setEditingPolicy(null);
+    setOpenForm(false);
   }
 
   function openCreate() {
-    resetForm()
-    setOpenForm(true)
+    resetForm();
+    setOpenForm(true);
   }
 
   function openEdit(policy: any) {
-    setEditingPolicy(policy)
+    setEditingPolicy(policy);
     setForm({
       name: policy.name,
       description: policy.description || '',
       responseMinutes: policy.responseMinutes,
       resolutionMinutes: policy.resolutionMinutes,
       isDefault: policy.isDefault,
-      appliesToPriorities: policy.appliesToPriorities || ['low', 'normal', 'high', 'critical', 'urgent'],
+      appliesToPriorities: policy.appliesToPriorities || [
+        'low',
+        'normal',
+        'high',
+        'critical',
+        'urgent',
+      ],
       businessHoursOnly: policy.businessHoursOnly !== false,
       timezone: policy.timezone || 'Africa/Kampala',
-    })
-    setOpenForm(true)
+    });
+    setOpenForm(true);
   }
 
   async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault()
-    setSubmitting(true)
+    e.preventDefault();
+    setSubmitting(true);
     try {
       if (editingPolicy) {
-        await updateServiceLevelPolicy({ id: editingPolicy.id, ...form })
+        await updateServiceLevelPolicy({ id: editingPolicy.id, ...form });
       } else {
-        await createServiceLevelPolicy(form)
+        await createServiceLevelPolicy(form);
       }
-      resetForm()
-      await loadData()
+      resetForm();
+      await loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to save policy')
+      alert(err.message || 'Failed to save policy');
     } finally {
-      setSubmitting(false)
+      setSubmitting(false);
     }
   }
 
   async function handleDelete(policyId: string) {
-    if (!confirm('Delete this SLA policy? This cannot be undone.')) return
+    if (!confirm('Delete this SLA policy? This cannot be undone.')) return;
     try {
-      await deleteServiceLevelPolicy(policyId)
-      await loadData()
+      await deleteServiceLevelPolicy(policyId);
+      await loadData();
     } catch (err: any) {
-      alert(err.message || 'Failed to delete policy')
+      alert(err.message || 'Failed to delete policy');
     }
   }
 
@@ -124,7 +135,9 @@ export default function ServiceDeskSettingsPage() {
 
       {openForm && (
         <div className="panel data-panel mb-6">
-          <h3 className="text-lg font-medium mb-4">{editingPolicy ? 'Edit Policy' : 'Create New Policy'}</h3>
+          <h3 className="text-lg font-medium mb-4">
+            {editingPolicy ? 'Edit Policy' : 'Create New Policy'}
+          </h3>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div>
@@ -156,7 +169,12 @@ export default function ServiceDeskSettingsPage() {
                   required
                   className="w-full border border-jt-border rounded-lg px-3 py-2 bg-jt-surface"
                   value={form.responseMinutes}
-                  onChange={(e) => setForm({ ...form, responseMinutes: parseInt(e.target.value) || 60 })}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      responseMinutes: parseInt(e.target.value) || 60,
+                    })
+                  }
                 />
               </div>
               <div>
@@ -167,7 +185,12 @@ export default function ServiceDeskSettingsPage() {
                   required
                   className="w-full border border-jt-border rounded-lg px-3 py-2 bg-jt-surface"
                   value={form.resolutionMinutes}
-                  onChange={(e) => setForm({ ...form, resolutionMinutes: parseInt(e.target.value) || 480 })}
+                  onChange={(e) =>
+                    setForm({
+                      ...form,
+                      resolutionMinutes: parseInt(e.target.value) || 480,
+                    })
+                  }
                 />
               </div>
             </div>
@@ -204,17 +227,19 @@ export default function ServiceDeskSettingsPage() {
             <div>
               <label className="block text-sm font-medium mb-2">Applies to Priorities</label>
               <div className="flex flex-wrap gap-2">
-                {priorityOptions.map(p => (
+                {priorityOptions.map((p) => (
                   <label key={p} className="flex items-center gap-2">
                     <input
                       type="checkbox"
                       checked={form.appliesToPriorities.includes(p)}
-                      onChange={(e) => setForm({ 
-                        ...form, 
-                        appliesToPriorities: e.target.checked 
-                          ? [...form.appliesToPriorities, p] 
-                          : form.appliesToPriorities.filter((x: string) => x !== p)
-                      })}
+                      onChange={(e) =>
+                        setForm({
+                          ...form,
+                          appliesToPriorities: e.target.checked
+                            ? [...form.appliesToPriorities, p]
+                            : form.appliesToPriorities.filter((x: string) => x !== p),
+                        })
+                      }
                       className="rounded border-jt-border"
                     />
                     <span className="text-sm capitalize">{p}</span>
@@ -227,7 +252,7 @@ export default function ServiceDeskSettingsPage() {
                 <X size={14} /> Cancel
               </button>
               <button type="submit" className="primary-button" disabled={submitting}>
-                {submitting ? 'Saving...' : (editingPolicy ? 'Update Policy' : 'Create Policy')}
+                {submitting ? 'Saving...' : editingPolicy ? 'Update Policy' : 'Create Policy'}
               </button>
             </div>
           </form>
@@ -251,18 +276,36 @@ export default function ServiceDeskSettingsPage() {
                 <div className="flex-1">
                   <div className="flex items-center gap-3 mb-2">
                     <h3 className="text-lg font-medium">{policy.name}</h3>
-                    {policy.isDefault && <span className="status-pill status-success">Default</span>}
+                    {policy.isDefault && (
+                      <span className="status-pill status-success">Default</span>
+                    )}
                   </div>
-                  <p className="text-jt-muted text-sm mb-3">{policy.description || 'No description'}</p>
+                  <p className="text-jt-muted text-sm mb-3">
+                    {policy.description || 'No description'}
+                  </p>
                   <div className="flex flex-wrap gap-4 text-sm">
-                    <span className="text-jt-muted">Response: <span className="font-medium">{policy.responseMinutes} min</span></span>
-                    <span className="text-jt-muted">Resolution: <span className="font-medium">{policy.resolutionMinutes} min</span></span>
-                    <span className="text-jt-muted">Hours: <span className="font-medium">{policy.businessHoursOnly ? 'Business only' : '24/7'}</span></span>
-                    <span className="text-jt-muted">Timezone: <span className="font-medium">{policy.timezone}</span></span>
+                    <span className="text-jt-muted">
+                      Response: <span className="font-medium">{policy.responseMinutes} min</span>
+                    </span>
+                    <span className="text-jt-muted">
+                      Resolution:{' '}
+                      <span className="font-medium">{policy.resolutionMinutes} min</span>
+                    </span>
+                    <span className="text-jt-muted">
+                      Hours:{' '}
+                      <span className="font-medium">
+                        {policy.businessHoursOnly ? 'Business only' : '24/7'}
+                      </span>
+                    </span>
+                    <span className="text-jt-muted">
+                      Timezone: <span className="font-medium">{policy.timezone}</span>
+                    </span>
                   </div>
                   <div className="flex flex-wrap gap-2 mt-2">
                     {policy.appliesToPriorities?.map((p: string) => (
-                      <span key={p} className="status-pill status-info text-xs capitalize">{p}</span>
+                      <span key={p} className="status-pill status-info text-xs capitalize">
+                        {p}
+                      </span>
                     ))}
                   </div>
                 </div>
@@ -271,7 +314,10 @@ export default function ServiceDeskSettingsPage() {
                     <Edit size={14} />
                   </button>
                   {!policy.isDefault && (
-                    <button onClick={() => handleDelete(policy.id)} className="row-action text-red-600">
+                    <button
+                      onClick={() => handleDelete(policy.id)}
+                      className="row-action text-red-600"
+                    >
                       <Trash2 size={14} />
                     </button>
                   )}
@@ -282,5 +328,5 @@ export default function ServiceDeskSettingsPage() {
         </div>
       )}
     </div>
-  )
+  );
 }

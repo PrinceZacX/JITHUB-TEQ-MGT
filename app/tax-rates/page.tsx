@@ -1,15 +1,19 @@
-'use client'
+'use client';
 
-import { useEffect, useState } from 'react'
-import { createTaxRate, listTaxRates, updateTaxRate as updateTaxRateAction } from '@/app/actions/finance'
-import { Plus } from 'lucide-react'
+import { useEffect, useState } from 'react';
+import {
+  createTaxRate,
+  listTaxRates,
+  updateTaxRate as updateTaxRateAction,
+} from '@/app/actions/finance';
+import { Plus } from 'lucide-react';
 
 export default function TaxRatesPage() {
-  const [taxRates, setTaxRates] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [openForm, setOpenForm] = useState(false)
-  const [error, setError] = useState('')
-  const [toast, setToast] = useState('')
+  const [taxRates, setTaxRates] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [openForm, setOpenForm] = useState(false);
+  const [error, setError] = useState('');
+  const [toast, setToast] = useState('');
   const [form, setForm] = useState({
     name: '',
     rate: '',
@@ -19,51 +23,60 @@ export default function TaxRatesPage() {
     effectiveFrom: '',
     effectiveTo: '',
     description: '',
-  })
+  });
 
   async function loadData() {
-    setLoading(true)
+    setLoading(true);
     try {
-      const rows = await listTaxRates()
-      setTaxRates(rows)
+      const rows = await listTaxRates();
+      setTaxRates(rows);
     } catch {
-      setTaxRates([])
+      setTaxRates([]);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   useEffect(() => {
-    loadData()
-  }, [])
+    loadData();
+  }, []);
 
   async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault()
-    setLoading(true)
-    setError('')
+    event.preventDefault();
+    setLoading(true);
+    setError('');
     try {
-      await createTaxRate(form)
-      setOpenForm(false)
-      setForm({ name: '', rate: '', type: 'vat', isDefault: false, isActive: true, effectiveFrom: '', effectiveTo: '', description: '' })
-      await loadData()
+      await createTaxRate(form);
+      setOpenForm(false);
+      setForm({
+        name: '',
+        rate: '',
+        type: 'vat',
+        isDefault: false,
+        isActive: true,
+        effectiveFrom: '',
+        effectiveTo: '',
+        description: '',
+      });
+      await loadData();
     } catch (cause: any) {
-      setError(cause.message || 'Failed to create tax rate')
+      setError(cause.message || 'Failed to create tax rate');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
   async function toggleTaxRate(id: string, updates: { status?: string; isDefault?: boolean }) {
-    setLoading(true)
-    setError('')
+    setLoading(true);
+    setError('');
     try {
-      await updateTaxRateAction({ id, ...updates })
-      setToast('Tax rate updated.')
-      await loadData()
+      await updateTaxRateAction({ id, ...updates });
+      setToast('Tax rate updated.');
+      await loadData();
     } catch (cause: any) {
-      setError(cause.message || 'Could not update tax rate')
+      setError(cause.message || 'Could not update tax rate');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
   }
 
@@ -78,13 +91,25 @@ export default function TaxRatesPage() {
       {openForm && (
         <div className="mb-6 panel data-panel">
           <div className="panel-heading">
-            <div><span className="panel-eyebrow">TAX RATES</span><h2>Tax Rates</h2></div>
-            <button className="primary-button" onClick={() => setOpenForm(false)}>Close</button>
+            <div>
+              <span className="panel-eyebrow">TAX RATES</span>
+              <h2>Tax Rates</h2>
+            </div>
+            <button className="primary-button" onClick={() => setOpenForm(false)}>
+              Close
+            </button>
           </div>
           <form onSubmit={handleSubmit} className="modal-form">
             <div className="form-two">
               <label>Name</label>
-              <input name="name" type="text" defaultValue={form.name} required minLength={2} maxLength={160} />
+              <input
+                name="name"
+                type="text"
+                defaultValue={form.name}
+                required
+                minLength={2}
+                maxLength={160}
+              />
             </div>
             <div className="form-two">
               <label>Rate (%)</label>
@@ -108,8 +133,12 @@ export default function TaxRatesPage() {
               <input name="effectiveTo" type="date" defaultValue={form.effectiveTo} />
             </div>
             <div className="modal-actions">
-              <button className="button-secondary" type="button" onClick={() => setOpenForm(false)}>Cancel</button>
-              <button className="primary-button" type="submit" disabled={loading}>{loading ? 'Creating...' : 'Create Tax Rate'}</button>
+              <button className="button-secondary" type="button" onClick={() => setOpenForm(false)}>
+                Cancel
+              </button>
+              <button className="primary-button" type="submit" disabled={loading}>
+                {loading ? 'Creating...' : 'Create Tax Rate'}
+              </button>
             </div>
           </form>
         </div>
@@ -133,12 +162,28 @@ export default function TaxRatesPage() {
                 <td>{tr.name}</td>
                 <td>{tr.rate}%</td>
                 <td>{tr.type}</td>
-                <td><span className={`status-pill status-${tr.status || 'active'}`}>{tr.status}</span></td>
+                <td>
+                  <span className={`status-pill status-${tr.status || 'active'}`}>{tr.status}</span>
+                </td>
                 <td>{tr.effectiveFrom}</td>
                 <td>{tr.effectiveTo || '-'}</td>
                 <td>
-                  <button className="row-action" onClick={() => toggleTaxRate(tr.id, { status: tr.status === 'active' ? 'inactive' : 'active' })}>{tr.status === 'active' ? 'Deactivate' : 'Activate'}</button>
-                  <button className="row-action" onClick={() => toggleTaxRate(tr.id, { isDefault: !tr.isDefault })}>{tr.isDefault ? 'Revoke Default' : 'Set Default'}</button>
+                  <button
+                    className="row-action"
+                    onClick={() =>
+                      toggleTaxRate(tr.id, {
+                        status: tr.status === 'active' ? 'inactive' : 'active',
+                      })
+                    }
+                  >
+                    {tr.status === 'active' ? 'Deactivate' : 'Activate'}
+                  </button>
+                  <button
+                    className="row-action"
+                    onClick={() => toggleTaxRate(tr.id, { isDefault: !tr.isDefault })}
+                  >
+                    {tr.isDefault ? 'Revoke Default' : 'Set Default'}
+                  </button>
                 </td>
               </tr>
             ))}
@@ -146,5 +191,5 @@ export default function TaxRatesPage() {
         </table>
       </div>
     </div>
-  )
+  );
 }
