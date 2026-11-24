@@ -1,5 +1,5 @@
 {
-  "version": "7",
+  "version": "8",
   "dialect": "postgresql",
   "entries": [
     {
@@ -98,6 +98,13 @@
       "version": "7",
       "when": 1732251300000,
       "tag": "0014_valuation_groups_system_protect",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1732251400000,
+      "tag": "0015_membership_userid_nullable",
       "breakpoints": true
     }
   ]

@@ -128,7 +128,7 @@ export default function ServiceDeskDashboardPage() {
     },
     {
       label: 'Invite Client',
-      href: '/service-desk/clients/invite',
+      href: '/service-desk/clients',
       icon: Users,
       color: 'bg-green-600',
     },

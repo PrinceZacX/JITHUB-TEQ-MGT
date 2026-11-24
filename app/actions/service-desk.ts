@@ -1530,3 +1530,24 @@ export async function listServiceDeskMembers() {
     .orderBy(desc(businessMemberships.createdAt));
   return rows;
 }
+
+/* ------------------------------------------------------------------ */
+/* Customers                                                          */
+/* ------------------------------------------------------------------ */
+
+export async function listCustomers() {
+  const context = await requireBusinessPermission('service_ticket.read');
+  loadEnv();
+
+  const rows = await db
+    .select({
+      id: customers.id,
+      name: customers.name,
+      email: customers.email,
+      phone: customers.phone,
+    })
+    .from(customers)
+    .where(eq(customers.businessId, context.businessId))
+    .orderBy(desc(customers.createdAt));
+  return rows;
+}

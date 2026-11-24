@@ -83,7 +83,7 @@ export default function ClientPortalDashboardPage() {
   const quickActions = [
     {
       label: 'New Request',
-      href: '/portal/tickets/new',
+      href: '/portal/tickets',
       icon: TicketPlus,
       color: 'bg-blue-600',
     },
@@ -186,7 +186,7 @@ export default function ClientPortalDashboardPage() {
               <div className="text-center py-12">
                 <FileTextIcon size={48} className="mx-auto text-jt-muted mb-4" />
                 <p className="text-jt-muted mb-4">No service requests yet.</p>
-                <Link href="/portal/tickets/new" className="primary-button inline-flex">
+                <Link href="/portal/tickets" className="primary-button inline-flex">
                   <TicketPlus size={14} className="mr-2" /> Create Your First Request
                 </Link>
               </div>
