@@ -857,6 +857,15 @@ export async function getCreditNote(id: string) {
   return { ...cn, items }
 }
 
+export async function getInvoice(id: string) {
+  const context = await requireBusinessPermission('invoice.create')
+  const [invoice] = await db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.businessId, context.businessId))).limit(1)
+  if (!invoice) throw new Error('Invoice not found.')
+  const items = await db.select().from(invoiceItems).where(and(eq(invoiceItems.invoiceId, id), eq(invoiceItems.businessId, context.businessId))).orderBy(invoiceItems.sortOrder)
+  const creditNotes = await db.select().from(creditNotes).where(and(eq(creditNotes.invoiceId, id), eq(creditNotes.businessId, context.businessId)))
+  return { ...invoice, items, creditNotes }
+}
+
 export async function getInvoiceAnalytics() {
   const context = await requireBusinessPermission('reports.read')
   const businessId = context.businessId
