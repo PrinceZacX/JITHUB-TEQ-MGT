@@ -818,6 +818,157 @@ export async function closeServiceTicket(ticketId: string) {
   return { success: true }
 }
 
+export async function reopenServiceTicket(ticketId: string, reason?: string) {
+  const context = await requireBusinessPermission('service_ticket.update')
+  loadEnv()
+
+  const [ticket] = await db
+    .select().from(serviceTickets)
+    .where(and(
+      eq(serviceTickets.id, ticketId),
+      eq(serviceTickets.businessId, context.businessId)
+    ))
+    .limit(1)
+  if (!ticket) throw new Error('Ticket not found.')
+  if (ticket.status !== 'closed' && ticket.status !== 'resolved' && ticket.status !== 'cancelled') throw new Error('Only closed, resolved, or cancelled tickets can be reopened.')
+
+  await db.transaction(async (tx) => {
+    await tx.update(serviceTickets)
+      .set({ status: 'open', closedAt: null, resolvedAt: null, updatedAt: new Date() })
+      .where(and(eq(serviceTickets.id, ticketId), eq(serviceTickets.businessId, context.businessId)))
+
+    await tx.insert(serviceTicketEvents).values({
+      id: randomUUID(),
+      businessId: context.businessId,
+      ticketId,
+      actorUserId: context.userId,
+      eventType: 'reopened',
+      fromValue: ticket.status,
+      toValue: 'open',
+      metadata: { reason: reason || '' },
+    })
+
+    await insertAudit(tx, context, {
+      action: 'service_ticket.reopened',
+      entityType: 'service_ticket',
+      entityId: ticketId,
+      details: { previousStatus: ticket.status, reason: reason || '' },
+    })
+  })
+
+  revalidatePath('/service-desk/tickets')
+  revalidatePath('/portal/tickets')
+  return { success: true }
+}
+
+export async function escalateServiceTicket(ticketId: string, reason: string, newPriority?: 'high' | 'critical' | 'urgent') {
+  const context = await requireBusinessPermission('service_ticket.update')
+  loadEnv()
+
+  const [ticket] = await db
+    .select().from(serviceTickets)
+    .where(and(
+      eq(serviceTickets.id, ticketId),
+      eq(serviceTickets.businessId, context.businessId)
+    ))
+    .limit(1)
+  if (!ticket) throw new Error('Ticket not found.')
+  if (ticket.status === 'closed' || ticket.status === 'cancelled') throw new Error('Cannot escalate a closed or cancelled ticket.')
+
+  const priority = newPriority || (ticket.priority === 'normal' ? 'high' : ticket.priority === 'high' ? 'critical' : 'urgent')
+
+  await db.transaction(async (tx) => {
+    await tx.update(serviceTickets)
+      .set({ priority, updatedAt: new Date() })
+      .where(and(eq(serviceTickets.id, ticketId), eq(serviceTickets.businessId, context.businessId)))
+
+    await tx.insert(serviceTicketEvents).values({
+      id: randomUUID(),
+      businessId: context.businessId,
+      ticketId,
+      actorUserId: context.userId,
+      eventType: 'escalated',
+      fromValue: ticket.priority,
+      toValue: priority,
+      metadata: { reason },
+    })
+
+    await insertAudit(tx, context, {
+      action: 'service_ticket.escalated',
+      entityType: 'service_ticket',
+      entityId: ticketId,
+      details: { previousPriority: ticket.priority, newPriority: priority, reason },
+    })
+  })
+
+  revalidatePath('/service-desk/tickets')
+  revalidatePath('/portal/tickets')
+  return { success: true, newPriority: priority }
+}
+
+export async function addServiceTicketAttachment(input: {
+  ticketId: string
+  fileName: string
+  fileType: string
+  fileSize: number
+  storageUrl: string
+}) {
+  const context = await requireBusinessPermission('service_ticket.update')
+  loadEnv()
+
+  const [ticket] = await db
+    .select().from(serviceTickets)
+    .where(and(
+      eq(serviceTickets.id, input.ticketId),
+      eq(serviceTickets.businessId, context.businessId)
+    ))
+    .limit(1)
+  if (!ticket) throw new Error('Ticket not found.')
+
+  // Validate file size (max 10MB)
+  if (input.fileSize > 10 * 1024 * 1024) throw new Error('File size must not exceed 10MB.')
+
+  // Validate file type
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif', 'application/pdf', 'text/plain', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document']
+  if (!allowedTypes.includes(input.fileType)) throw new Error('File type not allowed.')
+
+  const attachmentId = randomUUID()
+  await db.transaction(async (tx) => {
+    await tx.insert(serviceTicketAttachments).values({
+      id: attachmentId,
+      businessId: context.businessId,
+      ticketId: input.ticketId,
+      filename: input.fileName,
+      mimeType: input.fileType,
+      sizeBytes: input.fileSize,
+      storageUrl: input.storageUrl,
+      uploadedBy: context.userId,
+    })
+
+    await tx.insert(serviceTicketEvents).values({
+      id: randomUUID(),
+      businessId: context.businessId,
+      ticketId: input.ticketId,
+      actorUserId: context.userId,
+      eventType: 'attachment_added',
+      fromValue: null,
+      toValue: input.fileName,
+      metadata: { fileSize: input.fileSize, fileType: input.fileType },
+    })
+
+    await insertAudit(tx, context, {
+      action: 'service_ticket.attachment_added',
+      entityType: 'service_ticket',
+      entityId: input.ticketId,
+      details: { fileName: input.fileName, fileSize: input.fileSize },
+    })
+  })
+
+  revalidatePath('/service-desk/tickets')
+  revalidatePath('/portal/tickets')
+  return { id: attachmentId }
+}
+
 export async function addServiceTicketComment(input: {
   ticketId: string
   body: string
