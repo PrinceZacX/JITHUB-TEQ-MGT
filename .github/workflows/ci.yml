@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/jithub-teq-completion]
+    branches: [main, feat/jithub-teq-completion, release/**]
   pull_request:
     branches: [main]
 

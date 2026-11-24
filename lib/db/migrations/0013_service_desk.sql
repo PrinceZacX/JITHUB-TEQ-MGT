@@ -30,10 +30,10 @@ CREATE TABLE IF NOT EXISTS service_tickets (
   CONSTRAINT service_tickets_status_valid CHECK (status IN ('open','in_progress','on_hold','resolved','closed','cancelled')),
   CONSTRAINT service_tickets_priority_valid CHECK (priority IN ('low','normal','high','critical','urgent')),
   CONSTRAINT service_tickets_business_fk FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE RESTRICT,
-  CONSTRAINT service_tickets_customer_fk FOREIGN KEY (business_id, customer_id) REFERENCES customers(business_id, id) ON DELETE RESTRICT,
-  CONSTRAINT service_tickets_invoice_fk FOREIGN KEY (business_id, related_invoice_id) REFERENCES invoices(business_id, id) ON DELETE SET NULL,
-  CONSTRAINT service_tickets_quotation_fk FOREIGN KEY (business_id, related_quotation_id) REFERENCES quotations(business_id, id) ON DELETE SET NULL,
-  CONSTRAINT service_tickets_sla_fk FOREIGN KEY (business_id, sla_policy_id) REFERENCES service_level_policies(business_id, id) ON DELETE SET NULL
+  CONSTRAINT service_tickets_customer_fk FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT,
+  CONSTRAINT service_tickets_invoice_fk FOREIGN KEY (related_invoice_id) REFERENCES invoices(id) ON DELETE SET NULL,
+  CONSTRAINT service_tickets_quotation_fk FOREIGN KEY (related_quotation_id) REFERENCES quotations(id) ON DELETE SET NULL,
+  CONSTRAINT service_tickets_sla_fk FOREIGN KEY (sla_policy_id) REFERENCES service_level_policies(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS service_tickets_business_idx ON service_tickets(business_id);
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS service_ticket_comments (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT service_ticket_comments_business_fk FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE RESTRICT,
-  CONSTRAINT service_ticket_comments_ticket_fk FOREIGN KEY (business_id, ticket_id) REFERENCES service_tickets(business_id, id) ON DELETE RESTRICT
+  CONSTRAINT service_ticket_comments_ticket_fk FOREIGN KEY (ticket_id) REFERENCES service_tickets(id) ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS service_ticket_comments_business_idx ON service_ticket_comments(business_id);
@@ -81,7 +81,7 @@ CREATE TABLE IF NOT EXISTS service_ticket_events (
   metadata JSONB NOT NULL DEFAULT '{}',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT service_ticket_events_business_fk FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE RESTRICT,
-  CONSTRAINT service_ticket_events_ticket_fk FOREIGN KEY (business_id, ticket_id) REFERENCES service_tickets(business_id, id) ON DELETE RESTRICT
+  CONSTRAINT service_ticket_events_ticket_fk FOREIGN KEY (ticket_id) REFERENCES service_tickets(id) ON DELETE RESTRICT
 );
 
 CREATE INDEX IF NOT EXISTS service_ticket_events_business_idx ON service_ticket_events(business_id);
@@ -108,7 +108,7 @@ CREATE TABLE IF NOT EXISTS service_ticket_attachments (
   checksum_sha256 TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CONSTRAINT service_ticket_attachments_business_fk FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE RESTRICT,
-  CONSTRAINT service_ticket_attachments_ticket_fk FOREIGN KEY (business_id, ticket_id) REFERENCES service_tickets(business_id, id) ON DELETE RESTRICT,
+  CONSTRAINT service_ticket_attachments_ticket_fk FOREIGN KEY (ticket_id) REFERENCES service_tickets(id) ON DELETE RESTRICT,
   CONSTRAINT service_ticket_attachments_size_positive CHECK (size_bytes > 0)
 );
 
