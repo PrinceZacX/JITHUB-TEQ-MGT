@@ -487,7 +487,7 @@ export async function listBusinessMembers(input: { businessId: string }) {
       userEmail: user.email,
     })
     .from(businessMemberships)
-    .innerJoin(user, eq(user.id, businessMemberships.userId))
+    .leftJoin(user, eq(user.id, businessMemberships.userId))
     .where(
       and(
         eq(businessMemberships.businessId, input.businessId),
@@ -512,7 +512,7 @@ export async function inviteMember(input: {
     await tx.insert(businessMemberships).values({
       id,
       businessId: context.businessId,
-      userId: '',
+      userId: null,
       role: input.role,
     });
     await insertAudit(tx, context, {

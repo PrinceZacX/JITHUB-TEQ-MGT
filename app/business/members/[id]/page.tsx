@@ -12,6 +12,7 @@ import {
 } from '@/app/actions/finance';
 import { Plus } from 'lucide-react';
 import { type BusinessRole } from '@/lib/permissions';
+import { businessRoles } from '@/lib/db/schema';
 
 export default function BusinessMembersPage() {
   const params = useParams<{ id: string }>();
@@ -70,10 +71,10 @@ export default function BusinessMembersPage() {
     }
   }
 
-  async function removeMember(userId: string) {
+  async function removeMember(userId: string | null) {
     setBusy(true);
     try {
-      await removeMembership({ businessId: businessId!, userId });
+      await removeMembership({ businessId: businessId!, userId: userId! });
       setError('Member removed.');
       await loadMembers();
     } catch (cause) {
@@ -194,40 +195,64 @@ export default function BusinessMembersPage() {
                   </td>
                   <td>{member.userEmail}</td>
                   <td>
+                  {member.userId ? (
                     <span className={`status-pill status-${member.role.replaceAll('_', '-')}`}>
                       {member.role}
                     </span>
-                  </td>
-                  <td>
-                    {member.role !== 'owner' ? (
-                      <>
+                  ) : (
+                    <span className="status-pill status-invited">Invited</span>
+                  )}
+                </td>
+                <td>
+                  {member.userId && member.role !== 'owner' ? (
+                    <>
+                      <select
+                        className="row-action"
+                        defaultValue={member.role}
+                        onChange={(event) => {
+                          updateMemberRole(member.userId, event.target.value as BusinessRole);
+                        }}
+                      >
+                        {businessRoles.map((r: BusinessRole) => (
+                          <option key={r} value={r}>
+                            {r.replaceAll('_', ' ')}
+                          </option>
+                        ))}
+                      </select>
+                      {member.role !== 'cashier' ? (
                         <button
                           className="row-action"
-                          onClick={() =>
-                            updateMemberRole(
-                              member.userId,
-                              member.role === 'viewer' ? 'cashier' : 'viewer',
-                            )
-                          }
+                          onClick={() => suspendMember(member.userId)}
+                          style={{ marginLeft: 6 }}
                         >
-                          {member.role === 'viewer' ? 'Promote' : 'Demote'}
+                          Suspend
                         </button>
-                        {member.role !== 'cashier' ? (
-                          <button
-                            className="row-action"
-                            onClick={() => suspendMember(member.userId)}
-                          >
-                            Suspend
-                          </button>
-                        ) : null}
-                        <button className="row-action" onClick={() => removeMember(member.userId)}>
-                          Remove
-                        </button>
-                      </>
-                    ) : (
-                      <span className="row-action">Owner</span>
-                    )}
-                  </td>
+                      ) : null}
+                      <button
+                        className="row-action"
+                        onClick={() => removeMember(member.userId)}
+                        style={{ marginLeft: 6 }}
+                      >
+                        Remove
+                      </button>
+                    </>
+                  ) : member.userId === null ? (
+                    <>
+                      <span className="row-action" style={{ color: '#94a3b8' }}>
+                        Pending signup
+                      </span>
+                      <button
+                        className="row-action"
+                        onClick={() => removeMember(null)}
+                        style={{ marginLeft: 6 }}
+                      >
+                        Cancel invite
+                      </button>
+                    </>
+                  ) : (
+                    <span className="row-action">Owner</span>
+                  )}
+                </td>
                 </tr>
               ))}
             </tbody>

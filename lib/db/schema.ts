@@ -118,7 +118,7 @@ export const businessMemberships = pgTable(
   {
     id: text('id').primaryKey(),
     businessId: text('business_id').notNull(),
-    userId: text('user_id').notNull(),
+    userId: text('user_id'),
     role: text('role').notNull().default('viewer'),
     status: text('status').notNull().default('active'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
