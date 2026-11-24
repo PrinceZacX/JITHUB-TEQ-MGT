@@ -550,6 +550,268 @@ export async function cancelInvoice(input: { invoiceId: string }) {
 }
 
 /* ------------------------------------------------------------------ */
+/* Invoice lifecycle                                                  */
+/* ------------------------------------------------------------------ */
+
+export async function updateInvoice(input: {
+  invoiceId: string
+  title?: string
+  dueDate?: string
+  taxTreatment?: 'standard' | 'zero_rated' | 'exempt' | 'outside_scope'
+  taxInclusive?: boolean
+  poReference?: string
+  paymentTerms?: string
+  notes?: string
+  termsAndConditions?: string
+  discountAmount?: string
+  discountType?: 'percentage' | 'fixed'
+  otherCharges?: string
+  lines?: { description: string; quantity: string; unitPrice: string; taxType: 'standard' | 'zero_rated' | 'exempt' | 'outside_scope'; taxRate: string; discountPercentage?: string; discountAmount?: string }[]
+}) {
+  const context = await requireBusinessPermission('invoice.update')
+  await db.transaction(async (tx) => {
+    const [invoice] = await tx.select({ id: invoices.id, status: invoices.status, businessId: invoices.businessId }).from(invoices).where(and(eq(invoices.id, input.invoiceId), eq(invoices.businessId, context.businessId))).limit(1).for('update')
+    if (!invoice) throw new Error('Invoice not found.')
+    if (invoice.status !== 'draft') throw new Error('Only draft invoices can be edited.')
+    if (input.dueDate && !isValidDate(input.dueDate)) throw new Error('Choose a valid due date.')
+
+    const updates: Record<string, unknown> = {}
+    if (input.title !== undefined) updates.title = input.title.trim() || null
+    if (input.dueDate !== undefined) updates.dueDate = input.dueDate
+    if (input.taxTreatment !== undefined) updates.taxTreatment = input.taxTreatment
+    if (input.taxInclusive !== undefined) updates.taxInclusive = input.taxInclusive
+    if (input.poReference !== undefined) updates.poReference = input.poReference.trim() || null
+    if (input.paymentTerms !== undefined) updates.paymentTerms = input.paymentTerms.trim() || null
+    if (input.notes !== undefined) updates.notes = input.notes.trim() || null
+    if (input.termsAndConditions !== undefined) updates.termsAndConditions = input.termsAndConditions.trim() || null
+    if (input.discountType !== undefined) updates.discountType = input.discountType
+
+    // Recalculate if lines provided
+    if (input.lines && input.lines.length > 0) {
+      let totalSubtotalCents = 0
+      let totalTaxCents = 0
+      const lineItems: { id: string; description: string; quantity: string; unitPrice: string; taxType: string; taxRate: string; discountPercentage: string; discountAmount: string; lineTotal: string; sortOrder: number }[] = []
+
+      for (let i = 0; i < input.lines.length; i++) {
+        const line = input.lines[i]
+        const description = line.description.trim()
+        if (!description || description.length > 200) throw new Error('Add a description of up to 200 characters.')
+        const quantityMilli = scaledDecimal(line.quantity, 3, 'Quantity')
+        const quantity = Number(quantityMilli) / 1000
+        if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1000000) throw new Error('Quantity must be greater than zero.')
+        const unitCents = money(line.unitPrice)
+        const taxRate = Number(line.taxRate) || 0
+        if (taxRate < 0 || taxRate > 100) throw new Error('Tax rate must be between 0 and 100 percent.')
+
+        const discountPct = Number(line.discountPercentage) || 0
+        const discountAmt = line.discountAmount ? money(line.discountAmount) : 0
+        const lineSubtotalCents = Number((BigInt(unitCents) * quantityMilli + 500n) / 1000n)
+        const discountFromPct = Number((BigInt(lineSubtotalCents) * BigInt(Math.round(discountPct * 100)) + 5000n) / 10000n)
+        const totalDiscountCents = discountFromPct + discountAmt
+        const netLineSubtotalCents = lineSubtotalCents - totalDiscountCents
+
+        let lineTaxCents = 0
+        const taxType = line.taxType || input.taxTreatment || 'standard'
+        if (taxType === 'standard') {
+          const taxRateBasisPoints = BigInt(Math.round(taxRate * 100))
+          lineTaxCents = Number((BigInt(netLineSubtotalCents) * taxRateBasisPoints + 500_000n) / 1_000_000n)
+        }
+
+        const lineTotalCents = netLineSubtotalCents + lineTaxCents
+        totalSubtotalCents += netLineSubtotalCents
+        totalTaxCents += lineTaxCents
+
+        lineItems.push({
+          id: randomUUID(),
+          description,
+          quantity: (Number(quantityMilli) / 1000).toFixed(3),
+          unitPrice: (unitCents / 100).toFixed(2),
+          taxType,
+          taxRate: taxRate.toFixed(4),
+          discountPercentage: discountPct.toFixed(4),
+          discountAmount: (discountAmt / 100).toFixed(2),
+          lineTotal: (lineTotalCents / 100).toFixed(2),
+          sortOrder: i,
+        })
+      }
+
+      const invoiceDiscountCents = input.discountAmount ? money(input.discountAmount) : 0
+      const invoiceDiscountType = input.discountType || 'percentage'
+      let invoiceDiscountTotalCents = 0
+      if (invoiceDiscountType === 'percentage') {
+        invoiceDiscountTotalCents = Number((BigInt(totalSubtotalCents) * BigInt(Math.round(Number(input.discountAmount || '0') * 100)) + 5000n) / 10000n)
+      } else {
+        invoiceDiscountTotalCents = invoiceDiscountCents
+      }
+      const netSubtotalCents = totalSubtotalCents - invoiceDiscountTotalCents
+      const otherChargesCents = input.otherCharges ? money(input.otherCharges) : 0
+      const finalSubtotalCents = netSubtotalCents + otherChargesCents
+      const grandTotalCents = finalSubtotalCents + totalTaxCents
+
+      updates.subtotal = (finalSubtotalCents / 100).toFixed(2)
+      updates.taxAmount = (totalTaxCents / 100).toFixed(2)
+      updates.total = (grandTotalCents / 100).toFixed(2)
+      if (input.discountAmount !== undefined) updates.discountAmount = (invoiceDiscountTotalCents / 100).toFixed(2)
+      if (input.otherCharges !== undefined) updates.otherCharges = (otherChargesCents / 100).toFixed(2)
+
+      // Replace line items
+      await tx.delete(invoiceItems).where(and(eq(invoiceItems.invoiceId, input.invoiceId), eq(invoiceItems.businessId, context.businessId)))
+      for (const item of lineItems) {
+        await tx.insert(invoiceItems).values({
+          id: item.id,
+          businessId: context.businessId,
+          invoiceId: input.invoiceId,
+          description: item.description,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          taxType: item.taxType,
+          taxRate: item.taxRate,
+          discountPercentage: item.discountPercentage,
+          discountAmount: item.discountAmount,
+          lineTotal: item.lineTotal,
+          sortOrder: item.sortOrder,
+        })
+      }
+    }
+
+    if (Object.keys(updates).length > 0) {
+      await tx.update(invoices).set(updates).where(and(eq(invoices.id, input.invoiceId), eq(invoices.businessId, context.businessId)))
+    }
+    await insertAudit(tx, context, { action: 'invoice.updated', entityType: 'invoice', entityId: input.invoiceId, details: { fields: Object.keys(updates) } })
+  })
+  revalidatePath('/')
+}
+
+export async function markOverdueInvoices() {
+  const context = await requireBusinessPermission('reports.read')
+  await db.transaction(async (tx) => {
+    await tx.update(invoices).set({ status: 'overdue' }).where(and(eq(invoices.businessId, context.businessId), eq(invoices.status, 'issued'), sql`${invoices.dueDate} < CURRENT_DATE`))
+    const overdue = await tx.select({ id: invoices.id, number: invoices.number }).from(invoices).where(and(eq(invoices.businessId, context.businessId), eq(invoices.status, 'overdue')))
+    await insertAudit(tx, context, { action: 'invoice.overdue_marked', entityType: 'invoice', entityId: 'batch', details: { count: overdue.length } })
+  })
+  revalidatePath('/')
+  const overdue = await db.select({ id: invoices.id, number: invoices.number }).from(invoices).where(and(eq(invoices.businessId, context.businessId), eq(invoices.status, 'overdue')))
+  return { marked: overdue.length }
+}
+
+export async function createCreditNote(input: {
+  invoiceId: string
+  reason: string
+  lines: { invoiceItemId?: string; description: string; quantity: string; unitPrice: string; taxType: 'standard' | 'zero_rated' | 'exempt' | 'outside_scope'; taxRate: string }[]
+  notes?: string
+}) {
+  const context = await requireBusinessPermission('invoice.credit')
+  const invoiceId = input.invoiceId
+  const [invoice] = await db.select({ id: invoices.id, status: invoices.status, customerId: invoices.customerId, currency: invoices.currency, businessId: invoices.businessId }).from(invoices).where(and(eq(invoices.id, invoiceId), eq(invoices.businessId, context.businessId))).limit(1)
+  if (!invoice) throw new Error('Invoice not found.')
+  if (invoice.status !== 'issued' && invoice.status !== 'partially_paid' && invoice.status !== 'paid' && invoice.status !== 'overdue') throw new Error('Credit notes can only be created for issued invoices.')
+
+  const creditNoteId = randomUUID()
+  const number = await allocateDocumentNumber(db as any, context.businessId, 'invoice')
+  const cnNumber = `CN-${number}`
+
+  let totalSubtotalCents = 0
+  let totalTaxCents = 0
+  const lineItems: { id: string; description: string; quantity: string; unitPrice: string; taxType: string; taxRate: string; lineTotal: string; sortOrder: number }[] = []
+
+  for (let i = 0; i < input.lines.length; i++) {
+    const line = input.lines[i]
+    const description = line.description.trim()
+    if (!description || description.length > 200) throw new Error('Add a description of up to 200 characters.')
+    const quantityMilli = scaledDecimal(line.quantity, 3, 'Quantity')
+    const quantity = Number(quantityMilli) / 1000
+    if (!Number.isFinite(quantity) || quantity <= 0 || quantity > 1000000) throw new Error('Quantity must be greater than zero.')
+    const unitCents = money(line.unitPrice)
+    const taxRate = Number(line.taxRate) || 0
+    if (taxRate < 0 || taxRate > 100) throw new Error('Tax rate must be between 0 and 100 percent.')
+
+    const lineSubtotalCents = Number((BigInt(unitCents) * quantityMilli + 500n) / 1000n)
+    let lineTaxCents = 0
+    const taxType = line.taxType || 'standard'
+    if (taxType === 'standard') {
+      const taxRateBasisPoints = BigInt(Math.round(taxRate * 100))
+      lineTaxCents = Number((BigInt(lineSubtotalCents) * taxRateBasisPoints + 500_000n) / 1_000_000n)
+    }
+    const lineTotalCents = lineSubtotalCents + lineTaxCents
+    totalSubtotalCents += lineSubtotalCents
+    totalTaxCents += lineTaxCents
+
+    lineItems.push({
+      id: randomUUID(),
+      description,
+      quantity: (Number(quantityMilli) / 1000).toFixed(3),
+      unitPrice: (unitCents / 100).toFixed(2),
+      taxType,
+      taxRate: taxRate.toFixed(4),
+      lineTotal: (lineTotalCents / 100).toFixed(2),
+      sortOrder: i,
+    })
+  }
+
+  const grandTotalCents = totalSubtotalCents + totalTaxCents
+
+  await db.transaction(async (tx) => {
+    await tx.insert(creditNotes).values({
+      id: creditNoteId,
+      businessId: context.businessId,
+      invoiceId: invoice.id,
+      customerId: invoice.customerId,
+      number: cnNumber,
+      status: 'draft',
+      reason: input.reason.trim(),
+      issueDate: new Date().toISOString().slice(0, 10),
+      currency: invoice.currency,
+      subtotal: (totalSubtotalCents / 100).toFixed(2),
+      taxAmount: (totalTaxCents / 100).toFixed(2),
+      total: (grandTotalCents / 100).toFixed(2),
+      creditedAmount: '0.00',
+      notes: input.notes?.trim() || null,
+      createdBy: context.userId,
+    })
+
+    for (const item of lineItems) {
+      await tx.insert(creditNoteItems).values({
+        id: item.id,
+        businessId: context.businessId,
+        creditNoteId: creditNoteId,
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        taxType: item.taxType,
+        taxRate: item.taxRate,
+        lineTotal: item.lineTotal,
+        sortOrder: item.sortOrder,
+      })
+    }
+
+    await insertAudit(tx, context, { action: 'credit_note.created', entityType: 'credit_note', entityId: creditNoteId, details: { number: cnNumber, invoiceId } })
+  })
+  revalidatePath('/')
+  return { id: creditNoteId, number: cnNumber }
+}
+
+export async function issueCreditNote(input: { creditNoteId: string }) {
+  const context = await requireBusinessPermission('invoice.credit')
+  await db.transaction(async (tx) => {
+    const [cn] = await tx.select({ id: creditNotes.id, status: creditNotes.status, invoiceId: creditNotes.invoiceId, total: creditNotes.total, businessId: creditNotes.businessId }).from(creditNotes).where(and(eq(creditNotes.id, input.creditNoteId), eq(creditNotes.businessId, context.businessId))).limit(1).for('update')
+    if (!cn) throw new Error('Credit note not found.')
+    if (cn.status !== 'draft') throw new Error('Only draft credit notes can be issued.')
+
+    // Update invoice credited amount
+    const [invoice] = await tx.select({ id: invoices.id, total: invoices.total, creditedAmount: invoices.creditedAmount }).from(invoices).where(eq(invoices.id, cn.invoiceId)).limit(1).for('update')
+    if (invoice) {
+      const newCredited = money(invoice.creditedAmount) + money(cn.total)
+      const newStatus = newCredited >= money(invoice.total) ? 'credited' : invoice.status
+      await tx.update(invoices).set({ creditedAmount: (newCredited / 100).toFixed(2), status: newStatus }).where(eq(invoices.id, cn.invoiceId))
+    }
+
+    await tx.update(creditNotes).set({ status: 'issued', creditedAmount: cn.total, updatedAt: new Date() }).where(eq(creditNotes.id, input.creditNoteId))
+    await insertAudit(tx, context, { action: 'credit_note.issued', entityType: 'credit_note', entityId: input.creditNoteId })
+  })
+  revalidatePath('/')
+}
+
+/* ------------------------------------------------------------------ */
 /* Business settings                                                  */
 /* ------------------------------------------------------------------ */
 

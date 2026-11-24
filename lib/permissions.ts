@@ -11,6 +11,9 @@ export type BusinessPermission =
   | 'invoice.create'
   | 'invoice.issue'
   | 'invoice.cancel'
+  | 'invoice.update'
+  | 'invoice.credit'
+  | 'invoice.remind'
   | 'purchase_order.create'
   | 'purchase_order.approve'
   | 'goods_receipt.receive'
@@ -46,7 +49,7 @@ const rolePermissions: RolePermissions = {
   owner: [
     'business.read', 'business.manage', 'business.settings', 'membership.manage',
     'customer.manage', 'catalogue.manage', 'supplier.manage',
-    'invoice.create', 'invoice.issue', 'invoice.cancel',
+    'invoice.create', 'invoice.issue', 'invoice.cancel', 'invoice.update', 'invoice.credit', 'invoice.remind',
     'purchase_order.create', 'purchase_order.approve',
     'goods_receipt.receive', 'stock.adjust',
     'payment.record', 'refund.create', 'refund.approve', 'receipt.void', 'expense.record',
@@ -58,7 +61,7 @@ const rolePermissions: RolePermissions = {
   administrator: [
     'business.read', 'business.manage', 'business.settings',
     'customer.manage', 'catalogue.manage', 'supplier.manage',
-    'invoice.create', 'invoice.issue', 'invoice.cancel',
+    'invoice.create', 'invoice.issue', 'invoice.cancel', 'invoice.update', 'invoice.credit', 'invoice.remind',
     'purchase_order.create', 'purchase_order.approve',
     'goods_receipt.receive', 'stock.adjust',
     'payment.record', 'refund.create', 'refund.approve', 'receipt.void', 'expense.record',
@@ -69,7 +72,7 @@ const rolePermissions: RolePermissions = {
   ],
   finance_manager: [
     'business.read', 'customer.manage', 'catalogue.manage', 'supplier.manage',
-    'invoice.create', 'invoice.issue',
+    'invoice.create', 'invoice.issue', 'invoice.update', 'invoice.credit', 'invoice.remind',
     'purchase_order.create', 'purchase_order.approve',
     'goods_receipt.receive', 'stock.adjust',
     'payment.record', 'refund.create', 'refund.approve', 'receipt.void', 'expense.record',
@@ -80,14 +83,14 @@ const rolePermissions: RolePermissions = {
   ],
   accountant: [
     'business.read', 'customer.manage', 'catalogue.manage', 'supplier.manage',
-    'invoice.create', 'invoice.issue',
+    'invoice.create', 'invoice.issue', 'invoice.update', 'invoice.credit', 'invoice.remind',
     'payment.record', 'refund.create', 'expense.record', 'reports.read', 'audit.read',
     'tax.manage',
     'service_ticket.read', 'service_ticket.comment_internal',
   ],
   sales_officer: [
     'business.read', 'customer.manage', 'catalogue.manage', 'supplier.manage',
-    'invoice.create', 'invoice.issue',
+    'invoice.create', 'invoice.issue', 'invoice.update', 'invoice.remind',
     'payment.record', 'expense.record', 'reports.read',
     'service_ticket.create', 'service_ticket.read', 'service_ticket.update',
     'service_ticket.resolve', 'service_ticket.comment_internal',
