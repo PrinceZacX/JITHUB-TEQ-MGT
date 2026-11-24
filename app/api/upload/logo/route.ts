@@ -7,10 +7,11 @@ import { randomUUID } from 'node:crypto'
 import { headers } from 'next/headers'
 import { auth } from '@/lib/auth'
 import { db } from '@/lib/db'
-import { businesses, auditLogs } from '@/lib/db/schema'
-import { eq, sql } from 'drizzle-orm'
+import { businesses, auditLogs, businessMemberships } from '@/lib/db/schema'
+import { eq, and, sql } from 'drizzle-orm'
 import { loadEnv } from '@/lib/env'
-import { requirePermission, defaultRole } from '@/lib/permissions'
+import { requirePermission } from '@/lib/permissions'
+import { withDbTimeout, DatabaseTimeoutError } from '@/lib/db/query-timeout'
 
 const MAX_FILE_SIZE = 2 * 1024 * 1024 // 2 MB
 // SVG removed from allowlist due to XSS risk. WebP fixed signature validation.
@@ -37,22 +38,40 @@ function detectImageMime(buffer: Buffer): string | null {
   return null
 }
 
+async function handleDbError(err: unknown) {
+  if (err instanceof DatabaseTimeoutError) {
+    throw new Error('Database unavailable')
+  }
+  throw err
+}
+
 export async function POST(request: Request) {
   loadEnv()
   const userId = await requireBusinessContext()
 
   // Resolve active business membership with permission check
-  const { businessMemberships } = await import('@/lib/db/schema')
-  const { and, eq: dbeq } = await import('drizzle-orm')
-  const [membership] = await db
-    .select({ businessId: businessMemberships.businessId, role: businessMemberships.role, status: businessMemberships.status, deletedAt: businessMemberships.deletedAt })
-    .from(businessMemberships)
-    .where(and(
-      dbeq(businessMemberships.userId, userId),
-      dbeq(businessMemberships.status, 'active'),
-      sql`${businessMemberships.deletedAt} IS NULL`,
-    ))
-    .limit(1)
+  let membership: { businessId: string; role: string; status: string; deletedAt: Date | null } | undefined
+  try {
+    const result = await withDbTimeout(
+      db
+        .select({
+          businessId: businessMemberships.businessId,
+          role: businessMemberships.role,
+          status: businessMemberships.status,
+          deletedAt: businessMemberships.deletedAt,
+        })
+        .from(businessMemberships)
+        .where(and(
+          eq(businessMemberships.userId, userId),
+          eq(businessMemberships.status, 'active'),
+          sql`${businessMemberships.deletedAt} IS NULL`,
+        ))
+        .limit(1)
+    )
+    membership = result[0]
+  } catch (err) {
+    throw handleDbError(err)
+  }
   if (!membership) throw new Error('You are not an active member of a business.')
   requirePermission(membership.role as any, 'business.settings')
 
@@ -76,13 +95,18 @@ export async function POST(request: Request) {
 
   const logoUrl = `/uploads/logos/${filename}`
 
-  await db.update(businesses).set({ logoUrl }).where(eq(businesses.id, membership.businessId))
-
-  await db.insert(auditLogs).values({
-    id: randomUUID(), businessId: membership.businessId, userId,
-    action: 'business.logo_updated', entityType: 'business', entityId: membership.businessId,
-    details: { logoUrl },
-  })
+  try {
+    await withDbTimeout(db.update(businesses).set({ logoUrl }).where(eq(businesses.id, membership.businessId)))
+    await withDbTimeout(
+      db.insert(auditLogs).values({
+        id: randomUUID(), businessId: membership.businessId, userId,
+        action: 'business.logo_updated', entityType: 'business', entityId: membership.businessId,
+        details: { logoUrl },
+      })
+    )
+  } catch (err) {
+    throw handleDbError(err)
+  }
 
   return NextResponse.json({ ok: true, logoUrl })
 }

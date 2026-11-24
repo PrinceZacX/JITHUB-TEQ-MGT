@@ -6,6 +6,7 @@ import { receipts, payments, customers, businesses } from '@/lib/db/schema'
 import { eq, and } from 'drizzle-orm'
 import { generateThermalReceipt } from '@/lib/pdf/documents'
 import { loadEnv } from '@/lib/env'
+import { withDbTimeout, DatabaseTimeoutError } from '@/lib/db/query-timeout'
 
 const safeDate = (value: Date | string | null): string => {
   if (!value) return ''
@@ -14,6 +15,13 @@ const safeDate = (value: Date | string | null): string => {
 }
 
 export const dynamic = 'force-dynamic'
+
+async function handleDbError(err: unknown) {
+  if (err instanceof DatabaseTimeoutError) {
+    return new Response('Database unavailable', { status: 503 })
+  }
+  throw err
+}
 
 export async function GET(
   request: Request,
@@ -27,19 +35,43 @@ export async function GET(
   const url = new URL(request.url)
   const widthMm = url.searchParams.get('width') === '80' ? 80 : 58
 
-  const [receipt] = await db.select().from(receipts).where(eq(receipts.id, receiptId)).limit(1)
+  let receipt: typeof receipts.$inferSelect | undefined
+  try {
+    const result = await withDbTimeout(db.select().from(receipts).where(eq(receipts.id, receiptId)).limit(1))
+    receipt = result[0]
+  } catch (err) {
+    return handleDbError(err)
+  }
   if (!receipt) return new Response('Receipt not found', { status: 404 })
 
   const { businessMemberships } = await import('@/lib/db/schema')
-  const [membership] = await db
-    .select({ businessId: businessMemberships.businessId, role: businessMemberships.role })
-    .from(businessMemberships)
-    .where(and(eq(businessMemberships.userId, session.user.id), eq(businessMemberships.businessId, receipt.businessId)))
-    .limit(1)
+  let membership: { businessId: string; role: string } | undefined
+  try {
+    const result = await withDbTimeout(
+      db
+        .select({ businessId: businessMemberships.businessId, role: businessMemberships.role })
+        .from(businessMemberships)
+        .where(and(eq(businessMemberships.userId, session.user.id), eq(businessMemberships.businessId, receipt.businessId)))
+        .limit(1)
+    )
+    membership = result[0]
+  } catch (err) {
+    return handleDbError(err)
+  }
   if (!membership) return new Response('Forbidden', { status: 403 })
 
-  const [payment] = await db.select().from(payments).where(eq(payments.id, receipt.paymentId)).limit(1)
-  const [customer] = await db.select().from(customers).where(and(eq(customers.id, payment?.customerId), eq(customers.businessId, receipt.businessId))).limit(1)
+  let payment: typeof payments.$inferSelect | undefined
+  let customer: typeof customers.$inferSelect | undefined
+  try {
+    const paymentResult = await withDbTimeout(db.select().from(payments).where(eq(payments.id, receipt.paymentId)).limit(1))
+    payment = paymentResult[0]
+    if (payment?.customerId) {
+      const customerResult = await withDbTimeout(db.select().from(customers).where(and(eq(customers.id, payment.customerId), eq(customers.businessId, receipt.businessId))).limit(1))
+      customer = customerResult[0]
+    }
+  } catch (err) {
+    return handleDbError(err)
+  }
 
   const data = {
     id: receipt.id,
