@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Mail, UserPlus, X, RefreshCw, MoreHorizontal, Eye, Edit } from 'lucide-react';
+import { Plus, Mail, UserPlus, X, RefreshCw, Eye, Edit, Users } from 'lucide-react';
 import {
   listBusinessInvitations,
   createBusinessInvitation,
@@ -96,179 +96,219 @@ export default function ServiceDeskClientsPage() {
   ];
 
   const statusColors: Record<string, string> = {
-    active: 'status-success',
-    suspended: 'status-warning',
-    removed: 'status-danger',
-    pending: 'status-info',
-    accepted: 'status-success',
-    expired: 'status-danger',
-    revoked: 'status-gray',
+    active: 'bg-green-100 text-green-700 border-green-200',
+    suspended: 'bg-amber-100 text-amber-700 border-amber-200',
+    removed: 'bg-rose-100 text-rose-700 border-rose-200',
+    pending: 'bg-blue-100 text-blue-700 border-blue-200',
+    accepted: 'bg-green-100 text-green-700 border-green-200',
+    expired: 'bg-rose-100 text-rose-700 border-rose-200',
+    revoked: 'bg-slate-100 text-slate-700 border-slate-200',
   };
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Client Management</h1>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-jt-text">Client Management</h1>
+          <p className="text-jt-muted text-sm">
+            Manage client access and invitations to your service desk
+          </p>
+        </div>
         <button className="primary-button" onClick={() => setOpenInviteForm(true)}>
           <Plus size={14} /> Invite Client
         </button>
       </div>
 
       {openInviteForm && (
-        <div className="panel data-panel mb-6">
-          <h3 className="text-lg font-medium mb-4">Invite New Client</h3>
-          <form onSubmit={handleInviteSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Email Address</label>
-                <input
-                  type="email"
-                  required
-                  className="w-full border border-jt-border rounded-lg px-3 py-2 bg-jt-surface"
-                  value={inviteForm.email}
-                  onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
-                  placeholder="client@example.com"
-                />
+        <section className="border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface shadow-sm">
+          <div className="p-6 border-b border-jt-border/50">
+            <h3 className="text-lg font-semibold text-jt-text">Invite New Client</h3>
+          </div>
+          <div className="p-4">
+            <form onSubmit={handleInviteSubmit} className="space-y-5">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                    Email Address
+                  </label>
+                  <input
+                    type="email"
+                    required
+                    className="w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                    value={inviteForm.email}
+                    onChange={(e) => setInviteForm({ ...inviteForm, email: e.target.value })}
+                    placeholder="client@example.com"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                    Role
+                  </label>
+                  <select
+                    className="w-full border border-jt-border rounded-lg bg-jt-surface px-3 py-2.5 text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                    value={inviteForm.role}
+                    onChange={(e) =>
+                      setInviteForm({
+                        ...inviteForm,
+                        role: e.target.value as InviteRole,
+                      })
+                    }
+                  >
+                    {roleOptions.map((r) => (
+                      <option key={r.value} value={r.value}>
+                        {r.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                    Expires In (Days)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    max="30"
+                    className="w-full border border-jt-border rounded-lg bg-jt-surface px-3 py-2.5 text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                    value={inviteForm.expiresInDays}
+                    onChange={(e) =>
+                      setInviteForm({
+                        ...inviteForm,
+                        expiresInDays: parseInt(e.target.value) || 7,
+                      })
+                    }
+                  />
+                </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Role</label>
-                <select
-                  className="w-full border border-jt-border rounded-lg px-3 py-2 bg-jt-surface"
-                  value={inviteForm.role}
-                  onChange={(e) =>
-                    setInviteForm({
-                      ...inviteForm,
-                      role: e.target.value as InviteRole,
-                    })
-                  }
+              <div className="flex gap-3 pt-4">
+                <button
+                  type="button"
+                  className="button-secondary flex-1"
+                  onClick={() => setOpenInviteForm(false)}
                 >
-                  {roleOptions.map((r) => (
-                    <option key={r.value} value={r.value}>
-                      {r.label}
-                    </option>
-                  ))}
-                </select>
+                  <X size={14} /> Cancel
+                </button>
+                <button type="submit" className="primary-button flex-1" disabled={submitting}>
+                  {submitting ? 'Sending...' : 'Send Invitation'}
+                </button>
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Expires In (Days)</label>
-                <input
-                  type="number"
-                  min="1"
-                  max="30"
-                  className="w-full border border-jt-border rounded-lg px-3 py-2 bg-jt-surface"
-                  value={inviteForm.expiresInDays}
-                  onChange={(e) =>
-                    setInviteForm({
-                      ...inviteForm,
-                      expiresInDays: parseInt(e.target.value) || 7,
-                    })
-                  }
-                />
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button
-                type="button"
-                className="button-secondary"
-                onClick={() => setOpenInviteForm(false)}
-              >
-                <X size={14} /> Cancel
-              </button>
-              <button type="submit" className="primary-button" disabled={submitting}>
-                {submitting ? 'Sending...' : 'Send Invitation'}
-              </button>
-            </div>
-          </form>
-        </div>
+            </form>
+          </div>
+        </section>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <div className="panel data-panel">
-          <h3 className="text-lg font-medium mb-4">Active Client Members</h3>
-          {clients.length === 0 ? (
-            <p className="text-jt-muted text-center py-8">No active client members yet.</p>
-          ) : (
-            <div className="space-y-3">
-              {clients.map((client) => (
-                <div
-                  key={client.id}
-                  className="flex items-center justify-between p-4 bg-jt-surface rounded-lg border border-jt-border"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-jt-primary/10 flex items-center justify-center">
-                      <span className="text-jt-primary font-medium">
-                        {client.name?.charAt(0) || 'U'}
+        {/* Active Client Members */}
+        <section className="border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface shadow-sm">
+          <div className="p-6 border-b border-jt-border/50">
+            <h3 className="text-lg font-semibold text-jt-text">Active Client Members</h3>
+          </div>
+          <div className="p-4">
+            {clients.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <Users size={32} className="text-jt-muted/50 mb-3" />
+                <p className="text-sm text-jt-muted">No active client members yet.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {clients.map((client) => (
+                  <div
+                    key={client.id}
+                    className="flex items-center justify-between p-4 rounded-lg border border-jt-border hover:border-jt-teal/30 transition-colors bg-jt-surface"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-blue-50 flex items-center justify-center">
+                        <span className="text-blue-600 font-medium">
+                          {client.name?.charAt(0) || 'U'}
+                        </span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-jt-text truncate">
+                          {client.name}
+                        </p>
+                        <p className="text-xs text-jt-muted truncate">
+                          {client.email}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span
+                        className={`px-2 py-0.5 rounded text-xs font-semibold border ${statusColors[client.role] || statusColors.active}`}
+                      >
+                        {client.role}
+                        {client.status !== 'active' ? ` • ${client.status}` : ''}
                       </span>
                     </div>
-                    <div>
-                      <p className="font-medium">{client.name}</p>
-                      <p className="text-jt-muted text-sm">{client.email}</p>
-                    </div>
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className={`status-pill ${statusColors[client.status] || 'status-info'}`}>
-                      {client.role}
-                    </span>
-                    <span className={`status-pill ${statusColors[client.status] || 'status-info'}`}>
-                      {client.status}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
 
-        <div className="panel data-panel">
-          <h3 className="text-lg font-medium mb-4">Pending Invitations</h3>
-          {invitations.length === 0 ? (
-            <p className="text-jt-muted text-center py-8">No pending invitations.</p>
-          ) : (
-            <div className="space-y-3">
-              {invitations.map((inv) => (
-                <div
-                  key={inv.id}
-                  className="flex items-center justify-between p-4 bg-jt-surface rounded-lg border border-jt-border"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
-                      <Mail size={20} className="text-purple-600" />
+        {/* Pending Invitations */}
+        <section className="border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface shadow-sm">
+          <div className="p-6 border-b border-jt-border/50">
+            <h3 className="text-lg font-semibold text-jt-text">Pending Invitations</h3>
+          </div>
+          <div className="p-4">
+            {invitations.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <Mail size={32} className="text-jt-muted/50 mb-3" />
+                <p className="text-sm text-jt-muted">No pending invitations.</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {invitations.map((inv) => (
+                  <div
+                    key={inv.id}
+                    className="flex items-center justify-between p-4 rounded-lg border border-jt-border hover:border-jt-teal/30 transition-colors bg-jt-surface"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-purple-50 flex items-center justify-center">
+                        <Mail size={18} className="text-purple-600" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-jt-text truncate">
+                          {inv.email}
+                        </p>
+                        <p className="text-xs text-jt-muted truncate">
+                          Role: {inv.role} • Expires:{' '}
+                          {new Date(inv.expiresAt).toLocaleDateString()}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium">{inv.email}</p>
-                      <p className="text-jt-muted text-sm">
-                        Role: {inv.role} • Expires: {new Date(inv.expiresAt).toLocaleDateString()}
-                      </p>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <span
+                        className={`px-2 py-0.5 rounded text-xs font-semibold border ${statusColors[inv.status] || statusColors.pending}`}
+                      >
+                        {inv.status}
+                      </span>
+                      {inv.status === 'pending' && (
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => handleResend(inv.id)}
+                            className="row-action text-jt-primary hover:bg-jt-surface/50"
+                            title="Resend"
+                          >
+                            <RefreshCw size={14} />
+                          </button>
+                          <button
+                            onClick={() => handleRevoke(inv.id)}
+                            className="row-action text-rose-600 hover:bg-rose-50"
+                            title="Revoke"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                      )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <span className={`status-pill ${statusColors[inv.status] || 'status-info'}`}>
-                      {inv.status}
-                    </span>
-                    {inv.status === 'pending' && (
-                      <>
-                        <button
-                          onClick={() => handleResend(inv.id)}
-                          className="row-action"
-                          title="Resend"
-                        >
-                          <RefreshCw size={14} />
-                        </button>
-                        <button
-                          onClick={() => handleRevoke(inv.id)}
-                          className="row-action text-red-600"
-                          title="Revoke"
-                        >
-                          <X size={14} />
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
       </div>
     </div>
   );

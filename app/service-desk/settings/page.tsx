@@ -125,207 +125,259 @@ export default function ServiceDeskSettingsPage() {
   }
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">SLA Policies</h1>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-jt-text">SLA Policies</h1>
+          <p className="text-jt-muted text-sm">
+            Manage service level agreements for your support team
+          </p>
+        </div>
         <button className="primary-button" onClick={openCreate}>
           <Plus size={14} /> Create Policy
         </button>
       </div>
 
       {openForm && (
-        <div className="panel data-panel mb-6">
-          <h3 className="text-lg font-medium mb-4">
-            {editingPolicy ? 'Edit Policy' : 'Create New Policy'}
-          </h3>
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+        <section className="border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface shadow-sm">
+          <div className="p-6 border-b border-jt-border/50">
+            <h3 className="text-lg font-semibold text-jt-text">
+              {editingPolicy ? 'Edit Policy' : 'Create New Policy'}
+            </h3>
+          </div>
+          <div className="p-6">
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                    Policy Name
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    className="w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                    value={form.name}
+                    onChange={(e) => setForm({ ...form, name: e.target.value })}
+                    placeholder="e.g. Standard Support"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                    Timezone
+                  </label>
+                  <input
+                    type="text"
+                    className="w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                    value={form.timezone}
+                    onChange={(e) => setForm({ ...form, timezone: e.target.value })}
+                    placeholder="Africa/Kampala"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                    Response Time (minutes)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    className="w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                    value={form.responseMinutes}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        responseMinutes: parseInt(e.target.value) || 60,
+                      })
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                    Resolution Time (minutes)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    required
+                    className="w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                    value={form.resolutionMinutes}
+                    onChange={(e) =>
+                      setForm({
+                        ...form,
+                        resolutionMinutes: parseInt(e.target.value) || 480,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+
               <div>
-                <label className="block text-sm font-medium mb-1">Policy Name</label>
-                <input
-                  type="text"
-                  required
-                  className="w-full border border-jt-border rounded-lg px-3 py-2 bg-jt-surface"
-                  value={form.name}
-                  onChange={(e) => setForm({ ...form, name: e.target.value })}
-                  placeholder="e.g. Standard Support"
+                <label className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  Description
+                </label>
+                <textarea
+                  className="w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={3}
+                  placeholder="Optional description of this policy..."
                 />
               </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Timezone</label>
-                <input
-                  type="text"
-                  className="w-full border border-jt-border rounded-lg px-3 py-2 bg-jt-surface"
-                  value={form.timezone}
-                  onChange={(e) => setForm({ ...form, timezone: e.target.value })}
-                  placeholder="Africa/Kampala"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Response Time (minutes)</label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  className="w-full border border-jt-border rounded-lg px-3 py-2 bg-jt-surface"
-                  value={form.responseMinutes}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      responseMinutes: parseInt(e.target.value) || 60,
-                    })
-                  }
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium mb-1">Resolution Time (minutes)</label>
-                <input
-                  type="number"
-                  min="1"
-                  required
-                  className="w-full border border-jt-border rounded-lg px-3 py-2 bg-jt-surface"
-                  value={form.resolutionMinutes}
-                  onChange={(e) =>
-                    setForm({
-                      ...form,
-                      resolutionMinutes: parseInt(e.target.value) || 480,
-                    })
-                  }
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1">Description</label>
-              <textarea
-                className="w-full border border-jt-border rounded-lg px-3 py-2 bg-jt-surface"
-                value={form.description}
-                onChange={(e) => setForm({ ...form, description: e.target.value })}
-                rows={3}
-                placeholder="Optional description of this policy..."
-              />
-            </div>
-            <div className="space-y-3">
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={form.isDefault}
-                  onChange={(e) => setForm({ ...form, isDefault: e.target.checked })}
-                  className="rounded border-jt-border"
-                />
-                <span className="text-sm">Set as default policy for new tickets</span>
-              </label>
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={form.businessHoursOnly}
-                  onChange={(e) => setForm({ ...form, businessHoursOnly: e.target.checked })}
-                  className="rounded border-jt-border"
-                />
-                <span className="text-sm">Business hours only (exclude nights/weekends)</span>
-              </label>
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-2">Applies to Priorities</label>
-              <div className="flex flex-wrap gap-2">
-                {priorityOptions.map((p) => (
-                  <label key={p} className="flex items-center gap-2">
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
-                      checked={form.appliesToPriorities.includes(p)}
-                      onChange={(e) =>
-                        setForm({
-                          ...form,
-                          appliesToPriorities: e.target.checked
-                            ? [...form.appliesToPriorities, p]
-                            : form.appliesToPriorities.filter((x: string) => x !== p),
-                        })
-                      }
-                      className="rounded border-jt-border"
+                      checked={form.isDefault}
+                      onChange={(e) => setForm({ ...form, isDefault: e.target.checked })}
+                      className="rounded border-jt-border text-jt-teal"
                     />
-                    <span className="text-sm capitalize">{p}</span>
+                    <span className="text-sm text-jt-text">
+                      Set as default policy for new tickets
+                    </span>
                   </label>
-                ))}
-              </div>
-            </div>
-            <div className="flex gap-2">
-              <button type="button" className="button-secondary" onClick={resetForm}>
-                <X size={14} /> Cancel
-              </button>
-              <button type="submit" className="primary-button" disabled={submitting}>
-                {submitting ? 'Saving...' : editingPolicy ? 'Update Policy' : 'Create Policy'}
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={form.businessHoursOnly}
+                      onChange={(e) => setForm({ ...form, businessHoursOnly: e.target.checked })}
+                      className="rounded border-jt-border text-jt-teal"
+                    />
+                    <span className="text-sm text-jt-text">
+                      Business hours only (exclude nights/weekends)
+                    </span>
+                  </label>
+                </div>
 
-      {loading ? (
-        <div className="panel data-panel">Loading policies...</div>
-      ) : policies.length === 0 ? (
-        <div className="panel data-panel text-center py-12">
-          <p className="text-jt-muted mb-4">No SLA policies configured yet.</p>
-          <button className="primary-button" onClick={openCreate}>
-            <Plus size={14} /> Create Your First Policy
-          </button>
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {policies.map((policy) => (
-            <div key={policy.id} className="panel data-panel">
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
-                    <h3 className="text-lg font-medium">{policy.name}</h3>
-                    {policy.isDefault && (
-                      <span className="status-pill status-success">Default</span>
-                    )}
-                  </div>
-                  <p className="text-jt-muted text-sm mb-3">
-                    {policy.description || 'No description'}
-                  </p>
-                  <div className="flex flex-wrap gap-4 text-sm">
-                    <span className="text-jt-muted">
-                      Response: <span className="font-medium">{policy.responseMinutes} min</span>
-                    </span>
-                    <span className="text-jt-muted">
-                      Resolution:{' '}
-                      <span className="font-medium">{policy.resolutionMinutes} min</span>
-                    </span>
-                    <span className="text-jt-muted">
-                      Hours:{' '}
-                      <span className="font-medium">
-                        {policy.businessHoursOnly ? 'Business only' : '24/7'}
-                      </span>
-                    </span>
-                    <span className="text-jt-muted">
-                      Timezone: <span className="font-medium">{policy.timezone}</span>
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {policy.appliesToPriorities?.map((p: string) => (
-                      <span key={p} className="status-pill status-info text-xs capitalize">
-                        {p}
-                      </span>
+                <div>
+                  <label className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                    Applies to Priorities
+                  </label>
+                  <div className="flex flex-wrap gap-2">
+                    {priorityOptions.map((p) => (
+                      <label key={p} className="cursor-pointer flex items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={form.appliesToPriorities.includes(p)}
+                          onChange={(e) =>
+                            setForm({
+                              ...form,
+                              appliesToPriorities: e.target.checked
+                                ? [...form.appliesToPriorities, p]
+                                : form.appliesToPriorities.filter((x: string) => x !== p),
+                            })
+                        }
+                          className="rounded border-jt-border text-jt-teal"
+                        />
+                        <span className="text-sm capitalize text-jt-text">{p}</span>
+                      </label>
                     ))}
                   </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => openEdit(policy)} className="row-action">
-                    <Edit size={14} />
-                  </button>
-                  {!policy.isDefault && (
-                    <button
-                      onClick={() => handleDelete(policy.id)}
-                      className="row-action text-red-600"
-                    >
-                      <Trash2 size={14} />
+              </div>
+
+              <div className="flex gap-3 pt-6 border-t border-jt-border/50">
+                <button type="button" className="button-secondary flex-1" onClick={resetForm}>
+                  <X size={14} /> Cancel
+                </button>
+                <button type="submit" className="primary-button flex-1" disabled={submitting}>
+                  {submitting ? 'Saving...' : editingPolicy ? 'Update Policy' : 'Create Policy'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </section>
+      )}
+
+      {loading ? (
+        <section className="border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface shadow-sm">
+          <div className="p-8 flex items-center justify-center">
+            <p className="text-sm text-jt-muted">Loading policies...</p>
+          </div>
+        </section>
+      ) : policies.length === 0 ? (
+        <section className="border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface shadow-sm">
+          <div className="p-10 flex flex-col items-center justify-center text-center">
+            <p className="text-sm text-jt-muted mb-6">
+              No SLA policies configured yet.
+            </p>
+            <button className="primary-button" onClick={openCreate}>
+              <Plus size={14} /> Create Your First Policy
+            </button>
+          </div>
+        </section>
+      ) : (
+        <section className="space-y-4">
+          {policies.map((policy) => (
+            <div
+              key={policy.id}
+              className="border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface shadow-sm hover:shadow-md transition-shadow group"
+            >
+              <div className="p-6 border-b border-jt-border/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <h3 className="text-lg font-semibold text-jt-text">
+                      {policy.name}
+                    </h3>
+                    {policy.isDefault && (
+                      <span className="px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
+                        Default
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => openEdit(policy)} className="row-action text-jt-primary hover:bg-jt-surface/50">
+                      <Edit size={14} />
                     </button>
-                  )}
+                    {!policy.isDefault && (
+                      <button
+                        onClick={() => handleDelete(policy.id)}
+                        className="row-action text-rose-600 hover:bg-rose-50"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <div className="p-6">
+                <p className="text-sm text-jt-muted mb-4 truncate">
+                  {policy.description || 'No description'}
+                </p>
+                <div className="flex flex-wrap gap-4 text-sm">
+                  <span className="text-jt-muted">
+                    Response: <span className="font-medium text-jt-text">{policy.responseMinutes} min</span>
+                  </span>
+                  <span className="text-jt-muted">
+                    Resolution:{' '}
+                    <span className="font-medium text-jt-text">{policy.resolutionMinutes} min</span>
+                  </span>
+                  <span className="text-jt-muted">
+                    Hours:{' '}
+                    <span className="font-medium text-jt-text">
+                      {policy.businessHoursOnly ? 'Business only' : '24/7'}
+                    </span>
+                  </span>
+                  <span className="text-jt-muted">
+                    Timezone:{' '}
+                    <span className="font-medium text-jt-text">{policy.timezone}</span>
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {policy.appliesToPriorities?.map((p: string) => (
+                    <span
+                      key={p}
+                      className="px-2 py-1 rounded text-xs font-semibold border bg-blue-100 text-blue-700 border-blue-200 capitalize"
+                    >
+                      {p}
+                    </span>
+                  ))}
                 </div>
               </div>
             </div>
           ))}
-        </div>
+        </section>
       )}
     </div>
   );
