@@ -135,6 +135,25 @@ const maxDueDateISO = () => {
   date.setFullYear(date.getFullYear() + 2);
   return localISODate(date);
 };
+// UTC-safe date formatters for consistent server/client rendering
+const formatDate = (dateValue: string | Date) => {
+  const d = dateValue instanceof Date ? dateValue : new Date(dateValue);
+  return d.toISOString().slice(0, 10);
+};
+const formatDateShort = (dateValue: string | Date) => {
+  const d = dateValue instanceof Date ? dateValue : new Date(dateValue);
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  const month = d.toLocaleString('en-GB', { month: 'short' });
+  const year = d.getUTCFullYear();
+  return `${day} ${month} ${year}`;
+};
+const formatDateTime = (dateValue: string | Date) => {
+  const d = dateValue instanceof Date ? dateValue : new Date(dateValue);
+  const day = String(d.getUTCDate()).padStart(2, '0');
+  const month = String(d.getUTCMonth() + 1).padStart(2, '0');
+  const year = d.getUTCFullYear();
+  return `${day}/${month}/${year}`;
+};
 function isValidFormDate(value: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const [year, month, day] = value.split('-').map(Number);
@@ -1369,6 +1388,7 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                       min={todayISO()}
                       max={maxDueDateISO()}
                       required
+                      suppressHydrationWarning
                     />
                   </label>
                   <p className="form-footnote">
@@ -1428,7 +1448,7 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                   <div className="form-two">
                     <label>
                       Payment date
-                      <input name="paidAt" type="date" defaultValue={todayISO()} required />
+                      <input name="paidAt" type="date" defaultValue={todayISO()} required suppressHydrationWarning />
                     </label>
                     <label>
                       Reference (optional)
@@ -1476,7 +1496,7 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                   </div>
                   <label>
                     Payment date
-                    <input name="paidAt" type="date" defaultValue={todayISO()} required />
+                    <input name="paidAt" type="date" defaultValue={todayISO()} required suppressHydrationWarning />
                   </label>
                 </>
               )}
@@ -1964,11 +1984,7 @@ function RecentInvoices({
                     <Status status={invoice.status} />
                   </td>
                   <td>
-                    {new Date(`${invoice.dueDate}T12:00:00`).toLocaleDateString('en-GB', {
-                      day: '2-digit',
-                      month: 'short',
-                      year: 'numeric',
-                    })}
+                    {formatDateShort(invoice.dueDate)}
                   </td>
                   <td className="amount-col">
                     <strong>{money(invoice.total)}</strong>
@@ -2030,8 +2046,8 @@ function InvoiceTable({
                   <strong className="invoice-number">{invoice.number}</strong>
                 </td>
                 <td>{invoice.customer}</td>
-                <td>{new Date(`${invoice.issueDate}T12:00:00`).toLocaleDateString('en-GB')}</td>
-                <td>{new Date(`${invoice.dueDate}T12:00:00`).toLocaleDateString('en-GB')}</td>
+                <td>{formatDate(invoice.issueDate)}</td>
+                <td>{formatDate(invoice.dueDate)}</td>
                 <td>
                   <Status status={invoice.status} />
                 </td>
@@ -2137,7 +2153,7 @@ function CustomerTable({
               </td>
               <td>{customer.email || '—'}</td>
               <td>{customer.phone || '—'}</td>
-              <td>{new Date(customer.createdAt).toLocaleDateString('en-GB')}</td>
+              <td>{formatDate(customer.createdAt)}</td>
               <td>
                 <Status status="active" />
               </td>
@@ -2406,7 +2422,7 @@ function ModulePanel({
                     <td>
                       <Status status={invoice.status} />
                     </td>
-                    <td>{new Date(`${invoice.issueDate}T12:00:00`).toLocaleDateString('en-GB')}</td>
+                    <td>{formatDate(invoice.issueDate)}</td>
                     <td className="amount-col">
                       <strong>{money(invoice.total)}</strong>
                     </td>
@@ -2451,7 +2467,7 @@ function ModulePanel({
               <tbody>
                 {data.expenses.map((expense) => (
                   <tr key={expense.id}>
-                    <td>{new Date(`${expense.paidAt}T12:00:00`).toLocaleDateString('en-GB')}</td>
+                    <td>{formatDate(expense.paidAt)}</td>
                     <td>{expense.category}</td>
                     <td>
                       <strong className="invoice-number">{expense.payee}</strong>
@@ -2487,7 +2503,7 @@ function ModulePanel({
             <tbody>
               {data.auditTrail.map((entry) => (
                 <tr key={entry.id}>
-                  <td>{new Date(entry.createdAt).toLocaleString('en-GB')}</td>
+                  <td>{formatDateTime(entry.createdAt)}</td>
                   <td>
                     <strong className="invoice-number">{titleCase(entry.action)}</strong>
                   </td>
