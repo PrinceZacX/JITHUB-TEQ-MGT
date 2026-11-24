@@ -887,7 +887,7 @@ export async function getInvoice(id: string) {
   return { ...invoice, items, creditNotes: invoiceCreditNotes }
 }
 
-export function isValidInvoiceTransition(from: string, to: string): boolean {
+function isValidInvoiceTransition(from: string, to: string): boolean {
   const transitions: Record<string, string[]> = {
     draft: ['issued', 'cancelled'],
     issued: ['partially_paid', 'paid', 'overdue', 'cancelled', 'credited'],
