@@ -32,6 +32,10 @@ import {
   Filter,
   ArrowLeft,
   ArrowRight,
+  TicketPlus,
+  Headset,
+  BriefcaseBusiness,
+  FileText as FileTextIcon,
 } from 'lucide-react'
 
 export interface NavigationItem {
@@ -190,6 +194,29 @@ export const NAVIGATION_CONFIG: NavigationItem[] = [
     searchable: true,
     searchKeywords: ['report', 'analytics', 'financial', 'summary', 'export', 'csv'],
   },
+  {
+    id: 'Service Desk',
+    label: 'Service Desk',
+    icon: Headset,
+    group: 'MANAGE',
+    href: '/service-desk',
+    requiresPermission: 'service_ticket.read',
+    mobilePriority: 'secondary',
+    searchable: true,
+    searchKeywords: ['service desk', 'support', 'ticket', 'helpdesk', 'sla', 'client portal'],
+  },
+  {
+    id: 'Client Portal',
+    label: 'Client Portal',
+    icon: BriefcaseBusiness,
+    group: 'MANAGE',
+    href: '/portal',
+    requiresPermission: 'service_ticket.read',
+    mobilePriority: 'secondary',
+    badge: 'external',
+    searchable: true,
+    searchKeywords: ['client portal', 'client', 'service request', 'support', 'ticket'],
+  },
 
   // ADMINISTRATION GROUP - In "More" on mobile
   {
@@ -292,6 +319,8 @@ export const SEARCH_CONFIG = {
     Expenses: ['category', 'dateRange', 'payee', 'amountRange'],
     Reports: ['period', 'type'],
     'Audit logs': ['action', 'entityType', 'dateRange', 'user'],
+    'Service Desk': ['status', 'priority', 'assignee', 'customer', 'dateRange'],
+    'Client Portal': ['status', 'priority', 'dateRange'],
   } as Record<string, string[]>,
 } as const
 
@@ -360,6 +389,17 @@ export const EMPTY_STATES: Record<string, { title: string; description: string; 
   'Audit logs': {
     title: 'No audit activity',
     description: 'Audit logs will appear here as you and your team perform actions.',
+  },
+  'Service Desk': {
+    title: 'No service tickets yet',
+    description: 'Create your first service ticket to start tracking support requests.',
+    primaryAction: { label: 'Create ticket', href: '/service-desk/tickets/new' },
+    secondaryAction: { label: 'Invite client', href: '/service-desk/clients' },
+  },
+  'Client Portal': {
+    title: 'No service requests yet',
+    description: 'Submit your first service request to get support from our team.',
+    primaryAction: { label: 'New request', href: '/portal/tickets/new' },
   },
   default: {
     title: 'No results',
