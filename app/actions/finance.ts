@@ -866,6 +866,19 @@ export async function getInvoice(id: string) {
   return { ...invoice, items, creditNotes: invoiceCreditNotes }
 }
 
+export function isValidInvoiceTransition(from: string, to: string): boolean {
+  const transitions: Record<string, string[]> = {
+    draft: ['issued', 'cancelled'],
+    issued: ['partially_paid', 'paid', 'overdue', 'cancelled', 'credited'],
+    partially_paid: ['paid', 'overdue', 'cancelled', 'credited'],
+    paid: ['credited'],
+    overdue: ['partially_paid', 'paid', 'cancelled', 'credited'],
+    cancelled: [],
+    credited: [],
+  }
+  return transitions[from]?.includes(to) ?? false
+}
+
 export async function getInvoiceAnalytics() {
   const context = await requireBusinessPermission('reports.read')
   const businessId = context.businessId
