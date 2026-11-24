@@ -862,8 +862,8 @@ export async function getInvoice(id: string) {
   const [invoice] = await db.select().from(invoices).where(and(eq(invoices.id, id), eq(invoices.businessId, context.businessId))).limit(1)
   if (!invoice) throw new Error('Invoice not found.')
   const items = await db.select().from(invoiceItems).where(and(eq(invoiceItems.invoiceId, id), eq(invoiceItems.businessId, context.businessId))).orderBy(invoiceItems.sortOrder)
-  const creditNotes = await db.select().from(creditNotes).where(and(eq(creditNotes.invoiceId, id), eq(creditNotes.businessId, context.businessId)))
-  return { ...invoice, items, creditNotes }
+  const invoiceCreditNotes = await db.select().from(creditNotes).where(and(eq(creditNotes.invoiceId, id), eq(creditNotes.businessId, context.businessId)))
+  return { ...invoice, items, creditNotes: invoiceCreditNotes }
 }
 
 export async function getInvoiceAnalytics() {
