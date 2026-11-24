@@ -24,7 +24,7 @@ import { sendInvoiceEmail, sendReceiptEmail } from '@/lib/email'
 
 const moneyPattern = /^\d{1,12}(\.\d{1,2})?$/
 
-async function requireUser(): Promise<string> {
+export async function requireUser(): Promise<string> {
   const session = await auth.api.getSession({ headers: await headers() })
   if (!session?.user) throw new Error('Please sign in to continue.')
   return session.user.id
@@ -76,7 +76,7 @@ function safeDate(value: Date | string | null): string {
   return d.toISOString().slice(0, 10)
 }
 
-async function requireBusiness(businessId?: string) {
+export async function requireBusiness(businessId?: string) {
   loadEnv()
   const userId = await requireUser()
 
@@ -155,7 +155,7 @@ async function requireBusiness(businessId?: string) {
   }
 }
 
-async function requireBusinessPermission(permission: string, businessId?: string): Promise<{
+export async function requireBusinessPermission(permission: string, businessId?: string): Promise<{
   userId: string; businessId: string; role: BusinessRole | 'platform_owner'; isPlatformOwner: boolean
 }> {
   const context = await requireBusiness(businessId)
@@ -172,7 +172,7 @@ async function requireBusinessPermission(permission: string, businessId?: string
   return { userId: context.userId, businessId: context.businessId!, role: context.role as BusinessRole, isPlatformOwner: false }
 }
 
-async function insertAudit(tx: any, context: { userId: string; businessId: string | null }, input: {
+export async function insertAudit(tx: any, context: { userId: string; businessId: string | null }, input: {
   action: string; entityType: string; entityId: string; details?: Record<string, unknown> }) {
   await tx.insert(auditLogs).values({
     id: randomUUID(), businessId: context.businessId, userId: context.userId,
@@ -181,16 +181,7 @@ async function insertAudit(tx: any, context: { userId: string; businessId: strin
   })
 }
 
-async function insertPlatformAudit(tx: any, context: { userId: string }, input: {
-  action: string; entityType: string; entityId: string; details?: Record<string, unknown> }) {
-  await tx.insert(auditLogs).values({
-    id: randomUUID(), businessId: null, userId: context.userId,
-    action: input.action, entityType: input.entityType, entityId: input.entityId,
-    details: input.details ?? {},
-  })
-}
-
-async function allocateDocumentNumber(tx: any, businessId: string, documentType: 'invoice' | 'receipt' | 'purchase_order' | 'quotation' | 'sales_order') {
+export async function allocateDocumentNumber(tx: any, businessId: string, documentType: 'invoice' | 'receipt' | 'purchase_order' | 'quotation' | 'sales_order' | 'service_ticket') {
   const now = new Date()
   const year = now.getFullYear()
   const [row] = await tx
