@@ -51,7 +51,7 @@ test('role-based permissions enforced', () => {
 })
 
 test('viewer role has read-only permissions', () => {
-  assert.match(permissions, /viewer: \['business\.read', 'reports\.read', 'audit\.read'\]/)
+  assert.match(permissions, /viewer: \['business\.read', 'reports\.read', 'audit\.read', 'service_ticket\.read'\]/)
 })
 
 test('cashier role cannot issue invoices or approve refunds', () => {
