@@ -1016,6 +1016,7 @@ export const creditNotes = pgTable('creditNotes', {
     name: 'credit_notes_created_by_fk',
   }).onDelete('restrict'),
   unique('credit_notes_number_business_uq').on(table.businessId, table.number),
+  unique('credit_notes_business_id_uq').on(table.businessId, table.id),
   index('credit_notes_business_idx').on(table.businessId),
   index('credit_notes_invoice_idx').on(table.invoiceId),
   index('credit_notes_customer_idx').on(table.customerId),
