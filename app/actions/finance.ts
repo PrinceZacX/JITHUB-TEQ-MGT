@@ -790,6 +790,27 @@ export async function createCreditNote(input: {
   return { id: creditNoteId, number: cnNumber }
 }
 
+export async function cancelCreditNote(input: { creditNoteId: string }) {
+  const context = await requireBusinessPermission('invoice.credit')
+  await db.transaction(async (tx) => {
+    const [cn] = await tx.select({ id: creditNotes.id, status: creditNotes.status, invoiceId: creditNotes.invoiceId, total: creditNotes.total, businessId: creditNotes.businessId }).from(creditNotes).where(and(eq(creditNotes.id, input.creditNoteId), eq(creditNotes.businessId, context.businessId))).limit(1).for('update')
+    if (!cn) throw new Error('Credit note not found.')
+    if (cn.status === 'cancelled') throw new Error('Credit note is already cancelled.')
+    if (cn.status === 'issued') {
+      // Reverse the credited amount on the invoice
+      const [invoice] = await tx.select({ id: invoices.id, total: invoices.total, creditedAmount: invoices.creditedAmount }).from(invoices).where(eq(invoices.id, cn.invoiceId)).limit(1).for('update')
+      if (invoice) {
+        const newCredited = Math.max(0, money(invoice.creditedAmount) - money(cn.total))
+        const newStatus = newCredited >= money(invoice.total) ? 'credited' : newCredited > 0 ? 'partially_paid' : 'issued'
+        await tx.update(invoices).set({ creditedAmount: (newCredited / 100).toFixed(2), status: newStatus }).where(eq(invoices.id, cn.invoiceId))
+      }
+    }
+    await tx.update(creditNotes).set({ status: 'cancelled', updatedAt: new Date() }).where(eq(creditNotes.id, input.creditNoteId))
+    await insertAudit(tx, context, { action: 'credit_note.cancelled', entityType: 'credit_note', entityId: input.creditNoteId })
+  })
+  revalidatePath('/')
+}
+
 export async function issueCreditNote(input: { creditNoteId: string }) {
   const context = await requireBusinessPermission('invoice.credit')
   await db.transaction(async (tx) => {
