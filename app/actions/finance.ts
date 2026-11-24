@@ -798,7 +798,7 @@ export async function issueCreditNote(input: { creditNoteId: string }) {
     if (cn.status !== 'draft') throw new Error('Only draft credit notes can be issued.')
 
     // Update invoice credited amount
-    const [invoice] = await tx.select({ id: invoices.id, total: invoices.total, creditedAmount: invoices.creditedAmount }).from(invoices).where(eq(invoices.id, cn.invoiceId)).limit(1).for('update')
+    const [invoice] = await tx.select({ id: invoices.id, total: invoices.total, creditedAmount: invoices.creditedAmount, status: invoices.status }).from(invoices).where(eq(invoices.id, cn.invoiceId)).limit(1).for('update')
     if (invoice) {
       const newCredited = money(invoice.creditedAmount) + money(cn.total)
       const newStatus = newCredited >= money(invoice.total) ? 'credited' : invoice.status
@@ -809,6 +809,91 @@ export async function issueCreditNote(input: { creditNoteId: string }) {
     await insertAudit(tx, context, { action: 'credit_note.issued', entityType: 'credit_note', entityId: input.creditNoteId })
   })
   revalidatePath('/')
+}
+
+/* ------------------------------------------------------------------ */
+/* Invoice reminders & analytics                                     */
+/* ------------------------------------------------------------------ */
+
+export async function sendInvoiceReminder(input: { invoiceId: string; reminderType: 'payment_due' | 'overdue' | 'final_notice' }) {
+  const context = await requireBusinessPermission('invoice.remind')
+  const [invoice] = await db.select({ id: invoices.id, number: invoices.number, status: invoices.status, total: invoices.total, amountPaid: invoices.amountPaid, dueDate: invoices.dueDate, customerId: invoices.customerId, currency: invoices.currency }).from(invoices).where(and(eq(invoices.id, input.invoiceId), eq(invoices.businessId, context.businessId))).limit(1)
+  if (!invoice) throw new Error('Invoice not found.')
+  if (invoice.status === 'paid' || invoice.status === 'cancelled' || invoice.status === 'credited') throw new Error('Cannot send reminder for a paid, cancelled, or credited invoice.')
+  const outstanding = (money(invoice.total) - money(invoice.amountPaid)) / 100
+  const [customer] = await db.select({ email: customers.email, name: customers.name }).from(customers).where(eq(customers.id, invoice.customerId)).limit(1)
+  if (!customer?.email) throw new Error('Customer has no email address on file.')
+  const reminderSubject = input.reminderType === 'payment_due' ? 'Payment reminder' : input.reminderType === 'overdue' ? 'Overdue invoice notice' : 'Final payment notice'
+  try {
+    await sendInvoiceEmail({ to: customer.email, invoiceNumber: invoice.number, amount: outstanding.toFixed(2), currency: invoice.currency, dueDate: safeDate(invoice.dueDate), pdfUrl: `${process.env.BETTER_AUTH_URL ?? process.env.VERCEL_PROJECT_PRODUCTION_URL ?? ''}/api/documents/invoice/${invoice.id}` })
+  } catch { }
+  await db.transaction(async (tx) => {
+    await insertAudit(tx, context, { action: `invoice.reminder_sent`, entityType: 'invoice', entityId: invoice.id, details: { reminderType: input.reminderType, customerEmail: customer.email } })
+  })
+  revalidatePath('/')
+  return { sent: true, customerEmail: customer.email }
+}
+
+export async function listCreditNotes(filters?: { status?: string; invoiceId?: string }) {
+  const context = await requireBusinessPermission('invoice.credit')
+  const conditions = [eq(creditNotes.businessId, context.businessId)]
+  if (filters?.status) conditions.push(eq(creditNotes.status, filters.status))
+  if (filters?.invoiceId) conditions.push(eq(creditNotes.invoiceId, filters.invoiceId))
+  return db.select({
+    id: creditNotes.id, number: creditNotes.number, status: creditNotes.status,
+    reason: creditNotes.reason, issueDate: creditNotes.issueDate,
+    subtotal: creditNotes.subtotal, taxAmount: creditNotes.taxAmount, total: creditNotes.total,
+    creditedAmount: creditNotes.creditedAmount, currency: creditNotes.currency,
+    invoiceId: creditNotes.invoiceId, customerId: creditNotes.customerId,
+    notes: creditNotes.notes, createdAt: creditNotes.createdAt,
+  }).from(creditNotes).where(and(...conditions)).orderBy(desc(creditNotes.createdAt))
+}
+
+export async function getCreditNote(id: string) {
+  const context = await requireBusinessPermission('invoice.credit')
+  const [cn] = await db.select().from(creditNotes).where(and(eq(creditNotes.id, id), eq(creditNotes.businessId, context.businessId))).limit(1)
+  if (!cn) throw new Error('Credit note not found.')
+  const items = await db.select().from(creditNoteItems).where(eq(creditNoteItems.creditNoteId, id)).orderBy(creditNoteItems.sortOrder)
+  return { ...cn, items }
+}
+
+export async function getInvoiceAnalytics() {
+  const context = await requireBusinessPermission('reports.read')
+  const businessId = context.businessId
+  const allInvoices = await db.select({
+    id: invoices.id, status: invoices.status, total: invoices.total,
+    amountPaid: invoices.amountPaid, creditedAmount: invoices.creditedAmount,
+    issueDate: invoices.issueDate, dueDate: invoices.dueDate,
+    customerId: invoices.customerId,
+  }).from(invoices).where(eq(invoices.businessId, businessId))
+
+  const totalInvoiced = allInvoices.reduce((sum, inv) => sum + money(inv.total), 0)
+  const totalPaid = allInvoices.reduce((sum, inv) => sum + money(inv.amountPaid), 0)
+  const totalCredited = allInvoices.reduce((sum, inv) => sum + money(inv.creditedAmount), 0)
+  const totalOutstanding = totalInvoiced - totalPaid - totalCredited
+  const overdueInvoices = allInvoices.filter(inv => inv.status === 'overdue')
+  const overdueAmount = overdueInvoices.reduce((sum, inv) => sum + (money(inv.total) - money(inv.amountPaid) - money(inv.creditedAmount)), 0)
+
+  const byStatus = {
+    draft: allInvoices.filter(inv => inv.status === 'draft').length,
+    issued: allInvoices.filter(inv => inv.status === 'issued').length,
+    partially_paid: allInvoices.filter(inv => inv.status === 'partially_paid').length,
+    paid: allInvoices.filter(inv => inv.status === 'paid').length,
+    overdue: allInvoices.filter(inv => inv.status === 'overdue').length,
+    cancelled: allInvoices.filter(inv => inv.status === 'cancelled').length,
+    credited: allInvoices.filter(inv => inv.status === 'credited').length,
+  }
+
+  return {
+    totalInvoices: allInvoices.length,
+    totalInvoiced: (totalInvoiced / 100).toFixed(2),
+    totalPaid: (totalPaid / 100).toFixed(2),
+    totalCredited: (totalCredited / 100).toFixed(2),
+    totalOutstanding: (totalOutstanding / 100).toFixed(2),
+    overdueCount: overdueInvoices.length,
+    overdueAmount: (overdueAmount / 100).toFixed(2),
+    byStatus,
+  }
 }
 
 /* ------------------------------------------------------------------ */
