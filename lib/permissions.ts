@@ -23,6 +23,13 @@ export type BusinessPermission =
   | 'reports.read'
   | 'audit.read'
   | 'tax.manage'
+  | 'service_ticket.create'
+  | 'service_ticket.read'
+  | 'service_ticket.update'
+  | 'service_ticket.assign'
+  | 'service_ticket.resolve'
+  | 'service_ticket.close'
+  | 'service_ticket.comment_internal'
 
 export type PlatformPermission =
   | 'platform.manage_users'
@@ -44,6 +51,9 @@ const rolePermissions: RolePermissions = {
     'goods_receipt.receive', 'stock.adjust',
     'payment.record', 'refund.create', 'refund.approve', 'receipt.void', 'expense.record',
     'reports.read', 'audit.read', 'tax.manage',
+    'service_ticket.create', 'service_ticket.read', 'service_ticket.update',
+    'service_ticket.assign', 'service_ticket.resolve', 'service_ticket.close',
+    'service_ticket.comment_internal',
   ],
   administrator: [
     'business.read', 'business.manage', 'business.settings',
@@ -53,6 +63,9 @@ const rolePermissions: RolePermissions = {
     'goods_receipt.receive', 'stock.adjust',
     'payment.record', 'refund.create', 'refund.approve', 'receipt.void', 'expense.record',
     'reports.read', 'audit.read', 'tax.manage',
+    'service_ticket.create', 'service_ticket.read', 'service_ticket.update',
+    'service_ticket.assign', 'service_ticket.resolve', 'service_ticket.close',
+    'service_ticket.comment_internal',
   ],
   finance_manager: [
     'business.read', 'customer.manage', 'catalogue.manage', 'supplier.manage',
@@ -61,22 +74,29 @@ const rolePermissions: RolePermissions = {
     'goods_receipt.receive', 'stock.adjust',
     'payment.record', 'refund.create', 'refund.approve', 'receipt.void', 'expense.record',
     'reports.read', 'audit.read', 'tax.manage',
+    'service_ticket.create', 'service_ticket.read', 'service_ticket.update',
+    'service_ticket.assign', 'service_ticket.resolve',
+    'service_ticket.comment_internal',
   ],
   accountant: [
     'business.read', 'customer.manage', 'catalogue.manage', 'supplier.manage',
     'invoice.create', 'invoice.issue',
     'payment.record', 'refund.create', 'expense.record', 'reports.read', 'audit.read',
     'tax.manage',
+    'service_ticket.read', 'service_ticket.comment_internal',
   ],
   sales_officer: [
     'business.read', 'customer.manage', 'catalogue.manage', 'supplier.manage',
     'invoice.create', 'invoice.issue',
     'payment.record', 'expense.record', 'reports.read',
+    'service_ticket.create', 'service_ticket.read', 'service_ticket.update',
+    'service_ticket.resolve', 'service_ticket.comment_internal',
   ],
   cashier: [
     'business.read', 'payment.record', 'receipt.void', 'expense.record', 'reports.read',
+    'service_ticket.read',
   ],
-  viewer: ['business.read', 'reports.read', 'audit.read'],
+  viewer: ['business.read', 'reports.read', 'audit.read', 'service_ticket.read'],
 }
 
 export function roleHasPermission(role: BusinessRole, permission: BusinessPermission): boolean {

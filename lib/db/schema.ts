@@ -46,6 +46,7 @@ export const businesses = pgTable('businesses', {
   invoicePrefix: text('invoice_prefix').notNull().default('INV'),
   quotationPrefix: text('quotation_prefix').notNull().default('QTN'),
   salesOrderPrefix: text('sales_order_prefix').notNull().default('SO'),
+  serviceTicketPrefix: text('service_ticket_prefix').notNull().default('ST'),
   footerText: text('footer_text'),
   paymentInstructions: text('payment_instructions'),
   taxDisplaySettings: jsonb('tax_display_settings').notNull().default('{}'),
@@ -1328,5 +1329,261 @@ export const valuationGroups = pgTable('valuation_groups', {
   unique('valuation_groups_business_name_uq').on(table.businessId, table.name),
   index('valuation_groups_business_idx').on(table.businessId),
 ])
+
+/* ------------------------------------------------------------------ */
+/* Service Desk - Service Tickets                                     */
+/* ------------------------------------------------------------------ */
+
+export const serviceTicketStatuses = ['open', 'in_progress', 'on_hold', 'resolved', 'closed', 'cancelled'] as const
+export type ServiceTicketStatus = (typeof serviceTicketStatuses)[number]
+
+export const serviceTicketPriorities = ['low', 'normal', 'high', 'critical', 'urgent'] as const
+export type ServiceTicketPriority = (typeof serviceTicketPriorities)[number]
+
+export const serviceTickets = pgTable('service_tickets', {
+  id: text('id').primaryKey(),
+  businessId: text('business_id').notNull(),
+  customerId: text('customer_id').notNull(),
+  title: text('title').notNull(),
+  description: text('description'),
+  status: text('status').notNull().default('open'),
+  priority: text('priority').notNull().default('normal'),
+  assigneeUserId: text('assignee_user_id'),
+  relatedInvoiceId: text('related_invoice_id'),
+  relatedQuotationId: text('related_quotation_id'),
+  relatedServiceOrderId: text('related_service_order_id'),
+  slaPolicyId: text('sla_policy_id'),
+  createdBy: text('created_by').notNull(),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  closedAt: timestamp('closed_at', { withTimezone: true }),
+}, (table) => [
+  check('service_tickets_status_valid', sql`${table.status} IN ('open','in_progress','on_hold','resolved','closed','cancelled')`),
+  check('service_tickets_priority_valid', sql`${table.priority} IN ('low','normal','high','critical','urgent')`),
+  foreignKey({
+    columns: [table.businessId],
+    foreignColumns: [businesses.id],
+    name: 'service_tickets_business_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.businessId, table.customerId],
+    foreignColumns: [customers.businessId, customers.id],
+    name: 'service_tickets_customer_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.businessId, table.relatedInvoiceId],
+    foreignColumns: [invoices.businessId, invoices.id],
+    name: 'service_tickets_invoice_fk',
+  }).onDelete('set null'),
+  foreignKey({
+    columns: [table.businessId, table.relatedQuotationId],
+    foreignColumns: [quotations.businessId, quotations.id],
+    name: 'service_tickets_quotation_fk',
+  }).onDelete('set null'),
+  foreignKey({
+    columns: [table.createdBy],
+    foreignColumns: [user.id],
+    name: 'service_tickets_created_by_fk',
+  }).onDelete('restrict'),
+  index('service_tickets_business_idx').on(table.businessId),
+  index('service_tickets_customer_idx').on(table.customerId),
+  index('service_tickets_status_idx').on(table.status),
+  index('service_tickets_priority_idx').on(table.priority),
+  index('service_tickets_assignee_idx').on(table.assigneeUserId),
+  index('service_tickets_created_by_idx').on(table.createdBy),
+  index('service_tickets_created_at_idx').on(table.createdAt),
+])
+
+/* ------------------------------------------------------------------ */
+/* Service Desk - Ticket Comments                                     */
+/* ------------------------------------------------------------------ */
+
+export const serviceTicketComments = pgTable('service_ticket_comments', {
+  id: text('id').primaryKey(),
+  businessId: text('business_id').notNull(),
+  ticketId: text('ticket_id').notNull(),
+  authorUserId: text('author_user_id').notNull(),
+  body: text('body').notNull(),
+  isInternal: boolean('is_internal').notNull().default(false),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  foreignKey({
+    columns: [table.businessId],
+    foreignColumns: [businesses.id],
+    name: 'service_ticket_comments_business_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.businessId, table.ticketId],
+    foreignColumns: [serviceTickets.businessId, serviceTickets.id],
+    name: 'service_ticket_comments_ticket_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.authorUserId],
+    foreignColumns: [user.id],
+    name: 'service_ticket_comments_author_fk',
+  }).onDelete('restrict'),
+  index('service_ticket_comments_business_idx').on(table.businessId),
+  index('service_ticket_comments_ticket_idx').on(table.ticketId),
+  index('service_ticket_comments_author_idx').on(table.authorUserId),
+  index('service_ticket_comments_created_at_idx').on(table.createdAt),
+])
+
+/* ------------------------------------------------------------------ */
+/* Service Desk - Ticket Events (Audit Trail)                         */
+/* ------------------------------------------------------------------ */
+
+export const serviceTicketEvents = pgTable('service_ticket_events', {
+  id: text('id').primaryKey(),
+  businessId: text('business_id').notNull(),
+  ticketId: text('ticket_id').notNull(),
+  actorUserId: text('actor_user_id').notNull(),
+  eventType: text('event_type').notNull(),
+  fromValue: text('from_value'),
+  toValue: text('to_value'),
+  metadata: jsonb('metadata').notNull().default({}),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  foreignKey({
+    columns: [table.businessId],
+    foreignColumns: [businesses.id],
+    name: 'service_ticket_events_business_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.businessId, table.ticketId],
+    foreignColumns: [serviceTickets.businessId, serviceTickets.id],
+    name: 'service_ticket_events_ticket_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.actorUserId],
+    foreignColumns: [user.id],
+    name: 'service_ticket_events_actor_fk',
+  }).onDelete('restrict'),
+  index('service_ticket_events_business_idx').on(table.businessId),
+  index('service_ticket_events_ticket_idx').on(table.ticketId),
+  index('service_ticket_events_actor_idx').on(table.actorUserId),
+  index('service_ticket_events_created_at_idx').on(table.createdAt),
+  index('service_ticket_events_type_idx').on(table.eventType),
+])
+
+/* ------------------------------------------------------------------ */
+/* Service Desk - Ticket Attachments                                  */
+/* ------------------------------------------------------------------ */
+
+export const serviceTicketAttachments = pgTable('service_ticket_attachments', {
+  id: text('id').primaryKey(),
+  businessId: text('business_id').notNull(),
+  ticketId: text('ticket_id').notNull(),
+  uploadedBy: text('uploaded_by').notNull(),
+  filename: text('filename').notNull(),
+  mimeType: text('mime_type').notNull(),
+  sizeBytes: integer('size_bytes').notNull(),
+  storageUrl: text('storage_url').notNull(),
+  checksumSha256: text('checksum_sha256'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  foreignKey({
+    columns: [table.businessId],
+    foreignColumns: [businesses.id],
+    name: 'service_ticket_attachments_business_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.businessId, table.ticketId],
+    foreignColumns: [serviceTickets.businessId, serviceTickets.id],
+    name: 'service_ticket_attachments_ticket_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.uploadedBy],
+    foreignColumns: [user.id],
+    name: 'service_ticket_attachments_uploaded_by_fk',
+  }).onDelete('restrict'),
+  check('service_ticket_attachments_size_positive', sql`${table.sizeBytes} > 0`),
+  index('service_ticket_attachments_business_idx').on(table.businessId),
+  index('service_ticket_attachments_ticket_idx').on(table.ticketId),
+  index('service_ticket_attachments_uploaded_by_idx').on(table.uploadedBy),
+])
+
+/* ------------------------------------------------------------------ */
+/* Service Desk - Service Level Policies                              */
+/* ------------------------------------------------------------------ */
+
+export const serviceLevelPolicies = pgTable('service_level_policies', {
+  id: text('id').primaryKey(),
+  businessId: text('business_id').notNull(),
+  name: text('name').notNull(),
+  description: text('description'),
+  responseMinutes: integer('response_minutes').notNull().default(60),
+  resolutionMinutes: integer('resolution_minutes').notNull().default(480),
+  isDefault: boolean('is_default').notNull().default(false),
+  appliesToPriorities: text('applies_to_priorities').array().notNull().default(sql`'{"low","normal","high","critical","urgent"}'`),
+  businessHoursOnly: boolean('business_hours_only').notNull().default(true),
+  timezone: text('timezone').notNull().default('Africa/Kampala'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  foreignKey({
+    columns: [table.businessId],
+    foreignColumns: [businesses.id],
+    name: 'service_level_policies_business_fk',
+  }).onDelete('restrict'),
+  check('service_level_policies_response_positive', sql`${table.responseMinutes} > 0`),
+  check('service_level_policies_resolution_positive', sql`${table.resolutionMinutes} > 0`),
+  index('service_level_policies_business_idx').on(table.businessId),
+  index('service_level_policies_business_default_idx').on(table.businessId, table.isDefault),
+])
+
+/* ------------------------------------------------------------------ */
+/* Service Desk - Business Invitations                                */
+/* ------------------------------------------------------------------ */
+
+export const businessInvitationStatuses = ['pending', 'accepted', 'expired', 'revoked'] as const
+export type BusinessInvitationStatus = (typeof businessInvitationStatuses)[number]
+
+export const businessInvitations = pgTable('business_invitations', {
+  id: text('id').primaryKey(),
+  businessId: text('business_id').notNull(),
+  email: text('email').notNull(),
+  role: text('role').notNull().default('viewer'),
+  tokenHash: text('token_hash').notNull(),
+  invitedBy: text('invited_by').notNull(),
+  status: text('status').notNull().default('pending'),
+  expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+  acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  acceptedByUserId: text('accepted_by_user_id'),
+  createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+}, (table) => [
+  foreignKey({
+    columns: [table.businessId],
+    foreignColumns: [businesses.id],
+    name: 'business_invitations_business_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.invitedBy],
+    foreignColumns: [user.id],
+    name: 'business_invitations_invited_by_fk',
+  }).onDelete('restrict'),
+  foreignKey({
+    columns: [table.acceptedByUserId],
+    foreignColumns: [user.id],
+    name: 'business_invitations_accepted_by_fk',
+  }).onDelete('set null'),
+  check('business_invitations_role_valid', sql`${table.role} IN ('owner','administrator','finance_manager','accountant','sales_officer','cashier','viewer')`),
+  check('business_invitations_status_valid', sql`${table.status} IN ('pending','accepted','expired','revoked')`),
+  unique('business_invitations_email_business_uq').on(table.businessId, table.email),
+  index('business_invitations_business_idx').on(table.businessId),
+  index('business_invitations_email_idx').on(table.email),
+  index('business_invitations_token_hash_idx').on(table.tokenHash),
+  index('business_invitations_status_idx').on(table.status),
+  index('business_invitations_expires_at_idx').on(table.expiresAt),
+])
+
+/* ------------------------------------------------------------------ */
+/* Businesses - Service Ticket Prefix                                 */
+/* ------------------------------------------------------------------ */
+
+// Add serviceTicketPrefix to businesses table
+// This is done via migration 0013
 
 
