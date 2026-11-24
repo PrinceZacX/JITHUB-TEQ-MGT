@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [main, feat/jithub-teq-completion, release/**]
+    branches: [main, feat/jithub-teq-completion, "release/**"]
   pull_request:
-    branches: [main]
+    branches: [main, "release/**"]
 
 # Use the central Ubuntu self-hosted runner per JITHUB engineering policy.
 # Never fall back to GitHub-hosted runners without explicit approval.
