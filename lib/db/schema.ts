@@ -555,7 +555,7 @@ export const documentSequences = pgTable(
   (table) => [
     check(
       'document_sequences_type_valid',
-      sql`${table.documentType} IN ('invoice','receipt','purchase_order')`,
+      sql`${table.documentType} IN ('invoice','receipt','purchase_order','quotation','sales_order','service_ticket')`,
     ),
     unique('document_sequences_business_type_uq').on(table.businessId, table.documentType),
     foreignKey({

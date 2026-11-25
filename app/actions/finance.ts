@@ -275,56 +275,59 @@ export async function allocateDocumentNumber(
   tx: any,
   businessId: string,
   documentType:
-    'invoice' | 'receipt' | 'purchase_order' | 'quotation' | 'sales_order' | 'service_ticket',
+    | 'invoice'
+    | 'receipt'
+    | 'purchase_order'
+    | 'quotation'
+    | 'sales_order'
+    | 'service_ticket',
 ) {
   const now = new Date();
   const year = now.getFullYear();
-  const [row] = await tx
-    .select()
-    .from(documentSequences)
-    .where(
-      and(
-        eq(documentSequences.businessId, businessId),
-        eq(documentSequences.documentType, documentType),
-      ),
-    )
-    .for('update')
-    .limit(1);
   const [business] = await tx
     .select({
       invoicePrefix: businesses.invoicePrefix,
       receiptPrefix: businesses.receiptPrefix,
       quotationPrefix: businesses.quotationPrefix,
       salesOrderPrefix: businesses.salesOrderPrefix,
+      serviceTicketPrefix: businesses.serviceTicketPrefix,
     })
     .from(businesses)
     .where(eq(businesses.id, businessId))
     .limit(1);
   if (!business) throw new Error('Business not found.');
+
   let prefix: string;
   if (documentType === 'invoice') prefix = business.invoicePrefix;
   else if (documentType === 'receipt') prefix = business.receiptPrefix;
   else if (documentType === 'quotation') prefix = business.quotationPrefix || 'QUO';
   else if (documentType === 'sales_order') prefix = business.salesOrderPrefix || 'SO';
+  else if (documentType === 'service_ticket') prefix = business.serviceTicketPrefix || 'ST';
   else prefix = 'PO';
-  const next = Number(row?.lastNumber ?? 0) + 1;
-  const padded = String(next).padStart(6, '0');
-  const number = `${prefix}-${year}-${padded}`;
-  if (row) {
-    await tx
-      .update(documentSequences)
-      .set({ lastNumber: String(next), updatedAt: now })
-      .where(eq(documentSequences.id, row.id));
-  } else {
-    await tx.insert(documentSequences).values({
+
+  // Atomic upsert protects sequence allocation even when callers invoke this
+  // helper outside an explicit transaction.
+  const [sequence] = await tx
+    .insert(documentSequences)
+    .values({
       id: randomUUID(),
       businessId,
       documentType,
-      lastNumber: String(next),
+      lastNumber: '1',
       updatedAt: now,
-    });
-  }
-  return number;
+    })
+    .onConflictDoUpdate({
+      target: [documentSequences.businessId, documentSequences.documentType],
+      set: {
+        lastNumber: sql`${documentSequences.lastNumber}::bigint + 1`,
+        updatedAt: now,
+      },
+    })
+    .returning({ lastNumber: documentSequences.lastNumber });
+
+  if (!sequence) throw new Error('Unable to allocate a document number.');
+  const padded = BigInt(sequence.lastNumber).toString().padStart(6, '0');
+  return `${prefix}-${year}-${padded}`;
 }
 
 /* ------------------------------------------------------------------ */
@@ -827,13 +830,18 @@ export async function recordRefund(input: {
       .for('update');
     if (!payment || payment.status !== 'confirmed')
       throw new Error('Only confirmed payments can be refunded.');
-    const alreadyRefunded = await tx
+    const reservedRefunds = await tx
       .select({ total: sql<string>`coalesce(sum(${refunds.amount}),0)` })
       .from(refunds)
-      .where(and(eq(refunds.paymentId, payment.id), eq(refunds.status, 'completed')))
-      .limit(1);
-    const refundable = money(payment.amount) - money(alreadyRefunded[0]?.total ?? '0');
-    if (amount > refundable) throw new Error('Refund exceeds the refundable amount.');
+      .where(
+        and(
+          eq(refunds.paymentId, payment.id),
+          sql`${refunds.status} IN ('pending', 'approved', 'completed')`,
+        ),
+      );
+    const refundable = money(payment.amount) - money(reservedRefunds[0]?.total ?? '0');
+    if (refundable <= 0 || amount > refundable)
+      throw new Error('Refund exceeds the remaining refundable amount.');
     await tx.insert(refunds).values({
       id: refundId,
       businessId: context.businessId,
@@ -909,6 +917,24 @@ export async function approveRefund(input: { refundId: string; approve: boolean 
 export async function completeRefund(input: { refundId: string }) {
   const context = await requireBusinessPermission('refund.approve');
   await db.transaction(async (tx) => {
+    // Lock the payment before the refund row. recordRefund uses the same lock
+    // order, so concurrent requests reserve and complete refunds consistently.
+    const [refundReference] = await tx
+      .select({ paymentId: refunds.paymentId })
+      .from(refunds)
+      .where(and(eq(refunds.id, input.refundId), eq(refunds.businessId, context.businessId)))
+      .limit(1);
+    if (!refundReference) throw new Error('Refund not found.');
+
+    const [payment] = await tx
+      .select({ id: payments.id, amount: payments.amount, status: payments.status })
+      .from(payments)
+      .where(and(eq(payments.id, refundReference.paymentId), eq(payments.businessId, context.businessId)))
+      .limit(1)
+      .for('update');
+    if (!payment || payment.status !== 'confirmed')
+      throw new Error('The original payment is no longer eligible for a refund.');
+
     const [refund] = await tx
       .select({
         id: refunds.id,
@@ -923,6 +949,19 @@ export async function completeRefund(input: { refundId: string }) {
       .for('update');
     if (!refund || refund.status !== 'approved')
       throw new Error('Only approved refunds can be completed.');
+
+    const reservedRefunds = await tx
+      .select({ total: sql<string>`coalesce(sum(${refunds.amount}),0)` })
+      .from(refunds)
+      .where(
+        and(
+          eq(refunds.paymentId, payment.id),
+          sql`${refunds.status} IN ('pending', 'approved', 'completed')`,
+        ),
+      );
+    if (money(reservedRefunds[0]?.total ?? '0') > money(payment.amount))
+      throw new Error('Completed refund would exceed the original payment amount.');
+
     await tx
       .update(refunds)
       .set({ status: 'completed', processedAt: new Date() })

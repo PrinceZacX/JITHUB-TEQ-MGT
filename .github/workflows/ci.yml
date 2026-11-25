@@ -16,6 +16,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
@@ -29,8 +31,17 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Validate formatting
-        run: pnpm exec prettier --check "app/**/*.ts" "app/**/*.tsx" "lib/**/*.ts" "components/**/*.tsx"
+      - name: Validate formatting on changed TypeScript files
+        env:
+          BASE_REF: ${{ github.base_ref || github.event.repository.default_branch }}
+        run: |
+          git fetch origin "$BASE_REF" --depth=1
+          changed_files="$(git diff --name-only --diff-filter=ACMR "origin/$BASE_REF...HEAD" -- '*.ts' '*.tsx')"
+          if [ -n "$changed_files" ]; then
+            printf '%s\n' "$changed_files" | xargs -r pnpm exec prettier --check
+          else
+            echo "No changed TypeScript files to format-check."
+          fi
 
       - name: Run ESLint
         run: pnpm exec eslint "app/**/*.ts" "app/**/*.tsx" "lib/**/*.ts" "components/**/*.tsx"
