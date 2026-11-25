@@ -141,9 +141,19 @@ CREATE INDEX IF NOT EXISTS service_level_policies_business_idx ON service_level_
 CREATE INDEX IF NOT EXISTS service_level_policies_business_default_idx ON service_level_policies(business_id, is_default);
 
 -- Add the SLA foreign key after the referenced table exists.
-ALTER TABLE service_tickets
-  ADD CONSTRAINT service_tickets_sla_fk
-  FOREIGN KEY (sla_policy_id) REFERENCES service_level_policies(id) ON DELETE SET NULL;
+DO $
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint
+    WHERE conname = 'service_tickets_sla_fk'
+      AND conrelid = 'service_tickets'::regclass
+  ) THEN
+    ALTER TABLE service_tickets
+      ADD CONSTRAINT service_tickets_sla_fk
+      FOREIGN KEY (sla_policy_id) REFERENCES service_level_policies(id) ON DELETE SET NULL;
+  END IF;
+END
+$;
 
 
 -- ------------------------------------------------------------------
