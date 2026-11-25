@@ -38,7 +38,7 @@ jobs:
           git fetch origin "$BASE_REF" --depth=1
           changed_files="$(git diff --name-only --diff-filter=ACMR "origin/$BASE_REF...HEAD" -- '*.ts' '*.tsx')"
           if [ -n "$changed_files" ]; then
-            printf '%s\\n' "$changed_files" | xargs -r pnpm exec prettier --check
+            printf '%s\n' "$changed_files" | xargs -r pnpm exec prettier --check
           else
             echo "No changed TypeScript files to format-check."
           fi
