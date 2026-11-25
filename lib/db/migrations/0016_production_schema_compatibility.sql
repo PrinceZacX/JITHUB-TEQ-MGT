@@ -18,17 +18,28 @@ ALTER TABLE businesses
 ALTER TABLE business_invitations
   ADD COLUMN IF NOT EXISTS accepted_by_user_id TEXT;
 
-UPDATE business_invitations
-SET accepted_by_user_id = accepted_by
-WHERE accepted_by_user_id IS NULL
-  AND accepted_by IS NOT NULL;
+DO $
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'business_invitations'
+      AND column_name = 'accepted_by'
+  ) THEN
+    UPDATE business_invitations
+    SET accepted_by_user_id = accepted_by
+    WHERE accepted_by_user_id IS NULL
+      AND accepted_by IS NOT NULL;
+  END IF;
+END
+$;
 
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1
     FROM pg_constraint
-    WHERE conname = 'business_invitations_accepted_by_user_id_fk'
+    WHERE conname = 'business_invitations_accepted_by_fk'
       AND conrelid = 'business_invitations'::regclass
   ) THEN
     ALTER TABLE business_invitations
@@ -57,20 +68,38 @@ ALTER TABLE service_level_policies
   ADD COLUMN IF NOT EXISTS timezone TEXT NOT NULL DEFAULT 'Africa/Kampala';
 
 -- Preserve existing SLA intent while converting hours to minutes.
-UPDATE service_level_policies
-SET
-  response_minutes = GREATEST(response_time_hours, 1) * 60,
-  resolution_minutes = GREATEST(resolution_time_hours, 1) * 60,
-  applies_to_priorities = ARRAY[priority]::TEXT[]
-WHERE response_time_hours IS NOT NULL
-  AND resolution_time_hours IS NOT NULL
-  AND priority IS NOT NULL;
+DO $
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'service_level_policies'
+      AND column_name = 'response_time_hours'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'service_level_policies'
+      AND column_name = 'resolution_time_hours'
+  ) AND EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = 'service_level_policies'
+      AND column_name = 'priority'
+  ) THEN
+    UPDATE service_level_policies
+    SET
+      response_minutes = GREATEST(response_time_hours, 1) * 60,
+      resolution_minutes = GREATEST(resolution_time_hours, 1) * 60,
+      applies_to_priorities = ARRAY[priority]::TEXT[];
+  END IF;
+END
+$;
 
 DO $$
 BEGIN
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
-    WHERE conname = 'service_level_policies_response_minutes_positive'
+    WHERE conname = 'service_level_policies_response_positive'
       AND conrelid = 'service_level_policies'::regclass
   ) THEN
     ALTER TABLE service_level_policies
@@ -80,7 +109,7 @@ BEGIN
 
   IF NOT EXISTS (
     SELECT 1 FROM pg_constraint
-    WHERE conname = 'service_level_policies_resolution_minutes_positive'
+    WHERE conname = 'service_level_policies_resolution_positive'
       AND conrelid = 'service_level_policies'::regclass
   ) THEN
     ALTER TABLE service_level_policies
