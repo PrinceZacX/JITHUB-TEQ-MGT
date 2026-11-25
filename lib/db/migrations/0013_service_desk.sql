@@ -33,7 +33,6 @@ CREATE TABLE IF NOT EXISTS service_tickets (
   CONSTRAINT service_tickets_customer_fk FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT,
   CONSTRAINT service_tickets_invoice_fk FOREIGN KEY (related_invoice_id) REFERENCES invoices(id) ON DELETE SET NULL,
   CONSTRAINT service_tickets_quotation_fk FOREIGN KEY (related_quotation_id) REFERENCES quotations(id) ON DELETE SET NULL,
-  CONSTRAINT service_tickets_sla_fk FOREIGN KEY (sla_policy_id) REFERENCES service_level_policies(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS service_tickets_business_idx ON service_tickets(business_id);
@@ -140,6 +139,12 @@ CREATE TABLE IF NOT EXISTS service_level_policies (
 
 CREATE INDEX IF NOT EXISTS service_level_policies_business_idx ON service_level_policies(business_id);
 CREATE INDEX IF NOT EXISTS service_level_policies_business_default_idx ON service_level_policies(business_id, is_default);
+
+-- Add the SLA foreign key after the referenced table exists.
+ALTER TABLE service_tickets
+  ADD CONSTRAINT service_tickets_sla_fk
+  FOREIGN KEY (sla_policy_id) REFERENCES service_level_policies(id) ON DELETE SET NULL;
+
 
 -- ------------------------------------------------------------------
 -- 6. Create business_invitations table
