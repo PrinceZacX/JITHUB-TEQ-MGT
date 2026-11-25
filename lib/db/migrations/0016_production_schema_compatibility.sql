@@ -18,7 +18,7 @@ ALTER TABLE businesses
 ALTER TABLE business_invitations
   ADD COLUMN IF NOT EXISTS accepted_by_user_id TEXT;
 
-DO $
+DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
@@ -32,7 +32,7 @@ BEGIN
       AND accepted_by IS NOT NULL;
   END IF;
 END
-$;
+$$;
 
 DO $$
 BEGIN
@@ -43,7 +43,7 @@ BEGIN
       AND conrelid = 'business_invitations'::regclass
   ) THEN
     ALTER TABLE business_invitations
-      ADD CONSTRAINT business_invitations_accepted_by_user_id_fk
+      ADD CONSTRAINT business_invitations_accepted_by_fk
       FOREIGN KEY (accepted_by_user_id) REFERENCES "user"(id) ON DELETE SET NULL;
   END IF;
 END
@@ -68,7 +68,7 @@ ALTER TABLE service_level_policies
   ADD COLUMN IF NOT EXISTS timezone TEXT NOT NULL DEFAULT 'Africa/Kampala';
 
 -- Preserve existing SLA intent while converting hours to minutes.
-DO $
+DO $$
 BEGIN
   IF EXISTS (
     SELECT 1 FROM information_schema.columns
@@ -93,7 +93,7 @@ BEGIN
       applies_to_priorities = ARRAY[priority]::TEXT[];
   END IF;
 END
-$;
+$$;
 
 DO $$
 BEGIN
@@ -103,7 +103,7 @@ BEGIN
       AND conrelid = 'service_level_policies'::regclass
   ) THEN
     ALTER TABLE service_level_policies
-      ADD CONSTRAINT service_level_policies_response_minutes_positive
+      ADD CONSTRAINT service_level_policies_response_positive
       CHECK (response_minutes > 0);
   END IF;
 
@@ -113,7 +113,7 @@ BEGIN
       AND conrelid = 'service_level_policies'::regclass
   ) THEN
     ALTER TABLE service_level_policies
-      ADD CONSTRAINT service_level_policies_resolution_minutes_positive
+      ADD CONSTRAINT service_level_policies_resolution_positive
       CHECK (resolution_minutes > 0);
   END IF;
 END
