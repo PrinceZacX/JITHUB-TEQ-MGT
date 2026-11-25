@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS service_tickets (
   CONSTRAINT service_tickets_business_fk FOREIGN KEY (business_id) REFERENCES businesses(id) ON DELETE RESTRICT,
   CONSTRAINT service_tickets_customer_fk FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE RESTRICT,
   CONSTRAINT service_tickets_invoice_fk FOREIGN KEY (related_invoice_id) REFERENCES invoices(id) ON DELETE SET NULL,
-  CONSTRAINT service_tickets_quotation_fk FOREIGN KEY (related_quotation_id) REFERENCES quotations(id) ON DELETE SET NULL,
+  CONSTRAINT service_tickets_quotation_fk FOREIGN KEY (related_quotation_id) REFERENCES quotations(id) ON DELETE SET NULL
 );
 
 CREATE INDEX IF NOT EXISTS service_tickets_business_idx ON service_tickets(business_id);
