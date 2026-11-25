@@ -106,6 +106,13 @@
       "when": 1732251400000,
       "tag": "0015_membership_userid_nullable",
       "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1795564800000,
+      "tag": "0016_production_schema_compatibility",
+      "breakpoints": true
     }
   ]
 }
