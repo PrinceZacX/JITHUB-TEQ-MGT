@@ -8,12 +8,23 @@ on:
 
 # Use the central Ubuntu self-hosted runner per JITHUB engineering policy.
 # Never fall back to GitHub-hosted runners without explicit approval.
+env:
+  JITHUB_CI_BIN: /home/jithub/.local/bin/jithub-ci-slot
+
 jobs:
   ci:
     runs-on: [self-hosted, ubuntu, jithub]
     timeout-minutes: 30
 
     steps:
+      - name: Acquire host CI slot
+        id: ci_slot
+        run: |
+          "$JITHUB_CI_BIN" acquire \
+            --class normal \
+            --repo "${{ github.event.repository.name }}" \
+            --job "${{ github.job }}-${{ github.run_id }}-${{ github.run_attempt }}" \
+            --timeout 900 >> "$GITHUB_OUTPUT"
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -58,3 +69,8 @@ jobs:
           name: nextjs-build
           path: .next
           retention-days: 1
+
+      - name: Release host CI slot
+        if: always() && steps.ci_slot.outputs.JITHUB_CI_TOKEN != ''
+        run: |
+          "$JITHUB_CI_BIN" release "${{ steps.ci_slot.outputs.JITHUB_CI_TOKEN }}"
