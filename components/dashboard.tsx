@@ -1117,9 +1117,9 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                         <td>
                           <strong className="invoice-number">{receipt.number}</strong>
                         </td>
-                        <td>{receipt.customer}</td>
-                        <td>{formatReceiptDate(receipt.paidAt)}</td>
-                        <td>{receipt.method}</td>
+                        <td className="text-sm text-jt-text truncate max-w-[120px]">{receipt.customer}</td>
+                        <td className="text-sm text-jt-text">{formatReceiptDate(receipt.paidAt)}</td>
+                        <td className="text-sm text-jt-text truncate max-w-[100px]">{receipt.method}</td>
                         <td className="amount-col">
                           <strong>{money(receipt.amount)}</strong>
                         </td>
@@ -1240,6 +1240,7 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
         >
           <section
             className="modal-card"
+            style={{ maxWidth: 'min(100%, 720px)' }}
             role="dialog"
             aria-modal="true"
             aria-labelledby="modal-title"
@@ -1296,6 +1297,7 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                       placeholder="e.g. Amina Enterprises"
                       required
                       minLength={2}
+                      className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                     />
                   </label>
                   <div className="form-two">
@@ -1306,6 +1308,7 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                         type="email"
                         defaultValue={selectedCustomer?.email || ''}
                         placeholder="accounts@business.com"
+                        className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                       />
                     </label>
                     <label>
@@ -1314,6 +1317,7 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                         name="phone"
                         defaultValue={selectedCustomer?.phone || ''}
                         placeholder="+256 700 000 000"
+                        className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                       />
                     </label>
                   </div>
@@ -1323,6 +1327,7 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                       name="address"
                       defaultValue={selectedCustomer?.address || ''}
                       placeholder="Street, city, country"
+                      className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                     />
                   </label>
                 </>
@@ -1331,7 +1336,12 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                 <>
                   <label>
                     Customer
-                    <select name="customerId" required defaultValue="">
+                    <select
+                      name="customerId"
+                      required
+                      defaultValue=""
+                      className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                    >
                       <option value="" disabled>
                         Select a customer
                       </option>
@@ -1349,7 +1359,12 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                   </label>
                   <label>
                     Item description
-                    <input name="description" placeholder="Consulting service" required />
+                    <input
+                      name="description"
+                      placeholder="Consulting service"
+                      required
+                      className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                    />
                   </label>
                   <div className="form-three">
                     <label>
@@ -1361,11 +1376,14 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                         step="0.001"
                         defaultValue="1"
                         required
+                        className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                       />
                     </label>
                     <label>
                       Unit price · UGX
-                      <input name="unitPrice" inputMode="decimal" placeholder="350000" required />
+                      <input name="unitPrice" inputMode="decimal" placeholder="350000" required
+                        className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                      />
                     </label>
                     <label>
                       Tax rate · %
@@ -1377,6 +1395,7 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                         step="0.01"
                         defaultValue="0"
                         required
+                        className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                       />
                     </label>
                   </div>
@@ -1389,6 +1408,7 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                       max={maxDueDateISO()}
                       required
                       suppressHydrationWarning
+                      className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                     />
                   </label>
                   <p className="form-footnote">
@@ -1431,11 +1451,15 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                   <div className="form-two">
                     <label>
                       Amount received · UGX
-                      <input name="amount" inputMode="decimal" placeholder="250000" required />
+                      <input name="amount" inputMode="decimal" placeholder="250000" required
+                        className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                      />
                     </label>
                     <label>
                       Payment method
-                      <select name="method" defaultValue="Mobile Money">
+                      <select name="method" defaultValue="Mobile Money"
+                        className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                      >
                         <option>Cash</option>
                         <option>Bank transfer</option>
                         <option>Mobile Money</option>
@@ -1448,11 +1472,15 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                   <div className="form-two">
                     <label>
                       Payment date
-                      <input name="paidAt" type="date" defaultValue={todayISO()} required suppressHydrationWarning />
+                      <input name="paidAt" type="date" defaultValue={todayISO()} required suppressHydrationWarning
+                        className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                      />
                     </label>
                     <label>
                       Reference (optional)
-                      <input name="reference" placeholder="Transaction reference" />
+                      <input name="reference" placeholder="Transaction reference"
+                        className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                      />
                     </label>
                   </div>
                   <p className="form-footnote">
@@ -1466,25 +1494,35 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                   <div className="form-two">
                     <label>
                       Category
-                      <input name="category" placeholder="e.g. Transport" required minLength={2} />
+                      <input name="category" placeholder="e.g. Transport" required minLength={2}
+                        className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                      />
                     </label>
                     <label>
                       Supplier / payee
-                      <input name="payee" placeholder="Business name" required minLength={2} />
+                      <input name="payee" placeholder="Business name" required minLength={2}
+                        className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                      />
                     </label>
                   </div>
                   <label>
                     Description (optional)
-                    <input name="description" placeholder="What was this expense for?" />
+                    <input name="description" placeholder="What was this expense for?"
+                      className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                    />
                   </label>
                   <div className="form-two">
                     <label>
                       Amount · UGX
-                      <input name="amount" inputMode="decimal" placeholder="50000" required />
+                      <input name="amount" inputMode="decimal" placeholder="50000" required
+                        className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                      />
                     </label>
                     <label>
                       Payment method
-                      <select name="method" defaultValue="Mobile Money">
+                      <select name="method" defaultValue="Mobile Money"
+                        className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                      >
                         <option>Cash</option>
                         <option>Bank transfer</option>
                         <option>Mobile Money</option>
@@ -1496,7 +1534,9 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                   </div>
                   <label>
                     Payment date
-                    <input name="paidAt" type="date" defaultValue={todayISO()} required suppressHydrationWarning />
+                    <input name="paidAt" type="date" defaultValue={todayISO()} required suppressHydrationWarning
+                      className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
+                    />
                   </label>
                 </>
               )}
@@ -1511,6 +1551,7 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                       required
                       minLength={2}
                       maxLength={160}
+                      className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                     />
                   </label>
                   <label>
@@ -1520,6 +1561,7 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                       defaultValue={selectedCatalogue?.description || ''}
                       placeholder="What does this item include?"
                       maxLength={500}
+                      className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                     />
                   </label>
                   <label>
@@ -1530,6 +1572,7 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                       inputMode="decimal"
                       placeholder="350000.00"
                       required
+                      className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                     />
                   </label>
                   <p className="form-footnote">
@@ -1979,7 +2022,7 @@ function RecentInvoices({
                   <td>
                     <strong className="invoice-number">{invoice.number}</strong>
                   </td>
-                  <td>{invoice.customer}</td>
+                  <td className="text-sm text-jt-text truncate max-w-[120px]">{invoice.customer}</td>
                   <td>
                     <Status status={invoice.status} />
                   </td>
@@ -2045,7 +2088,7 @@ function InvoiceTable({
                 <td>
                   <strong className="invoice-number">{invoice.number}</strong>
                 </td>
-                <td>{invoice.customer}</td>
+                <td className="text-sm text-jt-text truncate max-w-[120px]">{invoice.customer}</td>
                 <td>{formatDate(invoice.issueDate)}</td>
                 <td>{formatDate(invoice.dueDate)}</td>
                 <td>
@@ -2151,9 +2194,9 @@ function CustomerTable({
                   <strong>{customer.name}</strong>
                 </span>
               </td>
-              <td>{customer.email || '—'}</td>
-              <td>{customer.phone || '—'}</td>
-              <td>{formatDate(customer.createdAt)}</td>
+              <td className="text-sm text-jt-text truncate max-w-[120px]">{customer.email || '—'}</td>
+              <td className="text-sm text-jt-text truncate max-w-[120px]">{customer.phone || '—'}</td>
+              <td className="text-sm text-jt-text">{formatDate(customer.createdAt)}</td>
               <td>
                 <Status status="active" />
               </td>
@@ -2418,7 +2461,7 @@ function ModulePanel({
                     <td>
                       <strong className="invoice-number">{invoice.number}</strong>
                     </td>
-                    <td>{invoice.customer}</td>
+                    <td className="text-sm text-jt-text truncate max-w-[120px]">{invoice.customer}</td>
                     <td>
                       <Status status={invoice.status} />
                     </td>
@@ -2468,11 +2511,11 @@ function ModulePanel({
                 {data.expenses.map((expense) => (
                   <tr key={expense.id}>
                     <td>{formatDate(expense.paidAt)}</td>
-                    <td>{expense.category}</td>
+                    <td className="text-sm text-jt-text truncate max-w-[100px]">{expense.category}</td>
                     <td>
                       <strong className="invoice-number">{expense.payee}</strong>
                     </td>
-                    <td>{expense.method}</td>
+                    <td className="text-sm text-jt-text truncate max-w-[100px]">{expense.method}</td>
                     <td className="amount-col">
                       <strong>{money(expense.amount)}</strong>
                     </td>
@@ -2507,8 +2550,8 @@ function ModulePanel({
                   <td>
                     <strong className="invoice-number">{titleCase(entry.action)}</strong>
                   </td>
-                  <td>{titleCase(entry.entityType)}</td>
-                  <td>{entry.entityId}</td>
+                  <td className="text-sm text-jt-text truncate max-w-[100px]">{titleCase(entry.entityType)}</td>
+                  <td className="text-sm text-jt-text truncate max-w-[100px]">{entry.entityId}</td>
                 </tr>
               ))}
             </tbody>
@@ -2964,8 +3007,8 @@ function RefundsPanel({
                 <td className="amount-col">
                   <strong>{money(refund.amount)}</strong>
                 </td>
-                <td>{refund.reason || '—'}</td>
-                <td>{refund.method || '—'}</td>
+                <td className="text-sm text-jt-text truncate max-w-[120px]">{refund.reason || '—'}</td>
+                <td className="text-sm text-jt-text truncate max-w-[100px]">{refund.method || '—'}</td>
                 <td>
                   <Status status={refund.status} />
                 </td>
