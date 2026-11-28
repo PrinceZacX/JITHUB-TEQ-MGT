@@ -1,6 +1,6 @@
 ﻿'use client';
 
-import { useEffect, useState } from 'react';
+import { use, useEffect, useState } from 'react';
 import { Plus, Mail, UserPlus, X } from 'lucide-react';
 import {
   createBusinessInvitation,
@@ -50,8 +50,12 @@ type Business = {
   createdAt: Date;
 };
 
-export default async function BusinessMembersPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id: businessId } = await params;
+export default function BusinessMembersPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id: businessId } = use(params);
   const [business, setBusiness] = useState<Business | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
   const [loading, setLoading] = useState(true);
