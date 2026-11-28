@@ -267,7 +267,7 @@ export default function ServiceDeskSettingsPage() {
                                 ? [...form.appliesToPriorities, p]
                                 : form.appliesToPriorities.filter((x: string) => x !== p),
                             })
-                        }
+                          }
                           className="rounded border-jt-border text-jt-teal"
                         />
                         <span className="text-sm capitalize text-jt-text">{p}</span>
@@ -299,9 +299,7 @@ export default function ServiceDeskSettingsPage() {
       ) : policies.length === 0 ? (
         <section className="border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface shadow-sm">
           <div className="p-10 flex flex-col items-center justify-center text-center">
-            <p className="text-sm text-jt-muted mb-6">
-              No SLA policies configured yet.
-            </p>
+            <p className="text-sm text-jt-muted mb-6">No SLA policies configured yet.</p>
             <button className="primary-button" onClick={openCreate}>
               <Plus size={14} /> Create Your First Policy
             </button>
@@ -317,9 +315,7 @@ export default function ServiceDeskSettingsPage() {
               <div className="p-6 border-b border-jt-border/50">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <h3 className="text-lg font-semibold text-jt-text">
-                      {policy.name}
-                    </h3>
+                    <h3 className="text-lg font-semibold text-jt-text">{policy.name}</h3>
                     {policy.isDefault && (
                       <span className="px-2 py-0.5 rounded text-xs font-semibold bg-green-100 text-green-700 border border-green-200">
                         Default
@@ -327,7 +323,10 @@ export default function ServiceDeskSettingsPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => openEdit(policy)} className="row-action text-jt-primary hover:bg-jt-surface/50">
+                    <button
+                      onClick={() => openEdit(policy)}
+                      className="row-action text-jt-primary hover:bg-jt-surface/50"
+                    >
                       <Edit size={14} />
                     </button>
                     {!policy.isDefault && (
@@ -347,7 +346,8 @@ export default function ServiceDeskSettingsPage() {
                 </p>
                 <div className="flex flex-wrap gap-4 text-sm">
                   <span className="text-jt-muted">
-                    Response: <span className="font-medium text-jt-text">{policy.responseMinutes} min</span>
+                    Response:{' '}
+                    <span className="font-medium text-jt-text">{policy.responseMinutes} min</span>
                   </span>
                   <span className="text-jt-muted">
                     Resolution:{' '}
@@ -360,8 +360,7 @@ export default function ServiceDeskSettingsPage() {
                     </span>
                   </span>
                   <span className="text-jt-muted">
-                    Timezone:{' '}
-                    <span className="font-medium text-jt-text">{policy.timezone}</span>
+                    Timezone: <span className="font-medium text-jt-text">{policy.timezone}</span>
                   </span>
                 </div>
                 <div className="flex flex-wrap gap-2 mt-4">

@@ -103,9 +103,7 @@ export default function ClientPortalTicketsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-jt-text">Service Requests</h1>
-          <p className="text-jt-muted text-sm">
-            Track and manage your support requests
-          </p>
+          <p className="text-jt-muted text-sm">Track and manage your support requests</p>
         </div>
         <button className="primary-button" onClick={() => setShowNewTicket(true)}>
           <Plus size={14} /> New Request
@@ -233,10 +231,7 @@ export default function ClientPortalTicketsPage() {
         <section className="border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface shadow-sm">
           <div className="p-8 flex flex-col items-center justify-center text-center">
             <p className="text-sm text-jt-muted mb-4">No service requests found.</p>
-            <button
-              className="primary-button mt-4"
-              onClick={() => setShowNewTicket(true)}
-            >
+            <button className="primary-button mt-4" onClick={() => setShowNewTicket(true)}>
               <Plus size={14} /> Create Your First Request
             </button>
           </div>
@@ -269,10 +264,7 @@ export default function ClientPortalTicketsPage() {
               </thead>
               <tbody className="divide-y divide-jt-border/50">
                 {filteredTickets.map((ticket) => (
-                  <tr
-                    key={ticket.id}
-                    className="hover:bg-jt-surface/50 transition-colors group"
-                  >
+                  <tr key={ticket.id} className="hover:bg-jt-surface/50 transition-colors group">
                     <td className="px-4 py-3">
                       <button
                         onClick={() => openTicketDetails(ticket)}
@@ -287,14 +279,14 @@ export default function ClientPortalTicketsPage() {
                           ticket.status === 'open'
                             ? 'bg-blue-100 text-blue-700 border-blue-200'
                             : ticket.status === 'in_progress'
-                            ? 'bg-amber-100 text-amber-700 border-amber-200'
-                            : ticket.status === 'resolved'
-                            ? 'bg-green-100 text-green-700 border-green-200'
-                            : ticket.status === 'closed'
-                            ? 'bg-slate-100 text-slate-700 border-slate-200'
-                            : ticket.status === 'cancelled'
-                            ? 'bg-rose-100 text-rose-700 border-rose-200'
-                            : 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                              ? 'bg-amber-100 text-amber-700 border-amber-200'
+                              : ticket.status === 'resolved'
+                                ? 'bg-green-100 text-green-700 border-green-200'
+                                : ticket.status === 'closed'
+                                  ? 'bg-slate-100 text-slate-700 border-slate-200'
+                                  : ticket.status === 'cancelled'
+                                    ? 'bg-rose-100 text-rose-700 border-rose-200'
+                                    : 'bg-indigo-100 text-indigo-700 border-indigo-200'
                         }`}
                       >
                         {ticket.status.replace('_', ' ')}
@@ -306,10 +298,10 @@ export default function ClientPortalTicketsPage() {
                           ['critical', 'urgent'].includes(ticket.priority)
                             ? 'bg-rose-100 text-rose-700 border-rose-200'
                             : ticket.priority === 'high'
-                            ? 'bg-amber-100 text-amber-700 border-amber-200'
-                            : ticket.priority === 'normal'
-                            ? 'bg-blue-100 text-blue-700 border-blue-200'
-                            : 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                              ? 'bg-amber-100 text-amber-700 border-amber-200'
+                              : ticket.priority === 'normal'
+                                ? 'bg-blue-100 text-blue-700 border-blue-200'
+                                : 'bg-indigo-100 text-indigo-700 border-indigo-200'
                         }`}
                       >
                         {ticket.priority}
@@ -369,14 +361,14 @@ export default function ClientPortalTicketsPage() {
                         openTicket.ticket?.status === 'open'
                           ? 'bg-blue-100 text-blue-700 border-blue-200'
                           : openTicket.ticket?.status === 'in_progress'
-                          ? 'bg-amber-100 text-amber-700 border-amber-200'
-                          : openTicket.ticket?.status === 'resolved'
-                          ? 'bg-green-100 text-green-700 border-green-200'
-                          : openTicket.ticket?.status === 'closed'
-                          ? 'bg-slate-100 text-slate-700 border-slate-200'
-                          : openTicket.ticket?.status === 'cancelled'
-                          ? 'bg-rose-100 text-rose-700 border-rose-200'
-                          : 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                            ? 'bg-amber-100 text-amber-700 border-amber-200'
+                            : openTicket.ticket?.status === 'resolved'
+                              ? 'bg-green-100 text-green-700 border-green-200'
+                              : openTicket.ticket?.status === 'closed'
+                                ? 'bg-slate-100 text-slate-700 border-slate-200'
+                                : openTicket.ticket?.status === 'cancelled'
+                                  ? 'bg-rose-100 text-rose-700 border-rose-200'
+                                  : 'bg-indigo-100 text-indigo-700 border-indigo-200'
                       }`}
                     >
                       {openTicket.ticket?.status?.replace('_', ' ')}
@@ -393,10 +385,10 @@ export default function ClientPortalTicketsPage() {
                         ['critical', 'urgent'].includes(openTicket.ticket?.priority)
                           ? 'bg-rose-100 text-rose-700 border-rose-200'
                           : openTicket.ticket?.priority === 'high'
-                          ? 'bg-amber-100 text-amber-700 border-amber-200'
-                          : openTicket.ticket?.priority === 'normal'
-                          ? 'bg-blue-100 text-blue-700 border-blue-200'
-                          : 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                            ? 'bg-amber-100 text-amber-700 border-amber-200'
+                            : openTicket.ticket?.priority === 'normal'
+                              ? 'bg-blue-100 text-blue-700 border-blue-200'
+                              : 'bg-indigo-100 text-indigo-700 border-indigo-200'
                       }`}
                     >
                       {openTicket.ticket?.priority}
@@ -450,9 +442,7 @@ export default function ClientPortalTicketsPage() {
                           {new Date(comment.createdAt).toLocaleString()}
                         </span>
                       </div>
-                      <p className="text-sm text-jt-text whitespace-pre-wrap">
-                        {comment.body}
-                      </p>
+                      <p className="text-sm text-jt-text whitespace-pre-wrap">{comment.body}</p>
                     </div>
                   ))}
                   {openTicket.events?.map((event: any) => (

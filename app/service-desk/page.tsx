@@ -155,7 +155,10 @@ export default function ServiceDeskDashboardPage() {
           <p className="text-jt-muted text-sm">Internal management portal</p>
         </div>
         <div className="flex gap-3">
-          <Link href="/portal" className="text-sm font-medium text-jt-primary underline underline-offset-4">
+          <Link
+            href="/portal"
+            className="text-sm font-medium text-jt-primary underline underline-offset-4"
+          >
             Client Portal →
           </Link>
         </div>
@@ -165,7 +168,10 @@ export default function ServiceDeskDashboardPage() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {[...Array(6)].map((_, i) => (
-            <div key={i} className="border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface animate-pulse">
+            <div
+              key={i}
+              className="border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface animate-pulse"
+            >
               <div className="h-4 w-3/4 rounded-full bg-jt-border mb-3"></div>
               <div className="h-8 w-1/2 rounded-full bg-jt-border"></div>
             </div>
@@ -195,7 +201,9 @@ export default function ServiceDeskDashboardPage() {
                   'hover:bg-jt-surface/50 hover:border-jt-teal/30 transition-all group',
                 )}
               >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${action.color} group-hover:scale-110 transition-transform`}>
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center ${action.color} group-hover:scale-110 transition-transform`}
+                >
                   <action.icon size={20} />
                 </div>
                 <p className="text-sm font-medium text-jt-text group-hover:text-jt-teal-dark transition-colors">
@@ -242,9 +250,7 @@ export default function ServiceDeskDashboardPage() {
                     className="flex items-center justify-between p-3 rounded-lg border border-jt-border/50 bg-jt-surface/50"
                   >
                     <div>
-                      <p className="text-sm font-medium text-jt-text truncate">
-                        {policy.name}
-                      </p>
+                      <p className="text-sm font-medium text-jt-text truncate">{policy.name}</p>
                       <p className="text-xs text-jt-muted truncate">
                         Response: {policy.responseMinutes}min • Resolution:
                         {policy.resolutionMinutes}min
@@ -344,14 +350,14 @@ export default function ServiceDeskDashboardPage() {
                           ticket.status === 'open'
                             ? 'bg-blue-100 text-blue-700 border-blue-200'
                             : ticket.status === 'in_progress'
-                            ? 'bg-amber-100 text-amber-700 border-amber-200'
-                            : ticket.status === 'resolved'
-                            ? 'bg-green-100 text-green-700 border-green-200'
-                            : ticket.status === 'closed'
-                            ? 'bg-slate-100 text-slate-700 border-slate-200'
-                            : ticket.status === 'cancelled'
-                            ? 'bg-rose-100 text-rose-700 border-rose-200'
-                            : 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                              ? 'bg-amber-100 text-amber-700 border-amber-200'
+                              : ticket.status === 'resolved'
+                                ? 'bg-green-100 text-green-700 border-green-200'
+                                : ticket.status === 'closed'
+                                  ? 'bg-slate-100 text-slate-700 border-slate-200'
+                                  : ticket.status === 'cancelled'
+                                    ? 'bg-rose-100 text-rose-700 border-rose-200'
+                                    : 'bg-indigo-100 text-indigo-700 border-indigo-200'
                         }`}
                       >
                         {ticket.status.replace('_', ' ')}
@@ -363,10 +369,10 @@ export default function ServiceDeskDashboardPage() {
                           ['critical', 'urgent'].includes(ticket.priority)
                             ? 'bg-rose-100 text-rose-700 border-rose-200'
                             : ticket.priority === 'high'
-                            ? 'bg-amber-100 text-amber-700 border-amber-200'
-                            : ticket.priority === 'normal'
-                            ? 'bg-blue-100 text-blue-700 border-blue-200'
-                            : 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                              ? 'bg-amber-100 text-amber-700 border-amber-200'
+                              : ticket.priority === 'normal'
+                                ? 'bg-blue-100 text-blue-700 border-blue-200'
+                                : 'bg-indigo-100 text-indigo-700 border-indigo-200'
                         }`}
                       >
                         {ticket.priority}

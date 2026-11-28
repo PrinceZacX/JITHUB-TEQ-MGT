@@ -12,14 +12,7 @@ type StatCardProps = {
   className?: string;
 };
 
-export function StatCard({
-  label,
-  value,
-  icon: Icon,
-  color,
-  href,
-  className,
-}: StatCardProps) {
+export function StatCard({ label, value, icon: Icon, color, href, className }: StatCardProps) {
   return (
     <Link
       href={href || '#'}
@@ -31,7 +24,9 @@ export function StatCard({
       <div className="p-5">
         <div className="flex items-center justify-between">
           <p className="text-xs font-medium text-jt-muted uppercase tracking-wider">{label}</p>
-          <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color} text-white group-hover:scale-110 transition-transform`}>
+          <div
+            className={`w-10 h-10 rounded-xl flex items-center justify-center ${color} text-white group-hover:scale-110 transition-transform`}
+          >
             <Icon size={20} />
           </div>
         </div>

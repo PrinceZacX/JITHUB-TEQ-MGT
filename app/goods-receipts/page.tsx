@@ -105,7 +105,10 @@ export default function GoodsReceiptsPage() {
               )}
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label htmlFor="purchaseOrderId" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="purchaseOrderId"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Purchase Order ID
                   </label>
                   <input
@@ -118,7 +121,10 @@ export default function GoodsReceiptsPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="supplierId" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="supplierId"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Supplier ID
                   </label>
                   <input
@@ -131,7 +137,10 @@ export default function GoodsReceiptsPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="warehouseId" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="warehouseId"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Warehouse ID
                   </label>
                   <input
@@ -144,7 +153,10 @@ export default function GoodsReceiptsPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="receivedDate" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="receivedDate"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Received Date
                   </label>
                   <input
@@ -157,7 +169,10 @@ export default function GoodsReceiptsPage() {
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label htmlFor="notes" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="notes"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Notes
                   </label>
                   <textarea
@@ -227,7 +242,9 @@ export default function GoodsReceiptsPage() {
                 goodsReceipts.map((r: any) => (
                   <tr key={r.id} className="hover:bg-jt-surface/50 transition-colors group">
                     <td className="px-4 py-3">
-                      <span className="text-sm font-medium text-jt-text truncate block">{r.number}</span>
+                      <span className="text-sm font-medium text-jt-text truncate block">
+                        {r.number}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-jt-text truncate max-w-[100px]">
                       {r.purchaseOrderId}
@@ -244,18 +261,16 @@ export default function GoodsReceiptsPage() {
                           r.status === 'received'
                             ? 'bg-green-100 text-green-700 border-green-200'
                             : r.status === 'draft'
-                            ? 'bg-blue-100 text-blue-700 border-blue-200'
-                            : r.status === 'cancelled'
-                            ? 'bg-rose-100 text-rose-700 border-rose-200'
-                            : 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                              ? 'bg-blue-100 text-blue-700 border-blue-200'
+                              : r.status === 'cancelled'
+                                ? 'bg-rose-100 text-rose-700 border-rose-200'
+                                : 'bg-indigo-100 text-indigo-700 border-indigo-200'
                         }`}
                       >
                         {r.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-jt-text">
-                  {String(r.total)}
-                </td>
+                    <td className="px-4 py-3 text-sm text-jt-text">{String(r.total)}</td>
                     <td className="px-4 py-3 text-right">
                       {r.status === 'draft' && (
                         <button

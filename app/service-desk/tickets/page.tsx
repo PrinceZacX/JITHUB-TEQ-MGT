@@ -54,10 +54,7 @@ export default function ServiceDeskTicketsPage() {
     if (filters.assignee && t.assigneeUserId !== filters.assignee) return false;
     if (filters.search) {
       const search = filters.search.toLowerCase();
-      if (
-        !t.title.toLowerCase().includes(search) &&
-        !t.customerId.toLowerCase().includes(search)
-      )
+      if (!t.title.toLowerCase().includes(search) && !t.customerId.toLowerCase().includes(search))
         return false;
     }
     return true;
@@ -139,9 +136,7 @@ export default function ServiceDeskTicketsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-jt-text">Tickets</h1>
-          <p className="text-jt-muted text-sm">
-            Manage all service tickets and support requests
-          </p>
+          <p className="text-jt-muted text-sm">Manage all service tickets and support requests</p>
         </div>
         <button
           className="primary-button"
@@ -258,10 +253,7 @@ export default function ServiceDeskTicketsPage() {
               </thead>
               <tbody className="divide-y divide-jt-border/50">
                 {filteredTickets.map((ticket) => (
-                  <tr
-                    key={ticket.id}
-                    className="hover:bg-jt-surface/50 transition-colors group"
-                  >
+                  <tr key={ticket.id} className="hover:bg-jt-surface/50 transition-colors group">
                     <td className="px-4 py-3">
                       <button
                         onClick={() => openTicketDetails(ticket)}
@@ -279,14 +271,14 @@ export default function ServiceDeskTicketsPage() {
                           ticket.status === 'open'
                             ? 'bg-blue-100 text-blue-700 border-blue-200'
                             : ticket.status === 'in_progress'
-                            ? 'bg-amber-100 text-amber-700 border-amber-200'
-                            : ticket.status === 'resolved'
-                            ? 'bg-green-100 text-green-700 border-green-200'
-                            : ticket.status === 'closed'
-                            ? 'bg-slate-100 text-slate-700 border-slate-200'
-                            : ticket.status === 'cancelled'
-                            ? 'bg-rose-100 text-rose-700 border-rose-200'
-                            : 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                              ? 'bg-amber-100 text-amber-700 border-amber-200'
+                              : ticket.status === 'resolved'
+                                ? 'bg-green-100 text-green-700 border-green-200'
+                                : ticket.status === 'closed'
+                                  ? 'bg-slate-100 text-slate-700 border-slate-200'
+                                  : ticket.status === 'cancelled'
+                                    ? 'bg-rose-100 text-rose-700 border-rose-200'
+                                    : 'bg-indigo-100 text-indigo-700 border-indigo-200'
                         }`}
                       >
                         {ticket.status.replace('_', ' ')}
@@ -298,10 +290,10 @@ export default function ServiceDeskTicketsPage() {
                           ['critical', 'urgent'].includes(ticket.priority)
                             ? 'bg-rose-100 text-rose-700 border-rose-200'
                             : ticket.priority === 'high'
-                            ? 'bg-amber-100 text-amber-700 border-amber-200'
-                            : ticket.priority === 'normal'
-                            ? 'bg-blue-100 text-blue-700 border-blue-200'
-                            : 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                              ? 'bg-amber-100 text-amber-700 border-amber-200'
+                              : ticket.priority === 'normal'
+                                ? 'bg-blue-100 text-blue-700 border-blue-200'
+                                : 'bg-indigo-100 text-indigo-700 border-indigo-200'
                         }`}
                       >
                         {ticket.priority}
@@ -388,14 +380,14 @@ export default function ServiceDeskTicketsPage() {
                         openTicket.ticket?.status === 'open'
                           ? 'bg-blue-100 text-blue-700 border-blue-200'
                           : openTicket.ticket?.status === 'in_progress'
-                          ? 'bg-amber-100 text-amber-700 border-amber-200'
-                          : openTicket.ticket?.status === 'resolved'
-                          ? 'bg-green-100 text-green-700 border-green-200'
-                          : openTicket.ticket?.status === 'closed'
-                          ? 'bg-slate-100 text-slate-700 border-slate-200'
-                          : openTicket.ticket?.status === 'cancelled'
-                          ? 'bg-rose-100 text-rose-700 border-rose-200'
-                          : 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                            ? 'bg-amber-100 text-amber-700 border-amber-200'
+                            : openTicket.ticket?.status === 'resolved'
+                              ? 'bg-green-100 text-green-700 border-green-200'
+                              : openTicket.ticket?.status === 'closed'
+                                ? 'bg-slate-100 text-slate-700 border-slate-200'
+                                : openTicket.ticket?.status === 'cancelled'
+                                  ? 'bg-rose-100 text-rose-700 border-rose-200'
+                                  : 'bg-indigo-100 text-indigo-700 border-indigo-200'
                       }`}
                     >
                       {openTicket.ticket?.status?.replace('_', ' ')}
@@ -412,10 +404,10 @@ export default function ServiceDeskTicketsPage() {
                         ['critical', 'urgent'].includes(openTicket.ticket?.priority)
                           ? 'bg-rose-100 text-rose-700 border-rose-200'
                           : openTicket.ticket?.priority === 'high'
-                          ? 'bg-amber-100 text-amber-700 border-amber-200'
-                          : openTicket.ticket?.priority === 'normal'
-                          ? 'bg-blue-100 text-blue-700 border-blue-200'
-                          : 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                            ? 'bg-amber-100 text-amber-700 border-amber-200'
+                            : openTicket.ticket?.priority === 'normal'
+                              ? 'bg-blue-100 text-blue-700 border-blue-200'
+                              : 'bg-indigo-100 text-indigo-700 border-indigo-200'
                       }`}
                     >
                       {openTicket.ticket?.priority}
@@ -428,8 +420,8 @@ export default function ServiceDeskTicketsPage() {
                   </p>
                   <p className="font-medium text-jt-text">
                     {openTicket.ticket?.assigneeUserId
-                      ? members.find((m) => m.userId === openTicket.ticket?.assigneeUserId)
-                        ?.name || openTicket.ticket?.assigneeUserId
+                      ? members.find((m) => m.userId === openTicket.ticket?.assigneeUserId)?.name ||
+                        openTicket.ticket?.assigneeUserId
                       : 'Unassigned'}
                   </p>
                 </div>
@@ -505,9 +497,7 @@ export default function ServiceDeskTicketsPage() {
                           {new Date(comment.createdAt).toLocaleString()}
                         </span>
                       </div>
-                      <p className="text-sm text-jt-text whitespace-pre-wrap">
-                        {comment.body}
-                      </p>
+                      <p className="text-sm text-jt-text whitespace-pre-wrap">{comment.body}</p>
                       {comment.isInternal && (
                         <span className="text-[10px] font-semibold text-amber-700 bg-amber-100/50 px-1.5 py-0.5 rounded">
                           Internal

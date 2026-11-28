@@ -113,9 +113,7 @@ export default function PurchaseOrdersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-jt-text">Purchase Orders</h1>
-          <p className="text-jt-muted text-sm">
-            Manage purchase orders and supplier procurements
-          </p>
+          <p className="text-jt-muted text-sm">Manage purchase orders and supplier procurements</p>
         </div>
         <button className="primary-button" onClick={() => setOpenForm(true)}>
           <Plus size={14} /> Create Order
@@ -131,7 +129,10 @@ export default function PurchaseOrdersPage() {
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <div>
-                  <label htmlFor="supplierId" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="supplierId"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Supplier ID <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -144,7 +145,10 @@ export default function PurchaseOrdersPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="warehouseId" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="warehouseId"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Warehouse ID <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -157,7 +161,10 @@ export default function PurchaseOrdersPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="expectedDate" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="expectedDate"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Expected Date
                   </label>
                   <input
@@ -170,7 +177,10 @@ export default function PurchaseOrdersPage() {
                   />
                 </div>
                 <div className="md:col-span-2">
-                  <label htmlFor="notes" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="notes"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Notes
                   </label>
                   <textarea
@@ -269,18 +279,10 @@ export default function PurchaseOrdersPage() {
                           <td className="px-2 py-1 text-sm text-jt-text truncate">
                             {item.itemName}
                           </td>
-                          <td className="px-2 py-1 text-sm text-jt-text">
-                            {item.quantity}
-                          </td>
-                          <td className="px-2 py-1 text-sm text-jt-text">
-                            {item.unitPrice}
-                          </td>
-                          <td className="px-2 py-1 text-sm text-jt-text">
-                            {item.taxRate}
-                          </td>
-                          <td className="px-2 py-1 text-sm text-jt-text">
-                            {lineTotal}
-                          </td>
+                          <td className="px-2 py-1 text-sm text-jt-text">{item.quantity}</td>
+                          <td className="px-2 py-1 text-sm text-jt-text">{item.unitPrice}</td>
+                          <td className="px-2 py-1 text-sm text-jt-text">{item.taxRate}</td>
+                          <td className="px-2 py-1 text-sm text-jt-text">{lineTotal}</td>
                           <td className="px-2 py-1 text-right">
                             <button
                               className="row-action text-red-600 hover:bg-red-50"
@@ -347,7 +349,9 @@ export default function PurchaseOrdersPage() {
                 pos.map((po: any) => (
                   <tr key={po.id} className="hover:bg-jt-surface/50 transition-colors">
                     <td className="px-4 py-3">
-                      <span className="text-sm font-medium text-jt-text truncate block">{po.number}</span>
+                      <span className="text-sm font-medium text-jt-text truncate block">
+                        {po.number}
+                      </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-jt-text truncate max-w-[120px]">
                       {po.supplierId}
@@ -361,19 +365,17 @@ export default function PurchaseOrdersPage() {
                           po.status === 'approved'
                             ? 'bg-green-100 text-green-700 border-green-200'
                             : po.status === 'draft'
-                            ? 'bg-blue-100 text-blue-700 border-blue-200'
-                            : po.status === 'cancelled'
-                            ? 'bg-rose-100 text-rose-700 border-rose-200'
-                            : 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                              ? 'bg-blue-100 text-blue-700 border-blue-200'
+                              : po.status === 'cancelled'
+                                ? 'bg-rose-100 text-rose-700 border-rose-200'
+                                : 'bg-indigo-100 text-indigo-700 border-indigo-200'
                         }`}
                       >
                         {po.status}
                       </span>
                     </td>
                     <td className="px-4 py-3 text-sm text-jt-muted">{po.orderDate}</td>
-                    <td className="px-4 py-3 text-sm text-jt-text">
-                  {String(po.total)}
-                </td>
+                    <td className="px-4 py-3 text-sm text-jt-text">{String(po.total)}</td>
                     <td className="px-4 py-3 text-right">
                       {po.status === 'draft' && (
                         <button

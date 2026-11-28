@@ -1,14 +1,16 @@
 import { NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import { db } from '@/lib/db';
-import { serviceTickets, serviceTicketComments, serviceTicketEvents, serviceTicketAttachments } from '@/lib/db/schema';
+import {
+  serviceTickets,
+  serviceTicketComments,
+  serviceTicketEvents,
+  serviceTicketAttachments,
+} from '@/lib/db/schema';
 import { and, eq, sql } from 'drizzle-orm';
 import { requireBusinessPermission } from '@/app/actions/finance';
 
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const context = await requireBusinessPermission('service_ticket.read');
 
@@ -17,7 +19,9 @@ export async function GET(
     const [ticket] = await db
       .select()
       .from(serviceTickets)
-      .where(and(eq(serviceTickets.id, ticketId), eq(serviceTickets.businessId, context.businessId)))
+      .where(
+        and(eq(serviceTickets.id, ticketId), eq(serviceTickets.businessId, context.businessId)),
+      )
       .limit(1);
 
     if (!ticket) {

@@ -223,12 +223,8 @@ export default function ServiceDeskClientsPage() {
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-jt-text truncate">
-                          {client.name}
-                        </p>
-                        <p className="text-xs text-jt-muted truncate">
-                          {client.email}
-                        </p>
+                        <p className="text-sm font-medium text-jt-text truncate">{client.name}</p>
+                        <p className="text-xs text-jt-muted truncate">{client.email}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
@@ -269,12 +265,9 @@ export default function ServiceDeskClientsPage() {
                         <Mail size={18} className="text-purple-600" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-jt-text truncate">
-                          {inv.email}
-                        </p>
+                        <p className="text-sm font-medium text-jt-text truncate">{inv.email}</p>
                         <p className="text-xs text-jt-muted truncate">
-                          Role: {inv.role} • Expires:{' '}
-                          {new Date(inv.expiresAt).toLocaleDateString()}
+                          Role: {inv.role} • Expires: {new Date(inv.expiresAt).toLocaleDateString()}
                         </p>
                       </div>
                     </div>

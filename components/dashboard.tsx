@@ -1117,9 +1117,15 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                         <td>
                           <strong className="invoice-number">{receipt.number}</strong>
                         </td>
-                        <td className="text-sm text-jt-text truncate max-w-[120px]">{receipt.customer}</td>
-                        <td className="text-sm text-jt-text">{formatReceiptDate(receipt.paidAt)}</td>
-                        <td className="text-sm text-jt-text truncate max-w-[100px]">{receipt.method}</td>
+                        <td className="text-sm text-jt-text truncate max-w-[120px]">
+                          {receipt.customer}
+                        </td>
+                        <td className="text-sm text-jt-text">
+                          {formatReceiptDate(receipt.paidAt)}
+                        </td>
+                        <td className="text-sm text-jt-text truncate max-w-[100px]">
+                          {receipt.method}
+                        </td>
                         <td className="amount-col">
                           <strong>{money(receipt.amount)}</strong>
                         </td>
@@ -1381,7 +1387,11 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                     </label>
                     <label>
                       Unit price · UGX
-                      <input name="unitPrice" inputMode="decimal" placeholder="350000" required
+                      <input
+                        name="unitPrice"
+                        inputMode="decimal"
+                        placeholder="350000"
+                        required
                         className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                       />
                     </label>
@@ -1451,13 +1461,19 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                   <div className="form-two">
                     <label>
                       Amount received · UGX
-                      <input name="amount" inputMode="decimal" placeholder="250000" required
+                      <input
+                        name="amount"
+                        inputMode="decimal"
+                        placeholder="250000"
+                        required
                         className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                       />
                     </label>
                     <label>
                       Payment method
-                      <select name="method" defaultValue="Mobile Money"
+                      <select
+                        name="method"
+                        defaultValue="Mobile Money"
                         className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                       >
                         <option>Cash</option>
@@ -1472,13 +1488,20 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                   <div className="form-two">
                     <label>
                       Payment date
-                      <input name="paidAt" type="date" defaultValue={todayISO()} required suppressHydrationWarning
+                      <input
+                        name="paidAt"
+                        type="date"
+                        defaultValue={todayISO()}
+                        required
+                        suppressHydrationWarning
                         className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                       />
                     </label>
                     <label>
                       Reference (optional)
-                      <input name="reference" placeholder="Transaction reference"
+                      <input
+                        name="reference"
+                        placeholder="Transaction reference"
                         className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                       />
                     </label>
@@ -1494,33 +1517,49 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                   <div className="form-two">
                     <label>
                       Category
-                      <input name="category" placeholder="e.g. Transport" required minLength={2}
+                      <input
+                        name="category"
+                        placeholder="e.g. Transport"
+                        required
+                        minLength={2}
                         className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                       />
                     </label>
                     <label>
                       Supplier / payee
-                      <input name="payee" placeholder="Business name" required minLength={2}
+                      <input
+                        name="payee"
+                        placeholder="Business name"
+                        required
+                        minLength={2}
                         className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                       />
                     </label>
                   </div>
                   <label>
                     Description (optional)
-                    <input name="description" placeholder="What was this expense for?"
+                    <input
+                      name="description"
+                      placeholder="What was this expense for?"
                       className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                     />
                   </label>
                   <div className="form-two">
                     <label>
                       Amount · UGX
-                      <input name="amount" inputMode="decimal" placeholder="50000" required
+                      <input
+                        name="amount"
+                        inputMode="decimal"
+                        placeholder="50000"
+                        required
                         className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                       />
                     </label>
                     <label>
                       Payment method
-                      <select name="method" defaultValue="Mobile Money"
+                      <select
+                        name="method"
+                        defaultValue="Mobile Money"
                         className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                       >
                         <option>Cash</option>
@@ -1534,7 +1573,12 @@ export function Dashboard({ user, data }: { user: { name: string; email: string 
                   </div>
                   <label>
                     Payment date
-                    <input name="paidAt" type="date" defaultValue={todayISO()} required suppressHydrationWarning
+                    <input
+                      name="paidAt"
+                      type="date"
+                      defaultValue={todayISO()}
+                      required
+                      suppressHydrationWarning
                       className="mt-1 block w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                     />
                   </label>
@@ -2022,13 +2066,13 @@ function RecentInvoices({
                   <td>
                     <strong className="invoice-number">{invoice.number}</strong>
                   </td>
-                  <td className="text-sm text-jt-text truncate max-w-[120px]">{invoice.customer}</td>
+                  <td className="text-sm text-jt-text truncate max-w-[120px]">
+                    {invoice.customer}
+                  </td>
                   <td>
                     <Status status={invoice.status} />
                   </td>
-                  <td>
-                    {formatDateShort(invoice.dueDate)}
-                  </td>
+                  <td>{formatDateShort(invoice.dueDate)}</td>
                   <td className="amount-col">
                     <strong>{money(invoice.total)}</strong>
                   </td>
@@ -2194,8 +2238,12 @@ function CustomerTable({
                   <strong>{customer.name}</strong>
                 </span>
               </td>
-              <td className="text-sm text-jt-text truncate max-w-[120px]">{customer.email || '—'}</td>
-              <td className="text-sm text-jt-text truncate max-w-[120px]">{customer.phone || '—'}</td>
+              <td className="text-sm text-jt-text truncate max-w-[120px]">
+                {customer.email || '—'}
+              </td>
+              <td className="text-sm text-jt-text truncate max-w-[120px]">
+                {customer.phone || '—'}
+              </td>
               <td className="text-sm text-jt-text">{formatDate(customer.createdAt)}</td>
               <td>
                 <Status status="active" />
@@ -2461,7 +2509,9 @@ function ModulePanel({
                     <td>
                       <strong className="invoice-number">{invoice.number}</strong>
                     </td>
-                    <td className="text-sm text-jt-text truncate max-w-[120px]">{invoice.customer}</td>
+                    <td className="text-sm text-jt-text truncate max-w-[120px]">
+                      {invoice.customer}
+                    </td>
                     <td>
                       <Status status={invoice.status} />
                     </td>
@@ -2511,11 +2561,15 @@ function ModulePanel({
                 {data.expenses.map((expense) => (
                   <tr key={expense.id}>
                     <td>{formatDate(expense.paidAt)}</td>
-                    <td className="text-sm text-jt-text truncate max-w-[100px]">{expense.category}</td>
+                    <td className="text-sm text-jt-text truncate max-w-[100px]">
+                      {expense.category}
+                    </td>
                     <td>
                       <strong className="invoice-number">{expense.payee}</strong>
                     </td>
-                    <td className="text-sm text-jt-text truncate max-w-[100px]">{expense.method}</td>
+                    <td className="text-sm text-jt-text truncate max-w-[100px]">
+                      {expense.method}
+                    </td>
                     <td className="amount-col">
                       <strong>{money(expense.amount)}</strong>
                     </td>
@@ -2550,7 +2604,9 @@ function ModulePanel({
                   <td>
                     <strong className="invoice-number">{titleCase(entry.action)}</strong>
                   </td>
-                  <td className="text-sm text-jt-text truncate max-w-[100px]">{titleCase(entry.entityType)}</td>
+                  <td className="text-sm text-jt-text truncate max-w-[100px]">
+                    {titleCase(entry.entityType)}
+                  </td>
                   <td className="text-sm text-jt-text truncate max-w-[100px]">{entry.entityId}</td>
                 </tr>
               ))}
@@ -3007,8 +3063,12 @@ function RefundsPanel({
                 <td className="amount-col">
                   <strong>{money(refund.amount)}</strong>
                 </td>
-                <td className="text-sm text-jt-text truncate max-w-[120px]">{refund.reason || '—'}</td>
-                <td className="text-sm text-jt-text truncate max-w-[100px]">{refund.method || '—'}</td>
+                <td className="text-sm text-jt-text truncate max-w-[120px]">
+                  {refund.reason || '—'}
+                </td>
+                <td className="text-sm text-jt-text truncate max-w-[100px]">
+                  {refund.method || '—'}
+                </td>
                 <td>
                   <Status status={refund.status} />
                 </td>

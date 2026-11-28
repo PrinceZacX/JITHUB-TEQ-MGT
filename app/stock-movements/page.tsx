@@ -84,15 +84,9 @@ export default function StockMovementsPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-jt-text">Stock Movements</h1>
-          <p className="text-jt-muted text-sm">
-            Track inventory movements across warehouses
-          </p>
+          <p className="text-jt-muted text-sm">Track inventory movements across warehouses</p>
         </div>
-        <button
-          className="button-secondary"
-          onClick={loadData}
-          disabled={loading}
-        >
+        <button className="button-secondary" onClick={loadData} disabled={loading}>
           {loading ? 'Loading…' : 'Refresh'}
         </button>
       </div>
@@ -159,10 +153,10 @@ export default function StockMovementsPage() {
                           m.movementType === 'in'
                             ? 'bg-green-100 text-green-700 border-green-200'
                             : m.movementType === 'out'
-                            ? 'bg-blue-100 text-blue-700 border-blue-200'
-                            : m.movementType === 'adjustment'
-                            ? 'bg-amber-100 text-amber-700 border-amber-200'
-                            : 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                              ? 'bg-blue-100 text-blue-700 border-blue-200'
+                              : m.movementType === 'adjustment'
+                                ? 'bg-amber-100 text-amber-700 border-amber-200'
+                                : 'bg-indigo-100 text-indigo-700 border-indigo-200'
                         }`}
                       >
                         {m.movementType}
@@ -172,9 +166,7 @@ export default function StockMovementsPage() {
                     <td className="px-4 py-3 text-sm text-jt-text truncate max-w-[100px]">
                       {m.referenceNumber || '-'}
                     </td>
-                    <td className="px-4 py-3 text-sm text-jt-muted">
-                      {m.createdAt}
-                    </td>
+                    <td className="px-4 py-3 text-sm text-jt-muted">{m.createdAt}</td>
                   </tr>
                 ))}
               </tbody>

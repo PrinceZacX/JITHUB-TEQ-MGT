@@ -18,7 +18,14 @@ import {
 } from '@/app/actions/finance';
 import Link from 'next/link';
 
-type InviteRole = 'owner' | 'administrator' | 'finance_manager' | 'accountant' | 'sales_officer' | 'cashier' | 'viewer';
+type InviteRole =
+  | 'owner'
+  | 'administrator'
+  | 'finance_manager'
+  | 'accountant'
+  | 'sales_officer'
+  | 'cashier'
+  | 'viewer';
 
 type Member = {
   id: string;
@@ -43,11 +50,7 @@ type Business = {
   createdAt: Date;
 };
 
-export default async function BusinessMembersPage({
-  params,
-}: {
-  params: Promise<{ id: string }>;
-}) {
+export default async function BusinessMembersPage({ params }: { params: Promise<{ id: string }> }) {
   const { id: businessId } = await params;
   const [business, setBusiness] = useState<Business | null>(null);
   const [members, setMembers] = useState<Member[]>([]);
@@ -233,7 +236,8 @@ export default async function BusinessMembersPage({
             <div className="p-6 border-b border-jt-border/50">
               <h2 className="text-lg font-semibold text-jt-text">{business.name}</h2>
               <p className="text-sm text-jt-muted mt-1">
-                {business.email || 'No email'} · {business.city || 'No city'}{business.country ? `, ${business.country}` : ''}
+                {business.email || 'No email'} · {business.city || 'No city'}
+                {business.country ? `, ${business.country}` : ''}
               </p>
             </div>
             <div className="p-6">
@@ -304,10 +308,7 @@ export default async function BusinessMembersPage({
               {members.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 text-center">
                   <p className="text-sm text-jt-muted mb-4">No team members yet.</p>
-                  <button
-                    className="primary-button"
-                    onClick={() => setOpenInviteForm(true)}
-                  >
+                  <button className="primary-button" onClick={() => setOpenInviteForm(true)}>
                     <Plus size={14} /> Invite First Member
                   </button>
                 </div>
@@ -372,8 +373,7 @@ export default async function BusinessMembersPage({
                           <td className="px-4 py-3">
                             <span
                               className={`px-2 py-0.5 rounded-full text-xs font-semibold border inline-block ${
-                                statusConfig[member.status]?.color ||
-                                statusConfig.pending.color
+                                statusConfig[member.status]?.color || statusConfig.pending.color
                               }`}
                             >
                               {statusConfig[member.status]?.label || member.status}
@@ -440,7 +440,9 @@ export default async function BusinessMembersPage({
                   <select
                     className="w-full border border-jt-border rounded-lg px-3 py-2.5 bg-jt-surface text-sm focus:border-jt-teal focus:ring-1 focus:ring-jt-teal"
                     value={inviteForm.role}
-                    onChange={(e) => setInviteForm({ ...inviteForm, role: e.target.value as InviteRole })}
+                    onChange={(e) =>
+                      setInviteForm({ ...inviteForm, role: e.target.value as InviteRole })
+                    }
                   >
                     {roleOptions.map((r) => (
                       <option key={r.value} value={r.value}>
@@ -454,7 +456,10 @@ export default async function BusinessMembersPage({
                 <p className="text-xs text-jt-muted mb-2">Role descriptions:</p>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-4">
                   {roleOptions.map((r) => (
-                    <div key={r.value} className="flex items-start gap-2 p-2 rounded-lg border border-jt-border/50 bg-jt-surface/50">
+                    <div
+                      key={r.value}
+                      className="flex items-start gap-2 p-2 rounded-lg border border-jt-border/50 bg-jt-surface/50"
+                    >
                       <span className="text-[10px] font-semibold text-jt-muted">{r.value}</span>
                       <span className="text-[10px] text-jt-muted">{r.label}</span>
                     </div>

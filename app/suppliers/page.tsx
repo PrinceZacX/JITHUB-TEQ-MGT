@@ -91,9 +91,7 @@ export default function SuppliersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-jt-text">Supplier Management</h1>
-          <p className="text-jt-muted text-sm">
-            Manage your suppliers and purchase terms
-          </p>
+          <p className="text-jt-muted text-sm">Manage your suppliers and purchase terms</p>
         </div>
         <button className="primary-button" onClick={() => setOpenForm(true)}>
           <Plus size={14} /> Add Supplier
@@ -109,7 +107,10 @@ export default function SuppliersPage() {
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <div>
-                  <label htmlFor="name" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="name"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Business Name <span className="text-red-500">*</span>
                   </label>
                   <input
@@ -122,7 +123,10 @@ export default function SuppliersPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="legalName" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="legalName"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Legal Name
                   </label>
                   <input
@@ -134,7 +138,10 @@ export default function SuppliersPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="email" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="email"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Email
                   </label>
                   <input
@@ -147,7 +154,10 @@ export default function SuppliersPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="phone" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="phone"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Phone
                   </label>
                   <input
@@ -159,7 +169,10 @@ export default function SuppliersPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="address" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="address"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Address
                   </label>
                   <input
@@ -171,7 +184,10 @@ export default function SuppliersPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="city" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="city"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     City
                   </label>
                   <input
@@ -183,7 +199,10 @@ export default function SuppliersPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="country" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="country"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Country
                   </label>
                   <input
@@ -195,7 +214,10 @@ export default function SuppliersPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="category" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="category"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Category
                   </label>
                   <input
@@ -207,7 +229,10 @@ export default function SuppliersPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="creditLimit" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="creditLimit"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Credit Limit
                   </label>
                   <input
@@ -220,7 +245,10 @@ export default function SuppliersPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="creditTermsDays" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="creditTermsDays"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Credit Terms (days)
                   </label>
                   <input
@@ -276,12 +304,8 @@ export default function SuppliersPage() {
                         </span>
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-jt-text truncate">
-                          {s.name}
-                        </p>
-                        <p className="text-xs text-jt-muted truncate">
-                          {s.email || '—'}
-                        </p>
+                        <p className="text-sm font-medium text-jt-text truncate">{s.name}</p>
+                        <p className="text-xs text-jt-muted truncate">{s.email || '—'}</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-2 flex-shrink-0">
@@ -335,13 +359,9 @@ export default function SuppliersPage() {
             <div className="flex items-center justify-between p-3 rounded-lg border border-jt-border bg-jt-surface/50">
               <div>
                 <p className="text-sm font-medium text-jt-text">Supplier Count</p>
-                <p className="text-xs text-jt-muted">
-                  {suppliers.length} total suppliers
-                </p>
+                <p className="text-xs text-jt-muted">{suppliers.length} total suppliers</p>
               </div>
-              <span className="text-sm font-bold text-jt-text">
-                {suppliers.length}
-              </span>
+              <span className="text-sm font-bold text-jt-text">{suppliers.length}</span>
             </div>
           </div>
         </section>

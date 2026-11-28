@@ -96,7 +96,10 @@ export default function ClientPortalDashboardPage() {
           <p className="text-jt-muted text-sm">Your service dashboard</p>
         </div>
         <div className="flex gap-3">
-          <Link href="/service-desk" className="text-sm font-medium text-jt-primary underline underline-offset-4">
+          <Link
+            href="/service-desk"
+            className="text-sm font-medium text-jt-primary underline underline-offset-4"
+          >
             Internal Portal →
           </Link>
         </div>
@@ -105,7 +108,10 @@ export default function ClientPortalDashboardPage() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface animate-pulse">
+            <div
+              key={i}
+              className="border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface animate-pulse"
+            >
               <div className="h-4 w-3/4 rounded-full bg-jt-border mb-3"></div>
               <div className="h-8 w-1/2 rounded-full bg-jt-border"></div>
             </div>
@@ -114,13 +120,18 @@ export default function ClientPortalDashboardPage() {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
           {statCards.map((stat) => (
-            <div key={stat.label} className="border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface shadow-sm hover:shadow-md transition-shadow group">
+            <div
+              key={stat.label}
+              className="border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface shadow-sm hover:shadow-md transition-shadow group"
+            >
               <div className="p-5">
                 <div className="flex items-center justify-between">
                   <p className="text-xs font-medium text-jt-muted uppercase tracking-wider">
                     {stat.label}
                   </p>
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.color} group-hover:scale-110 transition-transform`}>
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center ${stat.color} group-hover:scale-110 transition-transform`}
+                  >
                     <stat.icon size={20} />
                   </div>
                 </div>
@@ -147,7 +158,9 @@ export default function ClientPortalDashboardPage() {
                   'hover:bg-jt-surface/50 hover:border-jt-teal/30 transition-all group',
                 )}
               >
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${action.color} group-hover:scale-110 transition-transform`}>
+                <div
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center ${action.color} group-hover:scale-110 transition-transform`}
+                >
                   <action.icon size={20} />
                 </div>
                 <p className="text-sm font-medium text-jt-text group-hover:text-jt-teal-dark transition-colors">
@@ -165,8 +178,8 @@ export default function ClientPortalDashboardPage() {
           </div>
           <div className="p-4">
             <p className="text-sm text-jt-muted mb-4">
-              Contact our support team for assistance with your service requests,
-              billing questions, or technical issues.
+              Contact our support team for assistance with your service requests, billing questions,
+              or technical issues.
             </p>
             <div className="space-y-2 text-sm">
               <div className="flex items-start gap-3">
@@ -187,9 +200,7 @@ export default function ClientPortalDashboardPage() {
                 <Clock size={14} className="text-jt-muted mt-0.5" />
                 <div>
                   <p className="text-sm text-jt-text">Hours:</p>
-                  <p className="text-sm text-jt-muted">
-                    Mon-Fri, 8:00 AM - 6:00 PM EAT
-                  </p>
+                  <p className="text-sm text-jt-muted">Mon-Fri, 8:00 AM - 6:00 PM EAT</p>
                 </div>
               </div>
             </div>
@@ -213,10 +224,7 @@ export default function ClientPortalDashboardPage() {
             <div className="p-8 text-center">
               <FileTextIcon size={32} className="text-jt-muted/50 mb-3" />
               <p className="text-sm text-jt-muted mb-4">No service requests yet.</p>
-              <Link
-                href="/portal/tickets"
-                className="primary-button inline-flex"
-              >
+              <Link href="/portal/tickets" className="primary-button inline-flex">
                 <TicketPlus size={14} className="mr-2" /> Create Your First Request
               </Link>
             </div>
@@ -230,9 +238,7 @@ export default function ClientPortalDashboardPage() {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-jt-text truncate">
-                        {ticket.title}
-                      </p>
+                      <p className="text-sm font-medium text-jt-text truncate">{ticket.title}</p>
                       <p className="text-xs text-jt-muted truncate">
                         {ticket.description?.slice(0, 100) || 'No description'}
                       </p>
@@ -243,10 +249,10 @@ export default function ClientPortalDashboardPage() {
                           ['critical', 'urgent'].includes(ticket.priority)
                             ? 'bg-rose-100 text-rose-700 border-rose-200'
                             : ticket.priority === 'high'
-                            ? 'bg-amber-100 text-amber-700 border-amber-200'
-                            : ticket.priority === 'normal'
-                            ? 'bg-blue-100 text-blue-700 border-blue-200'
-                            : 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                              ? 'bg-amber-100 text-amber-700 border-amber-200'
+                              : ticket.priority === 'normal'
+                                ? 'bg-blue-100 text-blue-700 border-blue-200'
+                                : 'bg-indigo-100 text-indigo-700 border-indigo-200'
                         }`}
                       >
                         {ticket.priority}
@@ -256,14 +262,14 @@ export default function ClientPortalDashboardPage() {
                           ticket.status === 'open'
                             ? 'bg-blue-100 text-blue-700 border-blue-200'
                             : ticket.status === 'in_progress'
-                            ? 'bg-amber-100 text-amber-700 border-amber-200'
-                            : ticket.status === 'resolved'
-                            ? 'bg-green-100 text-green-700 border-green-200'
-                            : ticket.status === 'closed'
-                            ? 'bg-slate-100 text-slate-700 border-slate-200'
-                            : ticket.status === 'cancelled'
-                            ? 'bg-rose-100 text-rose-700 border-rose-200'
-                            : 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                              ? 'bg-amber-100 text-amber-700 border-amber-200'
+                              : ticket.status === 'resolved'
+                                ? 'bg-green-100 text-green-700 border-green-200'
+                                : ticket.status === 'closed'
+                                  ? 'bg-slate-100 text-slate-700 border-slate-200'
+                                  : ticket.status === 'cancelled'
+                                    ? 'bg-rose-100 text-rose-700 border-rose-200'
+                                    : 'bg-indigo-100 text-indigo-700 border-indigo-200'
                         }`}
                       >
                         {ticket.status.replace('_', ' ')}

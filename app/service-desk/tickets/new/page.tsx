@@ -2,14 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import {
-  List,
-  FileText,
-  Tag,
-  User,
-  Clock,
-  ArrowLeft,
-} from 'lucide-react';
+import { List, FileText, Tag, User, Clock, ArrowLeft } from 'lucide-react';
 import {
   createServiceTicket,
   listCustomers,
@@ -93,20 +86,12 @@ export default function NewServiceTicketPage() {
         <div className="panel data-panel text-center py-12">
           <List size={48} className="mx-auto text-jt-primary mb-4" />
           <h2 className="text-xl font-bold">Ticket Created</h2>
-          <p className="text-jt-muted mt-2">
-            Your service ticket has been created successfully.
-          </p>
+          <p className="text-jt-muted mt-2">Your service ticket has been created successfully.</p>
           <div className="mt-6 flex gap-2 justify-center">
-            <Link
-              href="/service-desk/tickets"
-              className="primary-button"
-            >
+            <Link href="/service-desk/tickets" className="primary-button">
               View All Tickets
             </Link>
-            <Link
-              href="/service-desk/tickets/new"
-              className="button-secondary"
-            >
+            <Link href="/service-desk/tickets/new" className="button-secondary">
               Create Another
             </Link>
           </div>
@@ -147,9 +132,7 @@ export default function NewServiceTicketPage() {
               <select
                 className="w-full border border-jt-border rounded-lg px-3 py-2 bg-jt-surface"
                 value={form.customerId}
-                onChange={(e) =>
-                  setForm({ ...form, customerId: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, customerId: e.target.value })}
               >
                 <option value="">Select a customer</option>
                 {customers.map((c) => (
@@ -161,15 +144,11 @@ export default function NewServiceTicketPage() {
             </div>
 
             <div>
-              <label className="block text-sm font-medium mb-1">
-                Priority
-              </label>
+              <label className="block text-sm font-medium mb-1">Priority</label>
               <select
                 className="w-full border border-jt-border rounded-lg px-3 py-2 bg-jt-surface"
                 value={form.priority}
-                onChange={(e) =>
-                  setForm({ ...form, priority: e.target.value as Priority })
-                }
+                onChange={(e) => setForm({ ...form, priority: e.target.value as Priority })}
               >
                 <option value="low">Low</option>
                 <option value="normal">Normal</option>
@@ -194,24 +173,18 @@ export default function NewServiceTicketPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">
-              Description
-            </label>
+            <label className="block text-sm font-medium mb-1">Description</label>
             <textarea
               className="w-full border border-jt-border rounded-lg px-3 py-2 bg-jt-surface"
               value={form.description}
-              onChange={(e) =>
-                setForm({ ...form, description: e.target.value })
-              }
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
               rows={4}
               placeholder="Detailed description of the issue..."
             />
           </div>
 
           <div>
-            <label className="block text-sm font-medium mb-1">
-              SLA Policy
-            </label>
+            <label className="block text-sm font-medium mb-1">SLA Policy</label>
             <select
               className="w-full border border-jt-border rounded-lg px-3 py-2 bg-jt-surface"
               value={form.slaPolicyId || ''}
@@ -232,17 +205,10 @@ export default function NewServiceTicketPage() {
           </div>
 
           <div className="pt-4 flex gap-3">
-            <button
-              type="submit"
-              className="primary-button flex-1"
-              disabled={submitting}
-            >
+            <button type="submit" className="primary-button flex-1" disabled={submitting}>
               {submitting ? 'Creating...' : 'Create Ticket'}
             </button>
-            <Link
-              href="/service-desk/tickets"
-              className="button-secondary flex-1 text-center"
-            >
+            <Link href="/service-desk/tickets" className="button-secondary flex-1 text-center">
               Cancel
             </Link>
           </div>

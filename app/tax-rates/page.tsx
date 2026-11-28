@@ -95,9 +95,7 @@ export default function TaxRatesPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-jt-text">Tax Rates</h1>
-          <p className="text-jt-muted text-sm">
-            Manage tax rates for your business
-          </p>
+          <p className="text-jt-muted text-sm">Manage tax rates for your business</p>
         </div>
         <button className="primary-button" onClick={() => setOpenForm(true)}>
           <Plus size={14} /> Add Tax Rate
@@ -118,7 +116,10 @@ export default function TaxRatesPage() {
               )}
               <div className="grid gap-4 md:grid-cols-2">
                 <div>
-                  <label htmlFor="name" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="name"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Name
                   </label>
                   <input
@@ -133,7 +134,10 @@ export default function TaxRatesPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="rate" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="rate"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Rate (%)
                   </label>
                   <input
@@ -146,7 +150,10 @@ export default function TaxRatesPage() {
                   />
                 </div>
                 <div>
-                  <label htmlFor="type" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="type"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Type
                   </label>
                   <select
@@ -163,7 +170,10 @@ export default function TaxRatesPage() {
                   </select>
                 </div>
                 <div className="md:col-span-2">
-                  <label htmlFor="description" className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5">
+                  <label
+                    htmlFor="description"
+                    className="block text-xs font-semibold text-jt-muted uppercase tracking-wider mb-1.5"
+                  >
                     Description
                   </label>
                   <textarea
@@ -254,16 +264,16 @@ export default function TaxRatesPage() {
                         {tr.status || 'active'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-sm text-jt-muted">
-                      {tr.effectiveFrom || '-'}
-                    </td>
-                    <td className="px-4 py-3 text-sm text-jt-muted">
-                      {tr.effectiveTo || '-'}
-                    </td>
+                    <td className="px-4 py-3 text-sm text-jt-muted">{tr.effectiveFrom || '-'}</td>
+                    <td className="px-4 py-3 text-sm text-jt-muted">{tr.effectiveTo || '-'}</td>
                     <td className="px-4 py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <button
-                          onClick={() => toggleTaxRate(tr.id, { status: tr.status === 'active' ? 'inactive' : 'active' })}
+                          onClick={() =>
+                            toggleTaxRate(tr.id, {
+                              status: tr.status === 'active' ? 'inactive' : 'active',
+                            })
+                          }
                           className="row-action text-jt-primary hover:bg-jt-surface/50"
                           title={tr.status === 'active' ? 'Deactivate' : 'Activate'}
                         >

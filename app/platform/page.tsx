@@ -71,7 +71,10 @@ function PlatformDashboard({
           <p className="text-jt-muted text-sm">JITHUB-TEQ Platform Owner Workspace</p>
         </div>
         <div className="flex gap-3">
-          <a href="/sign-in" className="text-sm font-medium text-jt-primary underline underline-offset-4">
+          <a
+            href="/sign-in"
+            className="text-sm font-medium text-jt-primary underline underline-offset-4"
+          >
             Sign Out
           </a>
         </div>
@@ -175,9 +178,7 @@ function PlatformDashboard({
                 <tbody className="divide-y divide-jt-border/50">
                   {data.businesses.map((b) => (
                     <tr key={b.id} className="hover:bg-jt-surface/50 transition-colors">
-                      <td className="px-4 py-3 text-sm text-jt-text truncate block">
-                        {b.name}
-                      </td>
+                      <td className="px-4 py-3 text-sm text-jt-text truncate block">{b.name}</td>
                       <td className="px-4 py-3 text-sm text-jt-text truncate max-w-[100px]">
                         {b.city || '—'}
                       </td>
