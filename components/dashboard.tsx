@@ -2578,7 +2578,7 @@ function ModulePanel({
               onCancel={() => setBusinessEdit(null)}
               busy={busy}
             />
-            <div className="members-link" style={{ marginTop: 20 }}>
+            <div className="members-link mt-4">
               <a href={`/business/members/${business?.id}`} className="button-secondary">
                 <Plus size={15} /> Manage business members
               </a>
@@ -2586,7 +2586,7 @@ function ModulePanel({
           </div>
         )}
         {section === 'Service Desk' && (
-          <div className="settings-section" style={{ marginTop: 20 }}>
+          <div className="settings-section mt-4">
             <a href="/service-desk" className="button-secondary">
               <Headset size={15} /> Open Service Desk
             </a>
@@ -2602,7 +2602,7 @@ function ModulePanel({
           </div>
         )}
         {section === 'Client Portal' && (
-          <div className="settings-section" style={{ marginTop: 20 }}>
+          <div className="settings-section mt-4">
             <a href="/portal" className="button-secondary">
               <BriefcaseBusiness size={15} /> Open Client Portal
             </a>

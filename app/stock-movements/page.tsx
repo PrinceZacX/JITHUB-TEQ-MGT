@@ -34,7 +34,6 @@ export default function StockMovementsPage() {
   }, []);
 
   const loadData = useCallback(async () => {
-    // Abort any in-flight request
     abortRef.current?.abort();
     const controller = new AbortController();
     abortRef.current = controller;
@@ -62,7 +61,6 @@ export default function StockMovementsPage() {
       setMovements(Array.isArray(data) ? data : []);
     } catch (err: any) {
       if (!mountedRef.current || controller.signal.aborted) {
-        // Component unmounted or request aborted — don't update state
         return;
       }
       if (err?.name === 'AbortError') {
@@ -82,16 +80,25 @@ export default function StockMovementsPage() {
   }, [loadData]);
 
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold">Stock Movements</h1>
-        <button className="button-secondary" onClick={loadData} disabled={loading}>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-jt-text">Stock Movements</h1>
+          <p className="text-jt-muted text-sm">
+            Track inventory movements across warehouses
+          </p>
+        </div>
+        <button
+          className="button-secondary"
+          onClick={loadData}
+          disabled={loading}
+        >
           {loading ? 'Loading…' : 'Refresh'}
         </button>
       </div>
 
       {error && (
-        <div className="mb-4 p-3 rounded border border-red-300 bg-red-50 text-red-700 flex items-center justify-between">
+        <div className="mb-4 p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 flex items-center justify-between">
           <span>{error}</span>
           <button className="button-secondary" onClick={loadData} disabled={loading}>
             Retry
@@ -100,40 +107,80 @@ export default function StockMovementsPage() {
       )}
 
       {loading && movements.length === 0 ? (
-        <div className="empty-rows">
-          <p>Loading stock movements…</p>
-        </div>
+        <section className="border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface shadow-sm">
+          <div className="p-8 flex items-center justify-center">
+            <p className="text-sm text-jt-muted">Loading stock movements…</p>
+          </div>
+        </section>
       ) : movements.length === 0 ? (
-        <div className="empty-rows">
-          <p>No stock movements recorded yet.</p>
-        </div>
+        <section className="border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface shadow-sm">
+          <div className="p-8 flex flex-col items-center justify-center text-center">
+            <p className="text-sm text-jt-muted mb-4">No stock movements recorded yet.</p>
+          </div>
+        </section>
       ) : (
-        <div className="invoice-table-wrap">
-          <table className="data-table">
-            <thead>
-              <tr>
-                <th>Item</th>
-                <th>Warehouse</th>
-                <th>Type</th>
-                <th>Quantity</th>
-                <th>Reference</th>
-                <th>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {movements.map((m: Movement) => (
-                <tr key={m.id}>
-                  <td>{m.itemId}</td>
-                  <td>{m.warehouseId}</td>
-                  <td>{m.movementType}</td>
-                  <td>{m.quantity}</td>
-                  <td>{m.referenceNumber || '-'}</td>
-                  <td>{m.createdAt}</td>
+        <section className="border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left">
+              <thead>
+                <tr className="border-b border-jt-border/50 bg-jt-surface/50 sticky top-0 z-10">
+                  <th className="px-4 py-3 text-xs font-semibold text-jt-muted uppercase tracking-wider">
+                    Item
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-jt-muted uppercase tracking-wider">
+                    Warehouse
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-jt-muted uppercase tracking-wider">
+                    Type
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-jt-muted uppercase tracking-wider">
+                    Quantity
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-jt-muted uppercase tracking-wider">
+                    Reference
+                  </th>
+                  <th className="px-4 py-3 text-xs font-semibold text-jt-muted uppercase tracking-wider">
+                    Date
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-jt-border/50">
+                {movements.map((m: Movement) => (
+                  <tr key={m.id} className="hover:bg-jt-surface/50 transition-colors">
+                    <td className="px-4 py-3 text-sm text-jt-text truncate max-w-[100px]">
+                      {m.itemId}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-jt-text truncate max-w-[100px]">
+                      {m.warehouseId}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span
+                        className={`px-2 py-0.5 rounded-full text-xs font-semibold border inline-block ${
+                          m.movementType === 'in'
+                            ? 'bg-green-100 text-green-700 border-green-200'
+                            : m.movementType === 'out'
+                            ? 'bg-blue-100 text-blue-700 border-blue-200'
+                            : m.movementType === 'adjustment'
+                            ? 'bg-amber-100 text-amber-700 border-amber-200'
+                            : 'bg-indigo-100 text-indigo-700 border-indigo-200'
+                        }`}
+                      >
+                        {m.movementType}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-sm text-jt-text">{m.quantity}</td>
+                    <td className="px-4 py-3 text-sm text-jt-text truncate max-w-[100px]">
+                      {m.referenceNumber || '-'}
+                    </td>
+                    <td className="px-4 py-3 text-sm text-jt-muted">
+                      {m.createdAt}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
       )}
     </div>
   );
