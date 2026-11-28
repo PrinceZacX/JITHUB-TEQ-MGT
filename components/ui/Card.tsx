@@ -1,19 +1,29 @@
 'use client';
 
 import * as React from 'react';
+import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-const Card = React.forwardRef<HTMLDivElement, React.HTMLAttributes<HTMLDivElement>>(
-  ({ className, ...props }, ref) => (
-    <div
+interface CardProps extends React.HTMLAttributes<HTMLDivElement> {
+  variant?: 'default' | 'elevated' | 'glass';
+  hover?: boolean;
+}
+
+const Card = React.forwardRef<HTMLDivElement, CardProps>(
+  ({ className, variant = 'default', hover = false, ...props }, ref) => (
+    <motion.div
       ref={ref}
       role="region"
       aria-label="Card"
+      whileHover={hover ? { y: -4 } : undefined}
+      whileTap={hover ? { scale: 0.98 } : undefined}
       className={cn(
-        'border border-jt-border rounded-[var(--jt-radius)] bg-jt-surface shadow-sm',
+        'border border-jt-border bg-jt-surface transition-colors',
+        variant === 'elevated' && 'shadow-md',
+        variant === 'glass' && 'bg-white/80 backdrop-blur-md border-white/50',
         className,
       )}
-      {...props}
+      {...(props as any)}
     />
   ),
 );
@@ -30,7 +40,7 @@ const CardTitle = React.forwardRef<HTMLHeadingElement, React.HTMLAttributes<HTML
   ({ className, ...props }, ref) => (
     <h3
       ref={ref}
-      className={cn('text-2xl font-semibold tracking-none text-jt-text', className)}
+      className={cn('text-xl font-semibold tracking-none text-jt-text text-balance', className)}
       {...props}
     />
   ),
@@ -41,7 +51,7 @@ const CardDescription = React.forwardRef<
   HTMLParagraphElement,
   React.HTMLAttributes<HTMLParagraphElement>
 >(({ className, ...props }, ref) => (
-  <p ref={ref} className={cn('text-sm text-jt-muted', className)} {...props} />
+  <p ref={ref} className={cn('text-sm text-jt-muted leading-relaxed', className)} {...props} />
 ));
 CardDescription.displayName = 'CardDescription';
 
